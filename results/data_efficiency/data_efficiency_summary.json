@@ -1,0 +1,152 @@
+[
+  {
+    "budget": 25,
+    "rep": 0,
+    "sla_breach_rate_mean": 0.01171307957424041,
+    "mean_cost_mean": 2.665219297147612
+  },
+  {
+    "budget": 25,
+    "rep": 1,
+    "sla_breach_rate_mean": 0.012148933259045773,
+    "mean_cost_mean": 2.053982735250787
+  },
+  {
+    "budget": 25,
+    "rep": 2,
+    "sla_breach_rate_mean": 0.017710606726192627,
+    "mean_cost_mean": 4.317701115102732
+  },
+  {
+    "budget": 25,
+    "rep": 3,
+    "sla_breach_rate_mean": 0.012687723178267036,
+    "mean_cost_mean": 2.85789166616512
+  },
+  {
+    "budget": 25,
+    "rep": 4,
+    "sla_breach_rate_mean": 0.017631413993454068,
+    "mean_cost_mean": 3.3435188912273315
+  },
+  {
+    "budget": 50,
+    "rep": 0,
+    "sla_breach_rate_mean": 0.013781696211990501,
+    "mean_cost_mean": 3.3770521797750597
+  },
+  {
+    "budget": 50,
+    "rep": 1,
+    "sla_breach_rate_mean": 0.013203930390615197,
+    "mean_cost_mean": 2.87108543210704
+  },
+  {
+    "budget": 50,
+    "rep": 2,
+    "sla_breach_rate_mean": 0.012358049301453282,
+    "mean_cost_mean": 2.7050689904051763
+  },
+  {
+    "budget": 50,
+    "rep": 3,
+    "sla_breach_rate_mean": 0.011638136409224793,
+    "mean_cost_mean": 2.4136045721056347
+  },
+  {
+    "budget": 50,
+    "rep": 4,
+    "sla_breach_rate_mean": 0.016562203546984563,
+    "mean_cost_mean": 4.017695176118533
+  },
+  {
+    "budget": 100,
+    "rep": 0,
+    "sla_breach_rate_mean": 0.011762253533253851,
+    "mean_cost_mean": 2.5921689102597223
+  },
+  {
+    "budget": 100,
+    "rep": 1,
+    "sla_breach_rate_mean": 0.011716838292160563,
+    "mean_cost_mean": 2.5287353358573155
+  },
+  {
+    "budget": 100,
+    "rep": 2,
+    "sla_breach_rate_mean": 0.014758219605656991,
+    "mean_cost_mean": 3.3864352151632637
+  },
+  {
+    "budget": 100,
+    "rep": 3,
+    "sla_breach_rate_mean": 0.010420347650457023,
+    "mean_cost_mean": 2.1136015814872997
+  },
+  {
+    "budget": 100,
+    "rep": 4,
+    "sla_breach_rate_mean": 0.01132570080352274,
+    "mean_cost_mean": 2.3814644300745558
+  },
+  {
+    "budget": 150,
+    "rep": 0,
+    "sla_breach_rate_mean": 0.014271284240044334,
+    "mean_cost_mean": 3.136936936765677
+  },
+  {
+    "budget": 150,
+    "rep": 1,
+    "sla_breach_rate_mean": 0.012366126006616978,
+    "mean_cost_mean": 2.616501410489947
+  },
+  {
+    "budget": 150,
+    "rep": 2,
+    "sla_breach_rate_mean": 0.014519078197845113,
+    "mean_cost_mean": 3.1016177705683874
+  },
+  {
+    "budget": 150,
+    "rep": 3,
+    "sla_breach_rate_mean": 0.011645767592101761,
+    "mean_cost_mean": 2.6267519468589233
+  },
+  {
+    "budget": 150,
+    "rep": 4,
+    "sla_breach_rate_mean": 0.01104638992533595,
+    "mean_cost_mean": 2.48762549165575
+  },
+  {
+    "budget": 250,
+    "rep": 0,
+    "sla_breach_rate_mean": 0.01226367692063545,
+    "mean_cost_mean": 2.787921193380074
+  },
+  {
+    "budget": 250,
+    "rep": 1,
+    "sla_breach_rate_mean": 0.01226367692063545,
+    "mean_cost_mean": 2.787921193380074
+  },
+  {
+    "budget": 250,
+    "rep": 2,
+    "sla_breach_rate_mean": 0.01226367692063545,
+    "mean_cost_mean": 2.787921193380074
+  },
+  {
+    "budget": 250,
+    "rep": 3,
+    "sla_breach_rate_mean": 0.01226367692063545,
+    "mean_cost_mean": 2.787921193380074
+  },
+  {
+    "budget": 250,
+    "rep": 4,
+    "sla_breach_rate_mean": 0.01226367692063545,
+    "mean_cost_mean": 2.787921193380074
+  }
+]

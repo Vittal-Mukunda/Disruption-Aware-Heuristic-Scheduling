@@ -1,0 +1,91 @@
+{
+  "run_id": "data_efficiency/ours_n250_rep3",
+  "seed": 1337,
+  "smoke": false,
+  "n_train_rows": 8000,
+  "n_test_rows": 865,
+  "n_train_shifts_inner": 200,
+  "n_cal_shifts_inner": 50,
+  "regime": {
+    "k_star": 6,
+    "mean_ari": 0.9984149349601178,
+    "stable": true
+  },
+  "ranker": {
+    "best_params": {
+      "max_depth": 4,
+      "n_estimators": 500,
+      "learning_rate": 0.03
+    },
+    "best_mean_cv_soft_xent": 0.6762262583746866,
+    "per_fold_cv_soft_xent": [
+      0.6536187851463976,
+      0.70043170362155,
+      0.6903362275651982,
+      0.6523072181338861,
+      0.6844373574064013
+    ],
+    "grid_size": 18,
+    "feature_cols": [
+      "f_queue_length",
+      "f_mean_queue_age",
+      "f_max_queue_age",
+      "f_pct_critical",
+      "f_pct_perishable",
+      "f_labor_utilization",
+      "f_n_pickers_busy",
+      "f_mean_pickup_time_recent",
+      "f_n_orders_breached_so_far",
+      "f_n_orders_at_risk_30min",
+      "f_mean_slack_minutes",
+      "f_arrival_rate_recent_60min",
+      "f_time_to_next_expected_carrier",
+      "f_queue_length_lag_1",
+      "f_queue_length_lag_2",
+      "f_queue_length_lag_3",
+      "f_breach_rate_lag_1",
+      "f_breach_rate_lag_2",
+      "f_breach_rate_lag_3",
+      "f_interval_index_in_shift",
+      "f_intervals_remaining",
+      "f_pct_high_priority",
+      "f_mean_processing_time_remaining",
+      "f_std_slack_minutes",
+      "f_n_arrivals_this_interval",
+      "regime_post_0",
+      "regime_post_1",
+      "regime_post_2",
+      "regime_post_3",
+      "regime_post_4",
+      "regime_post_5"
+    ]
+  },
+  "test_calibration": {
+    "ece_pre": 0.06305500820192987,
+    "ece_post": 0.028135912234348547,
+    "brier_pre": 0.13044331967830658,
+    "brier_post": 0.10733929458876922,
+    "soft_xent_pre": 0.29770400577474826,
+    "soft_xent_post": 0.38732712811081693,
+    "n_rows": 865
+  },
+  "cv_calibration": null,
+  "argmax_distribution_test_pre": {
+    "FIFO": 0,
+    "FEFO": 404,
+    "WSPT": 453,
+    "ATC": 8
+  },
+  "argmax_distribution_test_post": {
+    "FIFO": 1,
+    "FEFO": 420,
+    "WSPT": 440,
+    "ATC": 4
+  },
+  "argmax_distribution_test_truth": {
+    "FIFO": 0,
+    "FEFO": 403,
+    "WSPT": 456,
+    "ATC": 6
+  }
+}

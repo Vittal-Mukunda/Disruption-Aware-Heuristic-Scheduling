@@ -1,0 +1,21 @@
+{
+  "k_star": 6,
+  "bic": -287888.79653322895,
+  "mean_ari": 0.9984149349601178,
+  "stable": true,
+  "ari_threshold": 0.85,
+  "bic_per_k": {
+    "3": -242799.42513592186,
+    "4": -252737.8454344333,
+    "5": -256475.07786124124,
+    "6": -287883.1760358962
+  },
+  "extra_feature_cols": [
+    "regime_post_0",
+    "regime_post_1",
+    "regime_post_2",
+    "regime_post_3",
+    "regime_post_4",
+    "regime_post_5"
+  ]
+}

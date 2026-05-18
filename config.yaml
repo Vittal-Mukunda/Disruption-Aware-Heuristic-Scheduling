@@ -1,0 +1,173 @@
+# DAHS — Single source of truth for simulation & model parameters.
+# Loaded by Hydra at experiment entry points. Sub-configs override fields as needed.
+# Reference: master plan v3, Part IV (PHASE 0-8).
+
+# ---------------------------------------------------------------------------
+# Run identity
+# ---------------------------------------------------------------------------
+run_id: dev                       # overridden on CLI; runs/<run_id>/ holds artifacts
+
+# ---------------------------------------------------------------------------
+# Random seeds (mirror seed.py registry; loaded centrally)
+# ---------------------------------------------------------------------------
+seeds:
+  sim: 42                         # SimPy / order arrivals / processing times
+  model: 1337                     # XGBoost, GMM, Platt scaling
+  ppo: 2024                       # stable-baselines3 PPO
+
+# ---------------------------------------------------------------------------
+# Warehouse simulation (Phase 1)
+# ---------------------------------------------------------------------------
+sim:
+  shift_hours: 8
+  interval_minutes: 15            # -> 32 decision intervals per shift
+  n_pickers: 10
+  queue_capacity: 200
+
+  arrivals:
+    arrival_mode: poisson         # 'poisson' (exponential gaps) or 'olist' (empirical Olist burstiness, CV 2.68) -- see experiments/a2_olist_arrivals.py
+    base_rate_per_minute: 1.65    # Poisson base rate; raised in Phase 2 to stress the system (see HANDOFF §2.C)
+    batch_prob: 0.15              # P(batch arrival) per interval -- Boysen et al. 2019 waves
+    batch_size_triangular: [3, 8, 20]   # min, mode, max items per batch arrival
+
+  order_attrs:
+    processing_time_triangular: [2.0, 5.0, 12.0]      # minutes
+    sla_due_triangular:         [15.0, 45.0, 90.0]    # minutes from arrival (tightened in Phase 2 — see HANDOFF §2.C)
+    perishable_prob: 0.2                              # Bernoulli, 0.0-0.4 across scenarios
+    priority_classes: [low, medium, high]
+    priority_weights: [0.5, 0.35, 0.15]
+
+# ---------------------------------------------------------------------------
+# Heuristics (Phase 1)
+# ---------------------------------------------------------------------------
+heuristics:
+  pool: [FIFO, FEFO, WSPT, ATC]                       # CR dropped in Phase 2 — structurally dominated (see HANDOFF §2.C and gotcha #16)
+  atc_lookahead_k: 2.0                                # ATC scaling parameter
+  fefo_mask_threshold: 0.05                            # mask FEFO when pct_perishable < this
+
+# ---------------------------------------------------------------------------
+# State extractor (Phase 1) — 25 features
+# ---------------------------------------------------------------------------
+state:
+  feature_set: v1                  # version tag for the 25-feature canonical set
+  lag_intervals: [1, 2, 3]
+  recent_window_minutes: 60
+
+# ---------------------------------------------------------------------------
+# Pilot study (Phase 2) — critical gate
+# ---------------------------------------------------------------------------
+pilot:
+  n_shifts: 50
+  seeds: [42, 43, 44, 45, 46]
+  acceptance:
+    min_win_rate: 0.08
+    max_top_win_rate: 0.60
+
+# ---------------------------------------------------------------------------
+# Rollout labeling & data generation (Phase 3)
+# ---------------------------------------------------------------------------
+labeling:
+  n_train_shifts: 250
+  n_test_shifts: 50
+  seed_seq_root: 42
+  tau: 4                          # rollout horizon (intervals); sensitivity in {1,2,3,4}
+  observed_policy: round_robin    # mixed-policy state coverage during data gen
+  beta_grid: [0.1, 0.5, 1.0, 2.0] # multipliers of sigma_J for temperature search
+  target_median_entropy: [0.3, 0.7]
+  ambiguity_filter:
+    theta_confidence: 0.55
+
+# ---------------------------------------------------------------------------
+# Regime discovery (Phase 4)
+# ---------------------------------------------------------------------------
+regime:
+  k_grid: [3, 4, 5, 6]
+  ari_threshold: 0.85
+  n_ari_refits: 10
+
+# ---------------------------------------------------------------------------
+# Heuristic ranker (Phase 4)
+# ---------------------------------------------------------------------------
+ranker:
+  objective: multi:softprob
+  num_class: 4                                       # CR dropped in Phase 2 (see HANDOFF §2.D and gotcha #16); was 5
+  sample_weight: inverse_label_entropy
+  cv:
+    n_splits: 5
+    group_col: shift_id
+  hyperparams:
+    max_depth: [4, 6, 8]
+    n_estimators: [200, 500, 1000]
+    learning_rate: [0.03, 0.1]
+  calibration:
+    method: isotonic
+    calibration_split: 0.20
+  switching:
+    t_min_intervals: 2
+    entropy_gate_ratio: 0.5
+
+# ---------------------------------------------------------------------------
+# Baselines (Phase 5)
+# ---------------------------------------------------------------------------
+baselines:
+  ppo_fair:
+    total_timesteps: 8000         # = 250 shifts * 32 steps (matched budget)
+  ppo_full:
+    total_timesteps: 500000       # Appendix B
+  linucb:
+    alpha: 1.0
+    feature_dim: 25
+  offline_ld:
+    enabled: false                # turn on only if first-pass results are weak
+  offline_fqi:                    # offline value-learning baseline — fitted Q-iteration + FEFO action masking (experiments/e9_offline_fqi.py)
+    gamma: 0.99                   # deployed discount (selected by the e9 HP search on held-out validation shifts)
+    n_iterations: 20              # fitted-Q-iteration sweeps
+    xgb:                          # deployed Q-approximator HPs (selected by the e9 HP search)
+      max_depth: 4
+      n_estimators: 200
+      learning_rate: 0.05
+    hp_grid:                      # e9 HP search space; winner selected on held-out validation shifts
+      gamma:         [0.90, 0.95, 0.99]
+      max_depth:     [4, 6]
+      n_estimators:  [200, 500]
+      learning_rate: [0.05]
+
+# ---------------------------------------------------------------------------
+# Experiments (Phase 6)
+# ---------------------------------------------------------------------------
+experiments:
+  scenarios:
+    low_load:        { arrivals: { base_rate_per_minute: 1.0 }, order_attrs: { perishable_prob: 0.0 } }
+    balanced:        { arrivals: { base_rate_per_minute: 1.5 }, order_attrs: { perishable_prob: 0.2 } }
+    high_load_perish: { arrivals: { base_rate_per_minute: 2.2 }, order_attrs: { perishable_prob: 0.4 } }
+
+  e2:
+    n_replications: 50
+    data_efficiency_budgets: [25, 50, 100, 150, 250]
+    data_efficiency_reps: 5            # scoped 20->5 (Phase 7 roadmap): 20 x 5 budgets x ~42min ~= 70h
+
+  e3_ablations:
+    - no_regime
+    - no_calibration
+    - no_switching_controller
+    - tau1_snapshot_only
+    - hard_labels
+    - random_ambiguity_filter
+
+  e4_sensitivity:
+    tau:           [1, 2, 3, 4]
+    t_min:         [0, 1, 2, 3, 4]
+    theta:         [0.40, 0.50, 0.55, 0.60, 0.70]
+    arrival_noise: [0.5, 1.0, 1.5, 2.0]
+
+  stats:
+    bootstrap_resamples: 10000
+    fdr_q: 0.05
+    test: wilcoxon
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging:
+  level: INFO
+  rotation_mb: 50

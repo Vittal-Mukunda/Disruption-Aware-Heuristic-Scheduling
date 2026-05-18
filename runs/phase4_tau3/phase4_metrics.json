@@ -1,0 +1,150 @@
+{
+  "run_id": "phase4_tau3",
+  "seed": 1337,
+  "smoke": false,
+  "n_train_rows": 8000,
+  "n_test_rows": 835,
+  "n_train_shifts_inner": 200,
+  "n_cal_shifts_inner": 50,
+  "regime": {
+    "k_star": 6,
+    "mean_ari": 0.9984149349601178,
+    "stable": true
+  },
+  "ranker": {
+    "best_params": {
+      "max_depth": 4,
+      "n_estimators": 500,
+      "learning_rate": 0.03
+    },
+    "best_mean_cv_soft_xent": 0.7086273094624682,
+    "per_fold_cv_soft_xent": [
+      0.6744633105959288,
+      0.741390653692145,
+      0.7193133205975317,
+      0.6823251920116837,
+      0.7256440704150521
+    ],
+    "grid_size": 18,
+    "feature_cols": [
+      "f_queue_length",
+      "f_mean_queue_age",
+      "f_max_queue_age",
+      "f_pct_critical",
+      "f_pct_perishable",
+      "f_labor_utilization",
+      "f_n_pickers_busy",
+      "f_mean_pickup_time_recent",
+      "f_n_orders_breached_so_far",
+      "f_n_orders_at_risk_30min",
+      "f_mean_slack_minutes",
+      "f_arrival_rate_recent_60min",
+      "f_time_to_next_expected_carrier",
+      "f_queue_length_lag_1",
+      "f_queue_length_lag_2",
+      "f_queue_length_lag_3",
+      "f_breach_rate_lag_1",
+      "f_breach_rate_lag_2",
+      "f_breach_rate_lag_3",
+      "f_interval_index_in_shift",
+      "f_intervals_remaining",
+      "f_pct_high_priority",
+      "f_mean_processing_time_remaining",
+      "f_std_slack_minutes",
+      "f_n_arrivals_this_interval",
+      "regime_post_0",
+      "regime_post_1",
+      "regime_post_2",
+      "regime_post_3",
+      "regime_post_4",
+      "regime_post_5"
+    ]
+  },
+  "test_calibration": {
+    "ece_pre": 0.05346474569000885,
+    "ece_post": 0.028545125642754292,
+    "brier_pre": 0.14424915611743927,
+    "brier_post": 0.12373324274719201,
+    "soft_xent_pre": 0.31151318638654774,
+    "soft_xent_post": 0.46431844261884725,
+    "n_rows": 835
+  },
+  "cv_calibration": {
+    "per_fold": [
+      {
+        "fold": 0,
+        "n_val": 1600,
+        "ece_pre": 0.04114782869815827,
+        "ece_post": 0.032297091970190914,
+        "brier_pre": 0.35952842235565186,
+        "brier_post": 0.27558961989060593,
+        "soft_xent_pre": 0.6797609417832396,
+        "soft_xent_post": 1.2329524626008972
+      },
+      {
+        "fold": 1,
+        "n_val": 1600,
+        "ece_pre": 0.0576217128522694,
+        "ece_post": 0.030777185230631412,
+        "brier_pre": 0.38768866658210754,
+        "brier_post": 0.29262605139518433,
+        "soft_xent_pre": 0.7439258230139489,
+        "soft_xent_post": 1.29944866337695
+      },
+      {
+        "fold": 2,
+        "n_val": 1600,
+        "ece_pre": 0.05809968654066327,
+        "ece_post": 0.03670252959201746,
+        "brier_pre": 0.37372025847435,
+        "brier_post": 0.2832973983905373,
+        "soft_xent_pre": 0.7223959661291223,
+        "soft_xent_post": 1.0508815794858144
+      },
+      {
+        "fold": 3,
+        "n_val": 1600,
+        "ece_pre": 0.06264305286109446,
+        "ece_post": 0.02792930365808937,
+        "brier_pre": 0.35705801844596863,
+        "brier_post": 0.27463874214658746,
+        "soft_xent_pre": 0.6867714948276609,
+        "soft_xent_post": 0.9686450973029603
+      },
+      {
+        "fold": 4,
+        "n_val": 1600,
+        "ece_pre": 0.06815228696912527,
+        "ece_post": 0.03788736867799228,
+        "brier_pre": 0.3865172863006592,
+        "brier_post": 0.2741420024726981,
+        "soft_xent_pre": 0.7298515206762466,
+        "soft_xent_post": 1.0694450320989022
+      }
+    ],
+    "mean_ece_pre": 0.05753291358426214,
+    "mean_ece_post": 0.03311869582578429,
+    "mean_brier_pre": 0.3729025304317474,
+    "mean_brier_post": 0.2800587628591226,
+    "mean_soft_xent_post": 1.124274566973105,
+    "K": 4
+  },
+  "argmax_distribution_test_pre": {
+    "FIFO": 0,
+    "FEFO": 349,
+    "WSPT": 479,
+    "ATC": 7
+  },
+  "argmax_distribution_test_post": {
+    "FIFO": 0,
+    "FEFO": 356,
+    "WSPT": 475,
+    "ATC": 4
+  },
+  "argmax_distribution_test_truth": {
+    "FIFO": 0,
+    "FEFO": 345,
+    "WSPT": 484,
+    "ATC": 6
+  }
+}

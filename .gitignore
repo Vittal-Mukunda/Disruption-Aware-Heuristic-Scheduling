@@ -1,0 +1,78 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+pip-log.txt
+
+# --- Virtualenvs / env managers ---
+.venv/
+venv/
+env/
+ENV/
+.python-version
+.envrc
+.env
+.env.*
+
+# --- Testing / coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Hydra outputs ---
+outputs/
+multirun/
+
+# --- Node / frontend dependencies (regenerate with: npm install) ---
+node_modules/
+demo/_harness/dist/
+demo/_harness/.vite/
+
+# --- Third-party dataset (download separately -- see README setup section) ---
+Olist Dataset/
+Manuscript (4).pdf
+
+# --- Internal continuity / agent scaffolding (not part of the deliverable) ---
+HANDOFF.md
+.claude/
+demo/_archive/
+demo/_harnesssrc/
+
+# --- Smoke-test / dev runs and logs (not deliverable model artifacts) ---
+runs/dev/
+runs/phase3/
+runs/phase3-smoke/
+runs/phase3_tau1/
+runs/phase4_smoke/
+runs/*.log
+runs/*_log.txt
+
+# --- Profiler / temp ---
+*.prof
+*.tmp

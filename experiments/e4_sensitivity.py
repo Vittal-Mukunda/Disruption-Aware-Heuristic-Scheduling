@@ -1,0 +1,276 @@
+"""Phase 6 / E4 — one-at-a-time sensitivity sweeps.
+
+Four knobs per HANDOFF §3.2:
+
+  - t_min:         dwell length in {0, 1, 2, 3, 4}. **Eval-only**, swaps the
+                   switching controller hyperparameter.
+  - arrival_noise: arrival-rate multiplier in {0.5, 1.0, 1.5, 2.0}. **Eval-only**;
+                   scales `cfg.sim.arrivals.base_rate_per_minute`.
+  - tau:           rollout horizon in {1, 2, 3, 4}. τ=1 lives at `runs/phase4_tau1/`
+                   and τ=4 at `runs/phase4/`; τ=2 and τ=3 need **re-labeling +
+                   retraining** (~hours each). Wired as a CLI; runs on request.
+  - theta:         ambiguity-filter threshold in {0.40, 0.50, 0.55, 0.60, 0.70}.
+                   Needs **re-labeling** (Phase 3) + retraining. Wired only.
+
+Each eval-only sweep writes per-value parquets under
+`results/E4/<knob>/<value>.parquet`, plus a roll-up `results/E4/<knob>_summary.parquet`
+with mean and bootstrap CI per value.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import matplotlib
+import numpy as np
+import pandas as pd
+from omegaconf import DictConfig, OmegaConf
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from experiments.evaluate import (  # noqa: E402
+    canonical_test_seeds,
+    evaluate_policy,
+)
+from experiments.stats import bootstrap_mean_ci  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = REPO_ROOT / "config.yaml"
+DEFAULT_RUN_DIR = REPO_ROOT / "runs" / "phase4"
+RESULTS_DIR = REPO_ROOT / "results" / "E4"
+FIG_DIR = REPO_ROOT / "figures" / "E4"
+
+
+def _load_ours_with_overrides(
+    run_dir: Path,
+    cfg: DictConfig,
+    t_min: int | None = None,
+    entropy_gate_ratio: float | None = None,
+):
+    new_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    if t_min is not None:
+        new_cfg.ranker.switching.t_min_intervals = int(t_min)
+    if entropy_gate_ratio is not None:
+        new_cfg.ranker.switching.entropy_gate_ratio = float(entropy_gate_ratio)
+    from baselines.ours import load_ours
+    return load_ours(run_dir, cfg=new_cfg)
+
+
+def _apply_arrival_noise(cfg: DictConfig, multiplier: float) -> DictConfig:
+    new_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    base = float(cfg.sim.arrivals.base_rate_per_minute)
+    new_cfg.sim.arrivals.base_rate_per_minute = base * float(multiplier)
+    return new_cfg
+
+
+def _bootstrap_summary(df: pd.DataFrame, metric: str, value, label: str) -> dict:
+    ci = bootstrap_mean_ci(
+        df[metric].to_numpy(dtype=np.float64), n_resamples=10000, seed=1337,
+    )
+    return {
+        "knob": label,
+        "value": value,
+        "metric": metric,
+        **ci.as_row(),
+    }
+
+
+def _plot_curve(df_summary: pd.DataFrame, knob: str, metric: str) -> None:
+    sub = df_summary[df_summary["metric"] == metric].sort_values("value")
+    if sub.empty:
+        return
+    fig, ax = plt.subplots(figsize=(5.5, 3.5))
+    ax.errorbar(
+        sub["value"], sub["point"],
+        yerr=[sub["point"] - sub["ci_lo"], sub["ci_hi"] - sub["point"]],
+        fmt="o-", color="firebrick", lw=2, capsize=4,
+    )
+    ax.set_xlabel(knob)
+    ax.set_ylabel(metric)
+    ax.set_title(f"E4 — {metric} vs {knob}")
+    ax.grid(True, alpha=0.3)
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / f"{knob}_{metric}.png", dpi=150)
+    fig.savefig(FIG_DIR / f"{knob}_{metric}.pdf")
+    plt.close(fig)
+
+
+def cmd_t_min(args: argparse.Namespace) -> int:
+    cfg = OmegaConf.load(CONFIG_PATH)
+    values = args.values if args.values else list(cfg.experiments.e4_sensitivity.t_min)
+    seeds = canonical_test_seeds(cfg)
+    if args.n_test is not None:
+        seeds = seeds[: int(args.n_test)]
+    out_dir = RESULTS_DIR / "t_min"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    summary_rows: list[dict] = []
+    for v in values:
+        policy = _load_ours_with_overrides(
+            args.run_dir or DEFAULT_RUN_DIR, cfg, t_min=int(v)
+        )
+        print(f"[E4 t_min] T_min={v}  on {len(seeds)} shifts")
+        df = evaluate_policy(
+            f"t_min_{v}", policy, seeds, cfg,
+            results_dir=out_dir, save=True, verbose=False,
+        )
+        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost",
+                       "throughput", "picker_utilization"):
+            summary_rows.append(_bootstrap_summary(df, metric, int(v), "t_min"))
+        sla = df["sla_breach_rate"].mean()
+        cost = df["mean_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+
+    summary = pd.DataFrame(summary_rows)
+    summary.to_parquet(RESULTS_DIR / "t_min_summary.parquet", index=False)
+    for metric in ("sla_breach_rate", "mean_cost"):
+        _plot_curve(summary, "t_min", metric)
+    print(f"\n[E4 t_min] summary -> "
+          f"{(RESULTS_DIR / 't_min_summary.parquet').relative_to(REPO_ROOT)}")
+    return 0
+
+
+def cmd_arrival_noise(args: argparse.Namespace) -> int:
+    base_cfg = OmegaConf.load(CONFIG_PATH)
+    values = (args.values if args.values
+              else list(base_cfg.experiments.e4_sensitivity.arrival_noise))
+    seeds = canonical_test_seeds(base_cfg)
+    if args.n_test is not None:
+        seeds = seeds[: int(args.n_test)]
+    out_dir = RESULTS_DIR / "arrival_noise"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    summary_rows: list[dict] = []
+    for mult in values:
+        cfg = _apply_arrival_noise(base_cfg, float(mult))
+        from baselines.ours import load_ours
+        policy = load_ours(args.run_dir or DEFAULT_RUN_DIR, cfg=cfg)
+        print(f"[E4 arrival_noise] x={mult}  "
+              f"(rate={cfg.sim.arrivals.base_rate_per_minute:.3f})")
+        df = evaluate_policy(
+            f"arrival_x{mult}", policy, seeds, cfg,
+            results_dir=out_dir, save=True, verbose=False,
+        )
+        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost",
+                       "throughput", "picker_utilization"):
+            summary_rows.append(_bootstrap_summary(df, metric, float(mult),
+                                                   "arrival_noise"))
+        sla = df["sla_breach_rate"].mean()
+        cost = df["mean_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+
+    summary = pd.DataFrame(summary_rows)
+    summary.to_parquet(RESULTS_DIR / "arrival_noise_summary.parquet", index=False)
+    for metric in ("sla_breach_rate", "mean_cost"):
+        _plot_curve(summary, "arrival_noise", metric)
+    print(f"\n[E4 arrival_noise] summary -> "
+          f"{(RESULTS_DIR / 'arrival_noise_summary.parquet').relative_to(REPO_ROOT)}")
+    return 0
+
+
+def cmd_tau(args: argparse.Namespace) -> int:
+    """τ ∈ {1,2,3,4}. τ=1 and τ=4 already trained; τ=2/τ=3 need re-labeling + retrain.
+
+    With `--dry-run`, just reports which runs exist and which need work.
+    """
+    cfg = OmegaConf.load(CONFIG_PATH)
+    values = args.values if args.values else list(cfg.experiments.e4_sensitivity.tau)
+    seeds = canonical_test_seeds(cfg)
+    if args.n_test is not None:
+        seeds = seeds[: int(args.n_test)]
+    out_dir = RESULTS_DIR / "tau"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    pre_built = {
+        1: REPO_ROOT / "runs" / "phase4_tau1",
+        2: REPO_ROOT / "runs" / "phase4_tau2",
+        3: REPO_ROOT / "runs" / "phase4_tau3",
+        4: REPO_ROOT / "runs" / "phase4",
+    }
+    summary_rows: list[dict] = []
+    for tau in values:
+        run_dir = pre_built.get(int(tau))
+        if run_dir is None or not run_dir.exists():
+            print(f"[E4 tau] tau={tau}: no pretrained ranker at "
+                  f"{REPO_ROOT / 'runs' / f'phase4_tau{tau}'} — needs re-label + retrain.")
+            print("  Skipping (use experiments.generate_labels --tau <v> then "
+                  "experiments.train_ranker --run-id phase4_tau<v>).")
+            continue
+        from baselines.ours import load_ours
+        policy = load_ours(run_dir, cfg=cfg)
+        print(f"[E4 tau] tau={tau}  run_dir={run_dir.relative_to(REPO_ROOT)}")
+        df = evaluate_policy(
+            f"tau_{tau}", policy, seeds, cfg,
+            results_dir=out_dir, save=True, verbose=False,
+        )
+        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost"):
+            summary_rows.append(_bootstrap_summary(df, metric, int(tau), "tau"))
+        sla = df["sla_breach_rate"].mean()
+        cost = df["mean_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+
+    if summary_rows:
+        summary = pd.DataFrame(summary_rows)
+        summary.to_parquet(RESULTS_DIR / "tau_summary.parquet", index=False)
+        for metric in ("sla_breach_rate", "mean_cost"):
+            _plot_curve(summary, "tau", metric)
+        print(f"\n[E4 tau] summary -> "
+              f"{(RESULTS_DIR / 'tau_summary.parquet').relative_to(REPO_ROOT)}")
+    return 0
+
+
+def cmd_theta(args: argparse.Namespace) -> int:
+    """θ sweep — re-labeling required. Wired only; prints the plan."""
+    cfg = OmegaConf.load(CONFIG_PATH)
+    values = args.values if args.values else list(cfg.experiments.e4_sensitivity.theta)
+    print(f"[E4 theta] values={values}  (re-labeling pipeline)")
+    print("  For each θ:")
+    print("    1) python -m experiments.generate_labels "
+          "--theta <v> --train-out data/e4_theta_<v>/train.parquet "
+          "--test-out data/e4_theta_<v>/test.parquet")
+    print("    2) python -m experiments.train_ranker "
+          "--run-id e4_theta_<v> "
+          "--train-path data/e4_theta_<v>/train.parquet "
+          "--test-path data/e4_theta_<v>/test.parquet")
+    print("    3) python -m experiments.evaluate --method ours "
+          "--run-dir runs/e4_theta_<v> "
+          "--results-dir results/E4/theta/theta_<v>")
+    print("  This is multi-hour compute; run from a screen/nohup session.")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="knob", required=True)
+
+    p_t = sub.add_parser("t_min", help="Dwell length sweep.")
+    p_t.add_argument("--values", type=int, nargs="*", default=None)
+    p_t.add_argument("--run-dir", type=Path, default=None)
+    p_t.add_argument("--n-test", type=int, default=None)
+    p_t.set_defaults(func=cmd_t_min)
+
+    p_a = sub.add_parser("arrival_noise", help="Arrival-rate multiplier sweep.")
+    p_a.add_argument("--values", type=float, nargs="*", default=None)
+    p_a.add_argument("--run-dir", type=Path, default=None)
+    p_a.add_argument("--n-test", type=int, default=None)
+    p_a.set_defaults(func=cmd_arrival_noise)
+
+    p_tau = sub.add_parser("tau", help="Rollout horizon sweep.")
+    p_tau.add_argument("--values", type=int, nargs="*", default=None)
+    p_tau.add_argument("--n-test", type=int, default=None)
+    p_tau.set_defaults(func=cmd_tau)
+
+    p_th = sub.add_parser("theta", help="Confidence-filter threshold sweep.")
+    p_th.add_argument("--values", type=float, nargs="*", default=None)
+    p_th.set_defaults(func=cmd_theta)
+
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,5 @@
+# Vite test-harness dependencies (regenerate with: npm install in _harness/)
+_harness/node_modules/
+_harness/dist/
+_harness/.vite/
+__pycache__/

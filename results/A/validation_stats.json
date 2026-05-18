@@ -1,0 +1,69 @@
+{
+  "continuous": [
+    {
+      "variable": "inter_arrival",
+      "n_sim": 197273,
+      "n_real": 98241,
+      "sim_mean": 0.6066974974853572,
+      "real_mean": 8.606788408098451,
+      "sim_cv": 1.002790764377099,
+      "real_cv": 2.676518866993428,
+      "sim_skew": 1.9935320034704014,
+      "real_skew": 11.040989951155556,
+      "ks_stat": 0.15274197220081753,
+      "ks_p_fulln": 0.0,
+      "ks_stat_subsampled": 0.145,
+      "ks_p_subsampled": 9.528460647926567e-19,
+      "ad_stat": 1897.738340742075,
+      "ad_p": 0.001,
+      "wasserstein_norm": 0.44254578811099704
+    },
+    {
+      "variable": "processing_time",
+      "n_sim": 197523,
+      "n_real": 97985,
+      "sim_mean": 6.341102298347398,
+      "real_mean": 633.4141560783113,
+      "sim_cv": 0.3305409003349401,
+      "real_cv": 2.480058255379111,
+      "sim_skew": 0.3494742175821762,
+      "real_skew": 56.766669494431895,
+      "ks_stat": 0.685391488572964,
+      "ks_p_fulln": 0.0,
+      "ks_stat_subsampled": 0.6975,
+      "ks_p_subsampled": 0.0,
+      "ad_stat": 20188.853106053946,
+      "ad_p": 0.001,
+      "wasserstein_norm": 1.100556552162389
+    },
+    {
+      "variable": "sla_window",
+      "n_sim": 197523,
+      "n_real": 99441,
+      "sim_mean": 50.02294188568188,
+      "real_mean": 34225.41589217057,
+      "sim_cv": 0.3080866632113089,
+      "real_cv": 0.37161128511699354,
+      "sim_skew": 0.19041604007261265,
+      "real_skew": 0.9872796444256763,
+      "ks_stat": 0.039010785010035964,
+      "ks_p_fulln": 6.765892239652324e-88,
+      "ks_stat_subsampled": 0.055,
+      "ks_p_subsampled": 0.004708470314656832,
+      "ad_stat": 162.8050780606799,
+      "ad_p": 0.001,
+      "wasserstein_norm": 0.03558846292545649
+    }
+  ],
+  "perishable_frac": {
+    "sim": 0.20193091437452854,
+    "olist_food_drink": 0.009871688322218393,
+    "abs_diff": 0.19205922605231016
+  },
+  "notes": {
+    "scale": "Olist measured in days, sim in minutes; tests run on mean-normalized samples to probe shape only.",
+    "ks_pvalue": "Full-n KS p is uninformative at n~1e5; rely on KS D, the subsampled-n KS p, and the CV/skew shape metrics.",
+    "inter_arrival": "Olist inter-arrivals computed within each calendar day; intra-day seasonality remains a known deviation from the sim's homogeneous-Poisson assumption.",
+    "processing_time": "Olist proxy is purchase->approved latency, not warehouse pick time -- a proxy, stated as a limitation."
+  }
+}
