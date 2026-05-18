@@ -1,8 +1,22 @@
+<div align="center">
+
 # DAHS — Disruption-Aware Heuristic Scheduling
 
-> **Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation for Dynamic Warehouse Order Dispatching**
->
-> Vittal Mukunda · 2026
+### Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation for Dynamic Warehouse Order Dispatching
+
+**Vittal Mukunda** &nbsp;·&nbsp; 2026
+
+<br/>
+
+[![Manuscript](https://img.shields.io/badge/Manuscript-PDF-b31b1b?style=flat-square)](paper/manuscript.pdf)
+[![Python](https://img.shields.io/badge/Python-3.10--3.12-3776AB?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
+[![Method](https://img.shields.io/badge/Method-Offline_Rollout_Distillation-E8740C?style=flat-square)](#4-the-dahs-method)
+[![SLA breach](https://img.shields.io/badge/SLA_breach-1.33%25-2EA043?style=flat-square)](#6-results)
+[![Sample efficiency](https://img.shields.io/badge/Deployable_from-25_shifts-2EA043?style=flat-square)](#63-sample-efficiency-the-central-result)
+
+</div>
+
+---
 
 DAHS is a **selection hyper-heuristic** for dynamic warehouse order dispatching.
 It picks, at every decision boundary of a shift, which simple dispatching rule
@@ -45,6 +59,20 @@ On 50 held-out simulated shifts (default operating point):
   trace.
 - A truncated-rollout **consistency proof** (Proposition 1) predicts the rollout
   horizon is the dominant design choice — confirmed empirically.
+
+### Published methods DAHS outperforms
+
+Two learning-based controllers from the published literature are included as
+baselines; DAHS outperforms both by a wide, statistically significant margin.
+
+| Published method | Included here as | Its result | DAHS | Where DAHS beats it |
+|---|---|:---:|:---:|---|
+| **Offline-LD** — offline RL with maskable Q-learning for scheduling (2025); *the closest published competitor* | `offline_fqi` — a faithful re-implementation (fitted Q-iteration with FEFO action masking) trained on the **same** 250 logged shifts as DAHS | 7.18% | **1.33%** | §6.2 (Table 1) · §6.5 (all 12 robustness-grid cells) · §6.10 (paired margin **+5.85 pp**, 95% CI [3.85, 8.11]; collapses to **61.9%** breach under saturation vs DAHS's 19.4%; sample efficiency, Fig. 11) |
+| **PPO** — Proximal Policy Optimization (2017) | `ppo_fair` / `ppo_full` — online deep-RL policy trained at a budget matched to DAHS and, separately, at a 60× budget | 3.85% / 11.81% | **1.33%** | §6.2 (Table 1) · §6.9 (PPO fails to converge to a state-conditioned policy; the 60× budget collapses it onto a single rule) |
+
+*Figures are SLA-breach rate on the 50 held-out test shifts at the default operating point.*
+
+**Paper links** — [Offline-LD: *Offline Reinforcement Learning for Learning to Dispatch for Job Shop Scheduling*](https://arxiv.org/abs/2409.10589) · [PPO: *Proximal Policy Optimization Algorithms*](https://arxiv.org/abs/1707.06347) · [Fitted Q-iteration: *Tree-Based Batch Mode Reinforcement Learning*](https://www.jmlr.org/papers/v6/ernst05a.html) (the algorithm the Offline-LD baseline is built on).
 
 ---
 
