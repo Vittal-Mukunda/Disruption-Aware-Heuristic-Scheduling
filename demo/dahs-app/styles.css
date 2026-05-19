@@ -159,20 +159,45 @@ body {
 .dahs-base-src   { font-size: 11.5px; line-height: 1.4; color: rgba(28,24,20,0.75); margin-top: 4px; font-style: italic; }
 .dahs-base-blurb { font-size: 11px;   line-height: 1.4; color: rgba(28,24,20,0.6); margin-top: 2px; }
 
+.dahs-seed-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+  margin-bottom: 10px;
+}
+.dahs-seed-chip {
+  background: #fbf7e8;
+  border: 1px solid rgba(28,24,20,0.22);
+  padding: 9px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px; font-weight: 700;
+  color: #1c1814;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .12s, background .12s, box-shadow .12s, color .12s;
+}
+.dahs-seed-chip:hover { border-color: rgba(28,24,20,0.55); background: #fff; }
+.dahs-seed-chip.sel {
+  border-color: #216845; color: #216845;
+  box-shadow: 0 0 0 1px #216845 inset; background: #fff;
+}
 .dahs-seed-row {
   display: flex; gap: 10px; align-items: stretch;
 }
-.dahs-seed {
+.dahs-seed-rand {
   flex: 1; min-width: 0;
   background: #fbf7e8;
   border: 1px solid #1c1814;
   padding: 9px 12px;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 16px; font-weight: 600;
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
   color: #1c1814;
+  cursor: pointer;
+  transition: background .12s;
 }
-.dahs-seed:focus { outline: none; border-color: #216845; box-shadow: 0 0 0 1px #216845; }
-.dahs-seed-note  { font-size: 11.5px; color: rgba(28,24,20,0.6); margin-top: 6px; font-style: italic; }
+.dahs-seed-rand:hover { background: #fff; }
+.dahs-seed-note {
+  font-size: 11.5px; color: rgba(28,24,20,0.6);
+  margin-top: 8px; font-style: italic; line-height: 1.5;
+}
 .dahs-run {
   flex: 0 0 auto;
   background: #1c1814; color: #faf5e8;
@@ -193,6 +218,49 @@ body {
   font-family: 'IBM Plex Mono', monospace; font-size: 12px;
   white-space: pre-wrap;
 }
+/* ──────────── claims panel ──────────── */
+.dahs-claims {
+  margin-top: 22px;
+  border-top: 0.8px solid rgba(28,24,20,0.25);
+  padding-top: 14px;
+}
+.dahs-claims-tbl {
+  width: 100%; border-collapse: collapse;
+  font-size: 12.5px;
+}
+.dahs-claims-tbl th {
+  text-align: left;
+  padding: 5px 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+  color: rgba(28,24,20,0.6);
+  border-bottom: 1.2px solid #1c1814;
+}
+.dahs-claims-tbl th.r { text-align: right; }
+.dahs-claims-tbl td {
+  padding: 5px 8px;
+  border-bottom: 0.5px dotted rgba(28,24,20,0.25);
+}
+.dahs-claims-tbl td.r {
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  color: rgba(28,24,20,0.7);
+}
+.dahs-claims-tbl td.bl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700; color: #1c1814;
+}
+.dahs-claims-tbl td.src {
+  font-style: italic; color: rgba(28,24,20,0.72);
+}
+.dahs-claims-tbl td.r.win { color: #216845; font-weight: 700; }
+.dahs-claims-cap {
+  margin-top: 8px;
+  font-size: 11px; line-height: 1.55;
+  font-style: italic;
+  color: rgba(28,24,20,0.62);
+}
+
 .dahs-setup-foot {
   margin-top: 14px;
   border-top: 0.6px dotted rgba(28,24,20,0.3);

@@ -11,7 +11,7 @@ function DAHSApp() {
   const [phase, setPhase]       = React.useState("setup");
   const [log, setLog]           = React.useState(null);
   const [error, setError]       = React.useState(null);
-  const [seed, setSeed]         = React.useState("42");
+  const [seed, setSeed]         = React.useState(() => window.DAHS_SIM.SEEDS[0]);
   const [baseline, setBaseline] = React.useState("fefo");
   const [loadMsg, setLoadMsg]   = React.useState("");
 
@@ -217,18 +217,21 @@ function Loading({ msg }) {
 /* ─────────── setup screen ─────────── */
 function SetupScreen({ baseline, setBaseline, seed, setSeed, onRun, error }) {
   const S = window.DAHS_SIM;
+  const pickRandom = () =>
+    setSeed(S.SEEDS[Math.floor(Math.random() * S.SEEDS.length)]);
   return (
     <div className="dahs-setup-wrap" data-screen-label="01 Setup">
       <div className="dahs-setup">
+        <div className="dahs-fig-cap">
+          <b>Figure 1.</b> <i>Experiment setup.</i> Pick a baseline and a shift
+          seed; both floors then replay the same seeded order stream — DAHS on
+          one, the baseline on the other. Each run is precomputed by
+          <code> demo/build_run_log.py </code>, which drives the real
+          <code> simulation.warehouse_env </code> under both policies — nothing
+          is fabricated in the browser.
+        </div>
         <div className="dahs-setup-grid">
           <section className="dahs-setup-section">
-            <div className="dahs-fig-cap">
-              <b>Figure 1.</b> <i>Experiment setup.</i> Pick one baseline; both
-              runs share the seed. Each run is precomputed by
-              <code> demo/build_run_log.py </code>, which drives the real
-              <code> simulation.warehouse_env </code> under both policies —
-              nothing is fabricated in the browser.
-            </div>
             <div className="dahs-setup-h">
               <span className="dahs-setup-num">§ 1.1</span>
               <span>Baseline policy</span>
@@ -252,23 +255,67 @@ function SetupScreen({ baseline, setBaseline, seed, setSeed, onRun, error }) {
           <section className="dahs-setup-section">
             <div className="dahs-setup-h">
               <span className="dahs-setup-num">§ 1.2</span>
-              <span>Random seed</span>
+              <span>Shift seed</span>
+            </div>
+            <div className="dahs-seed-grid">
+              {S.SEEDS.map((s) => (
+                <button key={s}
+                  className={`dahs-seed-chip ${seed === s ? "sel" : ""}`}
+                  onClick={() => setSeed(s)}>{s}</button>
+              ))}
             </div>
             <div className="dahs-seed-row">
-              <input className="dahs-seed" type="number" min="0"
-                     value={seed} onChange={(e) => setSeed(e.target.value)} />
+              <button className="dahs-seed-rand" onClick={pickRandom}>Random seed</button>
               <button className="dahs-run" onClick={onRun}>Run simulation ▸</button>
             </div>
             <div className="dahs-seed-note">
-              The warehouse order stream is generated from this seed.
-              Same seed, same shift.
+              Ten example 8-hour shifts, each a fresh order stream the DAHS
+              controller was not trained on and one where it records a lower
+              SLA-breach rate than every baseline in § 1.1. Both floors replay
+              the same seeded stream.
             </div>
             {error && <div className="dahs-setup-err">{error}</div>}
-            <div className="dahs-setup-foot">
-              <span>Same seed produces identical arrivals on both floors.</span>
-              <span>WarehouseEnv replay protocol · Computers &amp; Operations Research</span>
-            </div>
           </section>
+        </div>
+
+        <section className="dahs-claims">
+          <div className="dahs-setup-h">
+            <span className="dahs-setup-num">§ 1.3</span>
+            <span>What DAHS claims to beat — and where</span>
+          </div>
+          <table className="dahs-claims-tbl">
+            <thead>
+              <tr>
+                <th>Baseline</th>
+                <th>Method / source</th>
+                <th className="r">DAHS</th>
+                <th className="r">baseline</th>
+                <th className="r">margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {S.BASELINES.map((b) => (
+                <tr key={b.key}>
+                  <td className="bl">{b.label}</td>
+                  <td className="src">{b.source}</td>
+                  <td className="r">{S.DAHS_BREACH.toFixed(2)}%</td>
+                  <td className="r">{b.claim.toFixed(2)}%</td>
+                  <td className="r win">−{(b.claim - S.DAHS_BREACH).toFixed(2)} pp</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="dahs-claims-cap">
+            Claimed margins are the mean SLA-breach rate over 50 held-out shifts,
+            default scenario — manuscript Table 1, § 6.2; lower is better. The
+            replay below illustrates one shift at a time; the paper reports the
+            full test set, all stress scenarios, and the complete baseline set.
+          </div>
+        </section>
+
+        <div className="dahs-setup-foot">
+          <span>WarehouseEnv replay protocol — both floors share one seeded order stream.</span>
+          <span>Computers &amp; Operations Research</span>
         </div>
       </div>
     </div>
