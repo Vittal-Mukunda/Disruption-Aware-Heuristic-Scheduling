@@ -1,8 +1,8 @@
 """demo/build_run_log.py -- faithful side-by-side event log for the browser demo.
 
 Runs the REAL DAHS controller AND a chosen baseline on the SAME seed (identical
-pre-generated order stream) and emits a deterministic JSON log that
-demo/dahs_dashboard.jsx replays as a side-by-side comparison. The browser does
+pre-generated order stream) and emits a deterministic JSON log that the
+demo/dahs-app dashboard replays as a side-by-side comparison. The browser does
 not simulate anything -- it only replays this log.
 
 Faithful
@@ -22,8 +22,11 @@ Reproducible
     A fixed --seed gives a byte-identical log (orders are pre-generated from one
     seeded np.random.default_rng; model artifacts are frozen).
 
-Run:  python demo/build_run_log.py --seed 42 --baseline fifo
+Run:  python demo/build_run_log.py --seed 42 --baseline fefo
       python demo/build_run_log.py --seed 7  --baseline greedy_mpc --stdout
+
+By default the log is written to demo/dahs-app/runs/run_<seed>_<baseline>.json,
+where the static dashboard fetches it.
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ from simulation.heuristics import HEURISTIC_NAMES  # noqa: E402
 from simulation.kpis import compute_kpis  # noqa: E402
 from simulation.warehouse_env import WarehouseEnv  # noqa: E402
 
-OUT = REPO / "demo" / "dahs_run_log.json"
+RUNS_DIR = REPO / "demo" / "dahs-app" / "runs"
 
 # Selectable baselines, with the source each rule / method comes from. Keys map
 # to experiments.evaluate._build_policy. Artifact-backed methods are flagged.
@@ -261,23 +264,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=int(cfg.seeds.sim),
                         help="WarehouseEnv seed (default: cfg.seeds.sim = 42).")
-    parser.add_argument("--baseline", type=str, default="fifo",
+    parser.add_argument("--baseline", type=str, default="fefo",
                         choices=list(BASELINES),
                         help="Baseline policy to race DAHS against.")
-    parser.add_argument("--out", type=Path, default=OUT,
-                        help="Output JSON path (default: demo/dahs_run_log.json).")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="Output JSON path "
+                             "(default: demo/dahs-app/runs/run_<seed>_<baseline>.json).")
     parser.add_argument("--stdout", action="store_true",
-                        help="Print the JSON to stdout (for the dev-server endpoint).")
+                        help="Print the JSON to stdout instead of writing a file.")
     args = parser.parse_args()
 
     log = build(args.seed, args.baseline)
     payload = json.dumps(log, separators=(",", ":"))
 
+    out = args.out or (RUNS_DIR / f"run_{args.seed}_{args.baseline}.json")
     if args.stdout:
         sys.stdout.write(payload)
         sys.stdout.flush()
     else:
-        args.out.write_text(payload, encoding="utf-8")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(payload, encoding="utf-8")
 
     # human summary -> stderr (keeps stdout clean for --stdout consumers)
     m = log["meta"]
@@ -294,7 +300,7 @@ def main() -> int:
     )
     sys.stderr.write(log_line + "\n")
     if not args.stdout:
-        sys.stderr.write(f"  wrote {args.out.relative_to(REPO)} ({len(payload) / 1024:.0f} KB)\n")
+        sys.stderr.write(f"  wrote {out.relative_to(REPO)} ({len(payload) / 1024:.0f} KB)\n")
     return 0
 
 
