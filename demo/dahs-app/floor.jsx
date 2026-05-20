@@ -194,112 +194,165 @@ function Pkg({ vz, o }) {
 
 }
 
-/* ────────── animated inbound truck ────────── */
+/* ────────── reusable wheel ────────── */
+function TruckWheel({ cx, cy, r, delay = "0s", dur = "1.1s" }) {
+  const R = +r;
+  return (
+    <g transform={`translate(${+cx} ${+cy})`}>
+      <circle r={R + 0.6} fill="#1c1814" />
+      <circle r={R} fill="#2a2522" stroke="#1c1814" strokeWidth="0.4" />
+      <circle r={R * 0.48} fill="#7a6f5a" stroke="#1c1814" strokeWidth="0.4" />
+      <circle r={R * 0.2} fill="#1c1814" />
+      <g>
+        <animateTransform attributeName="transform" type="rotate"
+          from="0" to="360" dur={dur} begin={delay} repeatCount="indefinite" />
+        <line x1={-R * 0.78} y1="0" x2={R * 0.78} y2="0" stroke="#c2cbd4" strokeWidth="0.65" />
+        <line x1="0" y1={-R * 0.78} x2="0" y2={R * 0.78} stroke="#c2cbd4" strokeWidth="0.65" />
+        <line x1={-R * 0.55} y1={-R * 0.55} x2={R * 0.55} y2={R * 0.55} stroke="#9aa3ad" strokeWidth="0.45" />
+        <line x1={-R * 0.55} y1={R * 0.55} x2={R * 0.55} y2={-R * 0.55} stroke="#9aa3ad" strokeWidth="0.45" />
+      </g>
+    </g>
+  );
+}
+
+/* ────────── animated inbound truck ──────────
+ * Side-view semi-trailer. Cab on the right (already left the dock), trailer
+ * back doors on the left feeding the conveyor. */
 function InboundTruck({ x, y }) {
   return (
     <g transform={`translate(${x} ${y})`}>
-      {/* dock pad behind truck */}
-      <rect x="-78" y="-104" width="156" height="208" rx="3"
-      fill="#ebd9b3" stroke="#9a7a3a" strokeWidth="0.8" />
-      {Array.from({ length: 14 }).map((_, i) =>
-      <line key={i} x1="-72" y1={-96 + i * 14} x2="72" y2={-96 + i * 14}
-      stroke="#bba474" strokeWidth="1.4" />
+      {/* dock pad */}
+      <rect x="-82" y="-108" width="164" height="216" rx="3"
+        fill="#ecd9b1" stroke="#9a7a3a" strokeWidth="0.8" />
+      {Array.from({ length: 16 }).map((_, i) =>
+        <line key={i} x1="-76" y1={-100 + i * 13} x2="76" y2={-100 + i * 13}
+          stroke="#bba474" strokeWidth="1.1" opacity="0.7" />
       )}
-      <text x="0" y="-112" textAnchor="middle"
-      fontFamily="'IBM Plex Mono', monospace" fontSize="9"
-      fill="rgba(28,24,20,0.6)" letterSpacing="2px">RECEIVING DOCK</text>
+      {/* caution stripes */}
+      <rect x="-82" y="-108" width="164" height="3" fill="#d6a93b" />
+      <rect x="-82" y="105" width="164" height="3" fill="#d6a93b" />
+      <text x="0" y="-116" textAnchor="middle"
+        fontFamily="'IBM Plex Mono', monospace" fontSize="9"
+        fill="rgba(28,24,20,0.6)" letterSpacing="2.5px" fontWeight="600">
+        RECEIVING DOCK
+      </text>
 
-      {/* truck body (subtle bounce) */}
+      {/* drop shadow under truck */}
+      <ellipse cx="-12" cy="33" rx="62" ry="3.5" fill="rgba(28,24,20,0.18)" />
+
+      {/* truck body (gentle idle bounce) */}
       <g>
         <animateTransform attributeName="transform" type="translate"
-        values="0 0; 0 -0.6; 0 0" dur="0.9s" repeatCount="indefinite" />
-        {/* trailer */}
-        <rect x="-58" y="-22" width="60" height="44" rx="2"
-        fill="#f7eed2" stroke="#1c1814" strokeWidth="1.1" />
-        {/* cargo door slats */}
-        <line x1="-46" y1="-18" x2="-46" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <line x1="-34" y1="-18" x2="-34" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <line x1="-22" y1="-18" x2="-22" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <line x1="-10" y1="-18" x2="-10" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        {/* small reflectors on side */}
-        <rect x="-54" y="-20" width="2" height="3" fill="#aa3b2c" />
-        <rect x="-2" y="-20" width="2" height="3" fill="#aa3b2c" />
-        {/* cab */}
-        <path d="M 2 -16 L 2 16 L 36 16 L 44 2 L 44 -10 L 28 -16 Z"
-        fill="#e0d7b4" stroke="#1c1814" strokeWidth="1.1"
-        strokeLinejoin="round" />
+          values="0 0; 0 -0.5; 0 0" dur="1.1s" repeatCount="indefinite" />
+
+        {/* TRAILER */}
+        <rect x="-66" y="-24" width="68" height="48" rx="1.5"
+          fill="#f6ecca" stroke="#1c1814" strokeWidth="1.1" />
+        {/* roof highlight + bottom shadow */}
+        <rect x="-66" y="-24" width="68" height="4" fill="#fdf6df" />
+        <rect x="-66" y="20" width="68" height="4" fill="#cdbf99" opacity="0.7" />
+        {/* roll-up cargo door (left = trailer back) */}
+        <rect x="-66" y="-22" width="14" height="44" fill="#ebdfb8"
+          stroke="#1c1814" strokeWidth="0.7" />
+        {[0,1,2,3,4].map(i =>
+          <line key={i} x1="-65" y1={-18 + i * 9} x2="-53" y2={-18 + i * 9}
+            stroke="#1c1814" strokeWidth="0.4" opacity="0.55" />
+        )}
+        <circle cx="-55" cy="0" r="1.4" fill="#1c1814" />
+        {/* side ribs */}
+        {[-44, -34, -24, -14, -4].map(xx =>
+          <line key={xx} x1={xx} y1="-19" x2={xx} y2="19"
+            stroke="#1c1814" strokeWidth="0.3" opacity="0.3" />
+        )}
+        {/* reflectors */}
+        <rect x="-62" y="-23" width="2.5" height="2.5" fill="#aa3b2c" />
+        <rect x="-3" y="-23" width="2.5" height="2.5" fill="#aa3b2c" />
+        <rect x="-62" y="20.5" width="2.5" height="2.5" fill="#d6a93b" />
+        <rect x="-3" y="20.5" width="2.5" height="2.5" fill="#d6a93b" />
+        {/* livery panel */}
+        <rect x="-38" y="-8" width="34" height="16" fill="#fbf7e8"
+          stroke="#9a7a3a" strokeWidth="0.45" />
+        <text x="-21" y="4" textAnchor="middle"
+          fontFamily="'Playfair Display', serif" fontSize="10"
+          fontWeight="700" fill="#1c1814" letterSpacing="2px">DAHS</text>
+
+        {/* TRACTOR CAB */}
+        {/* roof strip */}
+        <rect x="2" y="-26" width="28" height="3" rx="0.5" fill="#1c1814" />
+        {/* cab body */}
+        <path d="M 2 -23 L 2 18 L 30 18 L 30 -23 Z"
+          fill="#e6d6a8" stroke="#1c1814" strokeWidth="1" />
+        {/* hood */}
+        <path d="M 30 -8 L 30 18 L 47 18 L 49 4 L 47 -4 L 36 -8 Z"
+          fill="#d6c191" stroke="#1c1814" strokeWidth="1" strokeLinejoin="round" />
         {/* windshield */}
-        <path d="M 18 -12 L 26 -12 L 38 -4 L 38 0 L 18 0 Z"
-        fill="#cfe6f1" stroke="#1c1814" strokeWidth="0.7" />
+        <path d="M 6 -19 L 28 -19 L 28 -3 L 6 -3 Z"
+          fill="#cfe6f1" stroke="#1c1814" strokeWidth="0.6" />
+        <line x1="17" y1="-19" x2="17" y2="-3" stroke="#1c1814" strokeWidth="0.4" />
+        {/* side mirror (sticks out from cab) */}
+        <rect x="0.5" y="-15" width="1.5" height="9" fill="#1c1814" />
+        <rect x="-3" y="-14" width="3.5" height="6" fill="#cfe6f1"
+          stroke="#1c1814" strokeWidth="0.4" />
+        {/* door outline + handle */}
+        <rect x="6" y="-1" width="20" height="18" fill="none"
+          stroke="#1c1814" strokeWidth="0.45" opacity="0.55" />
+        <rect x="21" y="6" width="3" height="1.2" fill="#1c1814" />
+        {/* grille */}
+        <rect x="40" y="-1" width="7" height="11" fill="#1c1814" />
+        {[1,2,3,4,5].map(i =>
+          <line key={i} x1="40" y1={-1 + i * 2} x2="47" y2={-1 + i * 2}
+            stroke="#7a6a52" strokeWidth="0.3" />
+        )}
         {/* headlight */}
-        <circle cx="43" cy="3" r="1.6" fill="#fff5c5" stroke="#1c1814" strokeWidth="0.4" />
-        {/* door handle */}
-        <rect x="6" y="2" width="2" height="6" fill="#1c1814" />
+        <ellipse cx="47" cy="-3" rx="2.4" ry="2" fill="#fff5c5"
+          stroke="#1c1814" strokeWidth="0.5" />
+        {/* bumper + plate */}
+        <rect x="44" y="13" width="6" height="5" fill="#3a342a"
+          stroke="#1c1814" strokeWidth="0.4" />
+        <rect x="42" y="9" width="6" height="3" fill="#fbf7e8"
+          stroke="#1c1814" strokeWidth="0.3" />
       </g>
 
-      {/* wheels (rotate) — back, middle, front */}
-      <g transform="translate(-44 22)">
-        <circle r="7" fill="#1c1814" />
-        <circle r="3" fill="#5a5040" />
-        <g>
-          <animateTransform attributeName="transform" type="rotate"
-          from="0" to="360" dur="1.1s" repeatCount="indefinite" />
-          <line x1="-7" y1="0" x2="7" y2="0" stroke="#aab3c0" strokeWidth="0.8" />
-          <line x1="0" y1="-7" x2="0" y2="7" stroke="#aab3c0" strokeWidth="0.8" />
-          <line x1="-5" y1="-5" x2="5" y2="5" stroke="#8a93a0" strokeWidth="0.5" />
-          <line x1="-5" y1="5" x2="5" y2="-5" stroke="#8a93a0" strokeWidth="0.5" />
-        </g>
-      </g>
-      <g transform="translate(-20 22)">
-        <circle r="7" fill="#1c1814" />
-        <circle r="3" fill="#5a5040" />
-        <g>
-          <animateTransform attributeName="transform" type="rotate"
-          from="0" to="360" dur="1.1s" begin="-0.3s" repeatCount="indefinite" />
-          <line x1="-7" y1="0" x2="7" y2="0" stroke="#aab3c0" strokeWidth="0.8" />
-          <line x1="0" y1="-7" x2="0" y2="7" stroke="#aab3c0" strokeWidth="0.8" />
-        </g>
-      </g>
-      <g transform="translate(28 22)">
-        <circle r="7" fill="#1c1814" />
-        <circle r="3" fill="#5a5040" />
-        <g>
-          <animateTransform attributeName="transform" type="rotate"
-          from="0" to="360" dur="1.1s" begin="-0.6s" repeatCount="indefinite" />
-          <line x1="-7" y1="0" x2="7" y2="0" stroke="#aab3c0" strokeWidth="0.8" />
-          <line x1="0" y1="-7" x2="0" y2="7" stroke="#aab3c0" strokeWidth="0.8" />
-        </g>
-      </g>
-
-      {/* exhaust pipe + puffs (above cab) */}
-      <rect x="30" y="-22" width="3" height="6" fill="#5a5040" />
+      {/* exhaust + smoke */}
+      <rect x="29" y="-32" width="2.5" height="9" fill="#5a5040"
+        stroke="#1c1814" strokeWidth="0.4" />
+      <rect x="28.5" y="-33" width="3.5" height="1.5" fill="#1c1814" />
       {[0, 1, 2].map((i) =>
-      <circle key={i} cx="31.5" cy="-24" r="3" fill="#b9b3a4" opacity="0">
-          <animate attributeName="cy"
-        values="-24;-48" dur="1.8s" begin={`${i * 0.6}s`} repeatCount="indefinite" />
-          <animate attributeName="cx"
-        values="31.5;26" dur="1.8s" begin={`${i * 0.6}s`} repeatCount="indefinite" />
-          <animate attributeName="r"
-        values="2;7" dur="1.8s" begin={`${i * 0.6}s`} repeatCount="indefinite" />
-          <animate attributeName="opacity"
-        values="0;0.5;0" dur="1.8s" begin={`${i * 0.6}s`} repeatCount="indefinite" />
+        <circle key={i} cx="30.5" cy="-33" r="2.5" fill="#b9b3a4" opacity="0">
+          <animate attributeName="cy" values="-33;-58" dur="1.8s"
+            begin={`${i * 0.6}s`} repeatCount="indefinite" />
+          <animate attributeName="cx" values="30.5;24" dur="1.8s"
+            begin={`${i * 0.6}s`} repeatCount="indefinite" />
+          <animate attributeName="r" values="2;6.5" dur="1.8s"
+            begin={`${i * 0.6}s`} repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0;0.5;0" dur="1.8s"
+            begin={`${i * 0.6}s`} repeatCount="indefinite" />
         </circle>
       )}
 
-      {/* waiting truck (silhouette, behind) */}
-      <g transform="translate(0 -76)" opacity="0.32">
-        <rect x="-46" y="-14" width="50" height="28" fill="#c7baa0" stroke="#1c1814" strokeWidth="0.7" />
-        <path d="M 4 -10 L 4 10 L 26 10 L 30 0 L 30 -6 L 18 -10 Z"
-        fill="#bfb29a" stroke="#1c1814" strokeWidth="0.7"
-        strokeLinejoin="round" />
-        <circle cx="-32" cy="16" r="4" fill="#1c1814" />
-        <circle cx="20" cy="16" r="4" fill="#1c1814" />
-        <text x="-12" y="-22" textAnchor="middle"
-        fontFamily="'IBM Plex Mono', monospace" fontSize="7"
-        fill="rgba(28,24,20,0.6)" letterSpacing="1px">NEXT IN LINE</text>
-      </g>
-    </g>);
+      {/* WHEELS — 2 trailer axles, cab drive axle, cab steer axle */}
+      <TruckWheel cx="-32" cy="22" r="7" delay="-0.6s" />
+      <TruckWheel cx="-14" cy="22" r="7" delay="-0.4s" />
+      <TruckWheel cx="14"  cy="22" r="7" delay="-0.2s" />
+      <TruckWheel cx="38"  cy="22" r="6.5" />
+      {/* mud flap behind rear axle */}
+      <rect x="-43" y="22" width="2" height="11" fill="#1c1814" />
 
+      {/* "next in line" silhouette */}
+      <g transform="translate(-2 -74)" opacity="0.32">
+        <rect x="-46" y="-12" width="52" height="24" fill="#c7baa0"
+          stroke="#1c1814" strokeWidth="0.6" />
+        <path d="M 6 -8 L 6 12 L 26 12 L 32 4 L 32 -4 L 22 -8 Z"
+          fill="#bfb29a" stroke="#1c1814" strokeWidth="0.6"
+          strokeLinejoin="round" />
+        <circle cx="-30" cy="14" r="3.5" fill="#1c1814" />
+        <circle cx="16" cy="14" r="3.5" fill="#1c1814" />
+        <text x="-12" y="-18" textAnchor="middle"
+          fontFamily="'IBM Plex Mono', monospace" fontSize="6.5"
+          fill="rgba(28,24,20,0.7)" letterSpacing="1.5px">NEXT IN LINE</text>
+      </g>
+    </g>
+  );
 }
 
 /* ────────── animated conveyor belt ────────── */
@@ -521,34 +574,104 @@ function FloorChrome({ role }) {
       <text x={G.shipPile.x} y={G.shipPile.y - 18}
       fontFamily="'IBM Plex Mono', monospace" fontSize="9.5" fontWeight="700"
       fill="#2c7e58" letterSpacing="1.5px">SHIPPED ON-TIME</text>
-      {/* shipping outbound truck — also animated */}
+      {/* shipping outbound truck — loaded with completed orders, cab on right */}
       <g transform={`translate(${G.shipDock.x} ${G.shipDock.y})`}>
-        <animateTransform attributeName="transform" type="translate"
-        values={`${G.shipDock.x} ${G.shipDock.y}; ${G.shipDock.x} ${G.shipDock.y - 0.5}; ${G.shipDock.x} ${G.shipDock.y}`}
-        dur="1.1s" repeatCount="indefinite" />
-        <rect x="-34" y="-22" width="50" height="42" rx="2" fill="#fff" stroke="#1c1814" strokeWidth="1" />
-        <line x1="-28" y1="-18" x2="-28" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <line x1="-14" y1="-18" x2="-14" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <line x1="0" y1="-18" x2="0" y2="18" stroke="#1c1814" strokeWidth="0.5" opacity="0.45" />
-        <path d="M16 -4 L16 -20 L36 -20 L46 -6 L46 -4 Z" fill="#9fcfb1" stroke="#1c1814" strokeWidth="1" strokeLinejoin="round" />
-        <rect x="20" y="-16" width="12" height="9" fill="#cfe6f1" stroke="#1c1814" strokeWidth="0.6" />
-        <circle cx="46" cy="-12" r="1.6" fill="#fff5c5" stroke="#1c1814" strokeWidth="0.4" />
-        <g transform="translate(-20 22)">
-          <circle r="6" fill="#1c1814" />
-          <circle r="2.5" fill="#5a5040" />
-          <g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.0s" repeatCount="indefinite" />
-            <line x1="-6" y1="0" x2="6" y2="0" stroke="#aab3c0" strokeWidth="0.7" />
-            <line x1="0" y1="-6" x2="0" y2="6" stroke="#aab3c0" strokeWidth="0.7" />
-          </g>
+        {/* drop shadow */}
+        <ellipse cx="-2" cy="33" rx="52" ry="3" fill="rgba(28,24,20,0.18)" />
+
+        <g>
+          <animateTransform attributeName="transform" type="translate"
+            values="0 0; 0 -0.4; 0 0" dur="1.1s" repeatCount="indefinite" />
+
+          {/* TRAILER */}
+          <rect x="-50" y="-22" width="62" height="44" rx="1.5"
+            fill="#e6f1ea" stroke="#1c1814" strokeWidth="1" />
+          <rect x="-50" y="-22" width="62" height="4" fill="#f4faf6" />
+          <rect x="-50" y="18" width="62" height="4" fill="#b3cebd" opacity="0.65" />
+          {/* roll-up door (left = back of trailer, facing warehouse) */}
+          <rect x="-50" y="-20" width="12" height="40" fill="#d6e6dc"
+            stroke="#1c1814" strokeWidth="0.6" />
+          {[0,1,2,3,4].map(i =>
+            <line key={i} x1="-49" y1={-16 + i * 8} x2="-38" y2={-16 + i * 8}
+              stroke="#1c1814" strokeWidth="0.4" opacity="0.55" />
+          )}
+          <circle cx="-40" cy="0" r="1.2" fill="#1c1814" />
+          {/* side ribs */}
+          {[-30, -22, -14, -6, 2].map(xx =>
+            <line key={xx} x1={xx} y1="-17" x2={xx} y2="17"
+              stroke="#1c1814" strokeWidth="0.3" opacity="0.3" />
+          )}
+          {/* reflectors */}
+          <rect x="-46" y="-21" width="2" height="2.5" fill="#aa3b2c" />
+          <rect x="8" y="-21" width="2" height="2.5" fill="#aa3b2c" />
+          <rect x="-46" y="18.5" width="2" height="2.5" fill="#d6a93b" />
+          <rect x="8" y="18.5" width="2" height="2.5" fill="#d6a93b" />
+          {/* livery */}
+          <rect x="-28" y="-7" width="34" height="14" fill="#fbf7e8"
+            stroke="#2c7e58" strokeWidth="0.45" />
+          <text x="-11" y="3.5" textAnchor="middle"
+            fontFamily="'Playfair Display', serif" fontSize="9"
+            fontWeight="700" fill="#2c7e58" letterSpacing="1.8px">SHIPPED</text>
+
+          {/* TRACTOR CAB (right side) */}
+          <rect x="12" y="-24" width="24" height="3" rx="0.5" fill="#1c1814" />
+          <path d="M 12 -21 L 12 18 L 36 18 L 36 -21 Z"
+            fill="#9fcfb1" stroke="#1c1814" strokeWidth="1" />
+          {/* hood */}
+          <path d="M 36 -7 L 36 18 L 51 18 L 53 4 L 51 -3 L 42 -7 Z"
+            fill="#85bc9b" stroke="#1c1814" strokeWidth="1" strokeLinejoin="round" />
+          {/* windshield */}
+          <path d="M 15 -18 L 34 -18 L 34 -3 L 15 -3 Z"
+            fill="#cfe6f1" stroke="#1c1814" strokeWidth="0.55" />
+          <line x1="24.5" y1="-18" x2="24.5" y2="-3"
+            stroke="#1c1814" strokeWidth="0.4" />
+          {/* mirror */}
+          <rect x="10.5" y="-14" width="1.5" height="8" fill="#1c1814" />
+          <rect x="7" y="-13" width="3.5" height="5" fill="#cfe6f1"
+            stroke="#1c1814" strokeWidth="0.4" />
+          {/* door */}
+          <rect x="16" y="-1" width="17" height="17" fill="none"
+            stroke="#1c1814" strokeWidth="0.45" opacity="0.55" />
+          <rect x="28" y="6" width="3" height="1.2" fill="#1c1814" />
+          {/* grille */}
+          <rect x="44" y="-1" width="7" height="11" fill="#1c1814" />
+          {[1,2,3,4,5].map(i =>
+            <line key={i} x1="44" y1={-1 + i * 2} x2="51" y2={-1 + i * 2}
+              stroke="#7a6a52" strokeWidth="0.3" />
+          )}
+          {/* headlight */}
+          <ellipse cx="51" cy="-3" rx="2.2" ry="1.9" fill="#fff5c5"
+            stroke="#1c1814" strokeWidth="0.5" />
+          {/* bumper + plate */}
+          <rect x="48" y="13" width="5" height="5" fill="#3a342a"
+            stroke="#1c1814" strokeWidth="0.4" />
+          <rect x="46" y="9" width="6" height="3" fill="#fbf7e8"
+            stroke="#1c1814" strokeWidth="0.3" />
         </g>
-        <g transform="translate(30 22)">
-          <circle r="6" fill="#1c1814" />
-          <circle r="2.5" fill="#5a5040" />
-          <g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.0s" begin="-0.4s" repeatCount="indefinite" />
-            <line x1="-6" y1="0" x2="6" y2="0" stroke="#aab3c0" strokeWidth="0.7" />
-            <line x1="0" y1="-6" x2="0" y2="6" stroke="#aab3c0" strokeWidth="0.7" />
-          </g>
-        </g>
+
+        {/* exhaust + smoke */}
+        <rect x="35" y="-31" width="2.2" height="8" fill="#5a5040"
+          stroke="#1c1814" strokeWidth="0.4" />
+        <rect x="34.6" y="-32" width="3" height="1.3" fill="#1c1814" />
+        {[0, 1, 2].map((i) =>
+          <circle key={i} cx="36" cy="-32" r="2" fill="#b9b3a4" opacity="0">
+            <animate attributeName="cy" values="-32;-54" dur="1.8s"
+              begin={`${i * 0.6 + 0.3}s`} repeatCount="indefinite" />
+            <animate attributeName="cx" values="36;30" dur="1.8s"
+              begin={`${i * 0.6 + 0.3}s`} repeatCount="indefinite" />
+            <animate attributeName="r" values="1.8;5.5" dur="1.8s"
+              begin={`${i * 0.6 + 0.3}s`} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;0.45;0" dur="1.8s"
+              begin={`${i * 0.6 + 0.3}s`} repeatCount="indefinite" />
+          </circle>
+        )}
+
+        {/* WHEELS */}
+        <TruckWheel cx="-30" cy="22" r="6.5" delay="-0.6s" />
+        <TruckWheel cx="-14" cy="22" r="6.5" delay="-0.4s" />
+        <TruckWheel cx="22"  cy="22" r="6.5" delay="-0.2s" />
+        <TruckWheel cx="44"  cy="22" r="6" />
+        <rect x="-39" y="22" width="2" height="10" fill="#1c1814" />
       </g>
 
       {/* breach pile frame */}

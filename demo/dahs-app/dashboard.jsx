@@ -21,7 +21,7 @@ function DAHSApp() {
 
   // tweaks (persisted via __edit_mode_set_keys)
   const [tweaks, setTweaks] = React.useState(/*EDITMODE-BEGIN*/{
-    "layoutMode": "stacked",
+    "layoutMode": "side",
     "showAnnotations": true,
     "density": "comfortable"
   }/*EDITMODE-END*/);
