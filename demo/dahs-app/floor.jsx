@@ -155,34 +155,48 @@ function orderViz(o, t, slotMap) {
 }
 
 /* ────────── glyphs ────────── */
-const TONE = {
-  kraft: { body: "#dcc59a", edge: "#8a6e35" },
-  active: { body: "#e8c283", edge: "#a06b27" },
-  ship: { body: "#9fcfb1", edge: "#2c7e58" },
-  breach: { body: "#e3a896", edge: "#aa3b2c" },
-  spoiled: { body: "#a8a376", edge: "#5e572f" },
-  unfinished: { body: "#e8a486", edge: "#8a3b1f" }
+/* Package product categories, derived from each order's real attributes
+ * (perishability + priority). The body colour tracks the category so a given
+ * package TYPE is followable from arrival all the way to its outbound pile.
+ * Outcome (shipped / breach / spoiled) stays legible through the destination
+ * pile and an edge override below — it is no longer carried by the body fill. */
+const CATEGORY = {
+  perishable: { label: "Perishable · cold-chain", body: "#2bb3a3", edge: "#15756a" },
+  express:    { label: "Express · high priority", body: "#9d5ce0", edge: "#5e2f9e" },
+  standard:   { label: "Standard",                body: "#4f93e0", edge: "#2a5e9e" },
+  economy:    { label: "Economy · low priority",  body: "#9aa6b6", edge: "#5f6b7a" },
 };
+const CAT_ORDER = ["perishable", "express", "standard", "economy"];
+function categoryOf(o) {
+  if (!o) return "standard";
+  if (o.perishable) return "perishable";          // cold-chain dominates the type
+  if (o.priority === "high") return "express";
+  if (o.priority === "low") return "economy";
+  return "standard";
+}
+
 const PRIO = { low: "#8b97ab", medium: "#c89238", high: "#aa3b2c" };
 
 function Pkg({ vz, o }) {
-  const c = TONE[vz.tone] || TONE.kraft;
+  const cat = CATEGORY[categoryOf(o)] || CATEGORY.standard;
+  // outcome state overrides the edge so shipped/breach/spoiled stay readable
+  const breach = vz.tone === "breach";
+  const spoiled = vz.tone === "spoiled";
+  const edge = breach ? "#aa3b2c" : spoiled ? "#5e572f" : cat.edge;
   const r = 13;
   const C = 2 * Math.PI * 9;
   return (
     <g transform={`translate(${vz.x.toFixed(2)} ${vz.y.toFixed(2)})`}>
       <rect x={-r / 2} y={-r / 2} width={r} height={r}
-      fill={c.body} stroke={c.edge} strokeWidth="0.9" />
+      fill={cat.body} stroke={edge}
+      strokeWidth={breach || spoiled ? 1.5 : 0.9}
+      strokeDasharray={spoiled ? "2 1.5" : undefined} />
       <line x1="0" y1={-r / 2} x2="0" y2={r / 2} stroke="#fff8e3" strokeWidth="0.6" opacity="0.85" />
       <line x1={-r / 2} y1="0" x2={r / 2} y2="0" stroke="#fff8e3" strokeWidth="0.6" opacity="0.85" />
       {o &&
       <circle cx={r / 2 - 2.5} cy={-r / 2 + 2.5} r="2"
       fill={PRIO[o.priority] || PRIO.medium}
       stroke="#fff" strokeWidth="0.5" />
-      }
-      {o && o.perishable &&
-      <circle cx={-r / 2 + 3} cy={r / 2 - 3} r="2.2"
-      fill="#eafcef" stroke="#2c7e58" strokeWidth="0.7" />
       }
       {vz.phase === "processing" &&
       <circle r="9" fill="none" stroke="#a06b27" strokeWidth="2"
@@ -806,4 +820,4 @@ function FloorFigure({ run, t, role, layoutMode }) {
 
 }
 
-window.DAHS_FLOOR = { FloorFigure, G };
+window.DAHS_FLOOR = { FloorFigure, G, CATEGORY, CAT_ORDER, categoryOf };

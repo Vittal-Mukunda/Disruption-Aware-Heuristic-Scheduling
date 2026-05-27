@@ -322,6 +322,34 @@ function SetupScreen({ baseline, setBaseline, seed, setSeed, onRun, error }) {
   );
 }
 
+/* ─────────── package category legend ───────────
+ * Decodes the per-package body colour (category) and the glyph markers. Body
+ * colour is set by window.DAHS_FLOOR.categoryOf — derived from each order's
+ * perishability + priority — and is held constant across the whole journey. */
+function CategoryLegend() {
+  const F = window.DAHS_FLOOR;
+  return (
+    <div className="dahs-legend" data-screen-label="Package legend">
+      <span className="dahs-legend-h">Package category</span>
+      {F.CAT_ORDER.map((k) => {
+        const c = F.CATEGORY[k];
+        return (
+          <span className="dahs-legend-item" key={k}>
+            <span className="dahs-legend-sw"
+                  style={{ background: c.body, borderColor: c.edge }} />
+            {c.label}
+          </span>
+        );
+      })}
+      <span className="dahs-legend-note">
+        Body colour = category (held from arrival to pile) · corner pip = priority ·
+        ring = picking in progress · top pile = shipped on-time, bottom pile = SLA
+        breach / spoiled (red / dashed edge).
+      </span>
+    </div>
+  );
+}
+
 /* ─────────── floors region (the figure) ─────────── */
 function FloorsRegion({ prepared, t, dahsC, baseC, layoutMode, showAnnotations }) {
   const baseMeta = prepared.meta.baseline;
@@ -339,6 +367,8 @@ function FloorsRegion({ prepared, t, dahsC, baseC, layoutMode, showAnnotations }
           station 3; the baseline floor enacts a fixed rule.
         </div>
       )}
+
+      <CategoryLegend />
 
       {layoutMode === "tab" && (
         <div className="dahs-tabs">
