@@ -157,7 +157,10 @@ def cmd_stats(args: argparse.Namespace) -> int:
         ax.set_yticks(y)
         ax.set_yticklabels(plot_df["method"])
         ax.set_xlabel(metric)
-        ax.set_title(f"E2 — {metric}  (scenario={args.scenario})")
+        ax.set_title(
+            f"E2 — {metric}  (scenario={args.scenario})\n"
+            f"50 test shifts · 250 training shifts · 95% bootstrap CI"
+        )
         ax.grid(True, axis="x", alpha=0.3)
         fig.tight_layout()
         fig.savefig(FIG_ROOT / f"{args.scenario}_forest_{metric}.png", dpi=150)

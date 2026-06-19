@@ -76,3 +76,23 @@ runs/*_log.txt
 # --- Profiler / temp ---
 *.prof
 *.tmp
+
+# --- LaTeX build artifacts (keep .tex, .pdf, .bbl) ---
+paper/*.aux
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fls
+paper/*.fdb_latexmk
+
+# --- Presentation build intermediates (keep scripts, .pptx, rendered PNGs) ---
+EL_Phase2_build/unpacked/
+
+# --- Scratch / scratch UI experiments (real demo lives in demo/dahs-app/) ---
+*.zip
+UI Fix *.html
+
+# --- Personal ops scripts (contains internal campus portal URL + token) ---
+keepalive.ps1
