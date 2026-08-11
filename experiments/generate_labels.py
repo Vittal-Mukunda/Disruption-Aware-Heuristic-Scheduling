@@ -53,6 +53,7 @@ from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
 
 from labeling.ambiguity_filter import filter_ambiguous
+from labeling.provenance import write_label_meta
 from labeling.rollout_labeler import label_one_shift_counted, rollout_step_budget
 from labeling.soft_label_converter import costs_to_probs, fefo_mask, row_entropy
 from seed import shift_corpora
@@ -304,19 +305,15 @@ def main() -> int:
         "wall_clock_s": {"train": t_train, "test": t_test},
         "objective_weights": OmegaConf.to_container(cfg.objective, resolve=True),
     }
-    meta_json = json.dumps(meta, indent=2, default=float)
     meta_path = run_dir / "label_meta.json"
-    meta_path.write_text(meta_json, encoding="utf-8")
+    meta_path.write_text(json.dumps(meta, indent=2, default=float), encoding="utf-8")
 
     # A second copy NEXT TO THE PARQUETS, which is what makes it a provenance
-    # stamp rather than a run log. `experiments/train_ranker.py` refuses to train
-    # without it. The repository still carries `data/train.parquet` from the
-    # pre-revision campaign — four rules, the deleted objective — and its `p_*`
-    # columns are perfectly well formed, so every schema check passes and a Stage
-    # 3 run against it would produce a plausible model trained on labels the
-    # revision exists to replace. Nothing else distinguishes the two files.
-    sidecar = train_path.parent / "label_meta.json"
-    sidecar.write_text(meta_json, encoding="utf-8")
+    # stamp rather than a run log — see `labeling/provenance.py` for why a label
+    # parquet cannot be trusted without one.
+    sidecar = write_label_meta(train_path, meta)
+    if test_path.parent != train_path.parent:
+        write_label_meta(test_path, meta)
 
     print(f"\n[stage2] saved:")
     for p, n in ((train_path, len(train_df)), (test_path, len(test_df)),

@@ -57,9 +57,12 @@ def main() -> int:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
 
+    # Left panel plots `service_failure_rate`, not the submitted `sla_breach_rate`.
+    # They are different quantities — the first counts every arrived order, the
+    # second only completed ones — so the axis has to say which (Reviewer 2, 1).
     panels = [
-        ("sla_mean", "sla_std", "sla", "SLA breach rate"),
-        ("cost_mean", "cost_std", "cost", "Mean composite cost"),
+        ("sla_mean", "sla_std", "sla", "Service-failure rate (per arrived order)"),
+        ("cost_mean", "cost_std", "cost", "Composite cost"),
     ]
     for ax, (mcol, scol, refkey, ylabel) in zip(axes, panels):
         ax.errorbar(
@@ -82,9 +85,12 @@ def main() -> int:
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8)
 
+    # Neutral title. The submitted one asserted the conclusion ("trained on 25
+    # shifts already outperforms..."), which the rebuild may not reproduce — the
+    # sample-efficiency result is being re-derived, not carried over.
     fig.suptitle(
-        "Sample efficiency: DAHS trained on 25 shifts already outperforms "
-        "the snapshot ranker and analytic MPC baselines",
+        "Sample efficiency: DAHS vs the snapshot ranker and analytic MPC, "
+        "by training-shift budget",
         fontsize=11,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.95))

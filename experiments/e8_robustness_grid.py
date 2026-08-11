@@ -13,6 +13,15 @@ Grid definition:
 
 Default = config.yaml base; tight = narrower SLA window; loose = wider SLA window.
 
+THE SHELF LIFE IS HELD FIXED, DELIBERATELY. Only `sla_due_triangular` moves;
+`shelf_life_triangular` stays at its configured value. Under the two-clock order
+model of `simulation/orders.py` that means the grid also varies *which clock
+binds*: in the `tight` cells the customer deadline dominates and expiry rarely
+binds first, in `loose` the reverse. That is the intended reading — the sweep
+asks whether the ranking survives a shift in the balance between the two failure
+modes, not merely a uniform rescaling of urgency. Say so when reporting, because
+a reviewer who has read Section 3 will notice the interaction.
+
 Output:
   - results/E8/robustness_grid_<arrival>_<sla>.parquet (per-shift KPI, 4 methods each)
   - results/E8/robustness_grid_summary.parquet (mean + CI per method × config cell)
@@ -34,7 +43,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import seaborn as sns  # noqa: E402
 
-from experiments.e2_main import apply_scenario  # noqa: E402
 from experiments.evaluate import (  # noqa: E402
     canonical_test_seeds,
     evaluate_policy,

@@ -44,14 +44,19 @@ from experiments.evaluate import (  # noqa: E402
     evaluate_policy_env_aware,
 )
 from experiments.stats import compare_methods, load_phase5_results  # noqa: E402
+from labeling.provenance import stamp_derived  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
 RESULTS_ROOT = REPO_ROOT / "results"
 FIG_ROOT = REPO_ROOT / "figures" / "E2"
+# EDD is in this list for a specific reason: the rule the submitted paper called
+# "FEFO" sorted on `sla_due` and was in fact EDD (Reviewer 1, 1.f). Without an
+# EDD row a reader cannot map the old Table 1 onto the new one, and the genuinely
+# expiry-aware FEFO would silently inherit the old rule's reputation.
 DEFAULT_METHODS: list[str] = [
-    "fifo", "fefo", "wspt", "atc", "linucb",
-    "greedy_mpc", "snapshot_xgb", "ppo_fair", "ours",
+    "fifo", "edd", "fefo", "wspt", "atc", "linucb",
+    "rolling_mpc", "greedy_mpc", "snapshot_xgb", "ppo_fair", "offline_fqi", "ours",
 ]
 DEFAULT_METRICS: list[str] = ["service_failure_rate", "mean_tardiness",
                               "composite_cost", "throughput", "picker_utilization"]
@@ -219,6 +224,13 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
             run_dir.mkdir(parents=True, exist_ok=True)
             train_subset_path = run_dir / "train_subset.parquet"
             sub.to_parquet(train_subset_path, index=False)
+            # Carry the labelling stamp onto the subset, or Stage 3 will refuse
+            # it as unprovenanced (labeling/provenance.py).
+            stamp_derived(
+                REPO_ROOT / "data" / "train.parquet", train_subset_path,
+                f"shift subset: budget={budget} rep={rep}",
+                n_train_shifts=int(budget),
+            )
 
             print(f"[E2 data_efficiency] budget={budget} rep={rep} "
                   f"shifts={len(chosen)} -> {run_dir.relative_to(REPO_ROOT)}")

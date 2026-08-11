@@ -39,6 +39,7 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig, OmegaConf, open_dict
 
+from labeling.provenance import read_label_meta
 from models.calibration import (
     CalibratedRanker,
     cv_calibration_report,
@@ -172,18 +173,9 @@ def main() -> int:
     # check below passes on them and the run would quietly fit a model to labels
     # generated under the deleted objective and the four-rule pool. The only
     # thing that distinguishes them is the stamp Stage 2 writes beside the file.
-    meta_path = train_path.parent / "label_meta.json"
-    if not meta_path.exists():
-        raise SystemExit(
-            f"No {meta_path} beside {train_path.name}.\n"
-            f"These labels were not produced by the current Stage 2, so they "
-            f"predate the corrected objective, the two-clock order model and the "
-            f"screened pool. Training on them would succeed and produce a wrong "
-            f"model.\n"
-            f"Run `python -m experiments.generate_labels` first (and delete the "
-            f"stale data/*.parquet)."
-        )
-    label_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    label_meta = read_label_meta(train_path)
+    if label_meta.get("derivation"):
+        print(f"[Phase 4] derived labels: {' -> '.join(label_meta['derivation'])}")
     print(f"[Phase 4] labels: tau={label_meta.get('tau')} "
           f"M={label_meta.get('n_rollout_samples')} "
           f"beta={label_meta.get('beta'):.4f} "

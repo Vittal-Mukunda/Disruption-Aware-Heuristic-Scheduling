@@ -44,6 +44,8 @@ from experiments.evaluate import (
     canonical_test_seeds,
     evaluate_policy,
 )
+from labeling.provenance import stamp_derived
+from models.heuristic_ranker import prob_columns
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -223,13 +225,17 @@ def _top_k_feature_cols(run_dir: Path, k: int = 5) -> list[str]:
 def _prepare_hard_labels_data(
     train_path: Path, test_path: Path, out_dir: Path
 ) -> tuple[Path, Path]:
-    """Replace soft `p_*` columns with one-hot of `argmax(p_*)`. Same row count."""
-    from simulation.heuristics import HEURISTIC_NAMES
+    """Replace soft `p_*` columns with one-hot of `argmax(p_*)`. Same row count.
+
+    Columns come from the FRAME, not from `HEURISTIC_NAMES`: the deployed pool is
+    whatever the Stage-1 screen retained, so a hardcoded eight-rule list raises a
+    KeyError the moment a rule is screened out.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    prob_cols = [f"p_{h}" for h in HEURISTIC_NAMES]
     for src, dst in [(train_path, out_dir / "train.parquet"),
                      (test_path, out_dir / "test.parquet")]:
         df = pd.read_parquet(src)
+        prob_cols = prob_columns(df)
         P = df[prob_cols].to_numpy(dtype=np.float64)
         argmax = P.argmax(axis=1)
         one_hot = np.zeros_like(P)
@@ -237,6 +243,8 @@ def _prepare_hard_labels_data(
         for i, c in enumerate(prob_cols):
             df[c] = one_hot[:, i]
         df.to_parquet(dst, index=False)
+    stamp_derived(train_path, out_dir / "train.parquet",
+                  "hard labels: one-hot argmax(p) replacing the soft target")
     return out_dir / "train.parquet", out_dir / "test.parquet"
 
 
@@ -284,6 +292,11 @@ def _prepare_random_filter_data(
     te_out = out_dir / "test.parquet"
     pd.read_parquet(train_path).to_parquet(tr_out, index=False)
     df_random.to_parquet(te_out, index=False)
+    stamp_derived(
+        train_path, tr_out,
+        f"random test filter: {n_keep}/{len(df_full)} rows kept at random "
+        f"instead of by confidence",
+    )
     return tr_out, te_out
 
 
