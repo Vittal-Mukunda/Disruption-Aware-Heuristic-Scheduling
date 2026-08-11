@@ -100,14 +100,16 @@ def _single_combo_cfg(cfg_ranker: DictConfig, params: dict) -> DictConfig:
     })
 
 
-def _fit_ranker_fixed_params_factory(best_params: dict):
+def _fit_ranker_fixed_params_factory(best_params: dict, base_cols=None):
     """Return a fit-fn for `cv_calibration_report` that skips the inner HP search."""
     def fit_fn(df_tr, cfg_ranker, seed, extra_cols):
         # cross_validate_ranker will GroupKFold internally and refit the best
-        # (here: only) combination.
+        # (here: only) combination. `base_cols` must be threaded through, or the
+        # calibration report would be computed on the full feature set while the
+        # deployed model was fitted on a subset.
         return cross_validate_ranker(
             df_tr, _single_combo_cfg(cfg_ranker, best_params), seed,
-            extra_feature_cols=extra_cols,
+            extra_feature_cols=extra_cols, base_feature_cols=base_cols,
         )
     return fit_fn
 
@@ -209,6 +211,7 @@ def main() -> int:
         print(f"  attached regime posteriors: {extra_cols}")
 
         joblib.dump(regime_result.gmm, run_dir / "regime.joblib")
+
     if regime_result is not None:
         (run_dir / "phase4_regime.json").write_text(
             json.dumps({
@@ -245,7 +248,7 @@ def main() -> int:
     else:
         t0 = time.perf_counter()
         print("[Phase 4] 5-fold-CV calibration report (acceptance: ECE_post < 0.05)...")
-        fit_fn = _fit_ranker_fixed_params_factory(cv_result.best_params)
+        fit_fn = _fit_ranker_fixed_params_factory(cv_result.best_params, base_cols)
         cv_cal_summary = cv_calibration_report(
             df_train, fit_fn, cfg.ranker, seed=args.seed,
             extra_feature_cols=extra_cols,

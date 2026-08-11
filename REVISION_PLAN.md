@@ -2,6 +2,11 @@
 
 Response to Reviewers 1, 2, 3, 5. Written against commit `9608465`.
 
+> **Status:** Stage 0 is complete — see [§7 Implementation status](#7-implementation-status)
+> for what has landed, what is blocked on the compute run, and what is still
+> prose-only. Nothing below has been executed; this machine has only the Windows
+> Store Python stub.
+
 ---
 
 ## 0. The structural finding
@@ -430,3 +435,100 @@ Recommendation: **(b) with elements of (a).**
 
 Stages 0 and 6 are mine. Stages 1–5 need a machine with Python 3.10–3.12 — this one has only
 the Windows Store stub, so nothing can be executed or verified here.
+
+---
+
+## 7. Implementation status
+
+Written against `8a46e5b`. **Nothing here has been executed** — this machine has
+only the Windows Store Python stub, so every claim below is from reading the
+code, not from running it. Stage 1 on 3 shifts is still the first thing to do.
+
+### 7.1 Code-complete, waiting only on compute
+
+| Item | Reviewer | Where it lives |
+|---|---|---|
+| Weighted objective; rule and cost agree | R1.1c, R1.6a | `simulation/cost.py` |
+| Two clocks; true FEFO; EDD under its own name | R1.1f, R2.2 | `simulation/orders.py`, `heuristics.py` |
+| Unserved-and-overdue charged; outcome partition reported | R2.1 | `simulation/kpis.py` |
+| Causal admission (no picker reserved for future arrivals) | R1.6a | `simulation/warehouse_env.py` |
+| Degenerate features removed; `n_init` honoured; edge-of-grid warning | R1.3a | `state_extractor.py`, `regime_discovery.py` |
+| M-sample rollouts, common random numbers, per-cell standard errors | R2.3 | `labeling/rollout_labeler.py` |
+| ATC/COVERT calibrated twice (standalone + portfolio) | R1.4c | `experiments/calibrate_rules.py` |
+| Pool expanded to 8 + screening table with marginal contribution | R1.4a/b/d | `calibrate_rules.py screen` |
+| Complementarity over the state space, not over shifts | R1.4e | `calibrate_rules.py diversity` |
+| Rolling-horizon MPC — the teacher, with latency | R2.6 | `baselines/rolling_horizon_mpc.py` |
+| PPO sensitivity grid + offline action coverage | R1.6b | `experiments/rl_sensitivity.py` |
+| LinUCB standardised; FQI given the regime features and a real behaviour policy | R1.6b | `baselines/linucb.py`, `offline_fqi.py` |
+| Composite cost primary; objective-weight sensitivity | R1.6c | `experiments/stats.py`, `e4_sensitivity.py weights` |
+| Perishability materiality **and** decision-relevance | R1.1d | `experiments/perishability_diagnostic.py` |
+| Model misspecification via `branch(model_cfg)` | R2.5 | `experiments/misspecification.py` |
+| Offline compute measured, not estimated | R3.1 | `compute_budget.py`, `label_meta.json` |
+| Successive halving for pool scalability | R3.2 | `rollout_labeler.costs_at_epoch_successive_halving` |
+| Saturation deep-dive + dwell instrumentation | R3.3 | `saturation_analysis.py`, `switching_controller.trace` |
+| Parsimony ablation | R3.4 | `e3_ablations.py retrain top5_features` |
+| Per-decision latency on every row | R3.5 | `experiments/evaluate.py` |
+| Olist distribution fitting | R1.5b | `fit_input_distributions.py` |
+| Aliasing witness for the POMDP claim | R2.4 | `observability_analysis.py` |
+
+### 7.2 Fixed in this pass — defects that would have survived the re-run
+
+1. **Six drivers could not start.** `generate_labels`, `train_ranker`,
+   `heuristic_ranker`, `pilot`, `linucb`, `offline_fqi` read config keys deleted
+   in Stage 0. Stage 1 would have run and everything after it would have failed.
+2. **Three baselines optimised a deleted objective.** `linucb`, `offline_fqi`
+   and `greedy_mpc` scored with `snapshot_labeler.composite_cost` — unweighted,
+   completed-orders-only, 600x discount on abandonment. They would have been
+   compared against DAHS on a metric they were not optimising.
+3. **`regime.n_init` was documented as 5 and hardcoded as 1.** The R1.3a fix was
+   not in force; the BIC sweep would have reproduced the single-start pathology.
+4. **The measured interval-step count was always ~0.** `simulated_steps()` is
+   process-local; under joblib the driver never saw the workers' work. The
+   figure R3.1 asks for would have been reported as zero.
+5. **`no_regime` could not ablate anything.** It deleted posterior columns that
+   `train_ranker` re-attaches, so it would have reported the full model's numbers
+   as the ablation's.
+6. **`random_ambiguity_filter` compared against a hardcoded constant** (0.4593,
+   from an earlier campaign) applied to the wrong split.
+7. **Four config keys made reviewer-facing claims no code implemented:**
+   `use_regime_features`, `standardize_features`, `record_standard_error`,
+   `calibration.mode`. First two implemented; last two removed, because both were
+   switches capable of suppressing something a reviewer asked to always see.
+8. **`make pilot`, `make data`, `make train` invoked modules that never existed.**
+9. Four declared dependencies were never imported, including `simpy` — which the
+   README's smoke test imported and the simulator's docstring says it
+   deliberately does not use.
+
+### 7.3 Still open — decisions and prose, not code
+
+- **T3, the repositioning (R1.2e).** Still the author's call. Recommendation
+  stands: **(b) controlled study of training signals, with elements of (a)**.
+- **§6 rewrite against the corrected numbers.** Every KPI in the manuscript is
+  from the old objective and the old metric. Nothing in §6, Table 1, or the
+  abstract can stand until Stage 2–5 have re-run. The margin over FIFO and PPO
+  will shrink (F3): plan the prose for a ~1.2x relative result, not 3.8x.
+- **Repo defect 5.1** — the Figure 6 / Table 1 contradiction on an identical
+  configuration. The rebuild resolves it by construction, but the regression test
+  pinning static-rule KPIs on fixed seeds is not written yet.
+- **Repo defect 5.2** — determinism between `runs/phase4` and
+  `runs/data_efficiency/ours_n250_rep0`. Needs pinned library versions and a
+  determinism test.
+- **Repo defect 5.6** — 116 MB of model artifacts backing a 3.4 KB summary.
+- **Repo defect 5.8** — author list differs between the IEEE version and README.
+- `bertsekas2022rollout` is in the bibliography and never cited; it is the
+  natural reference for the rollout method itself.
+
+### 7.4 First run
+
+Do this before committing to the corpus:
+
+```
+make stage1-budget                 # sanity-check the step budget
+python -m experiments.calibrate_rules calibrate --n-jobs 4
+make stage2-smoke                  # 3 train + 2 test shifts, end to end
+make stage3-smoke
+```
+
+`stage2-smoke` slices the corpus rather than editing `cfg.shifts`, so the smoke
+shifts are a genuine subset of the full run. If it completes, the pipeline is
+connected end to end and the expensive stages are safe to launch.
