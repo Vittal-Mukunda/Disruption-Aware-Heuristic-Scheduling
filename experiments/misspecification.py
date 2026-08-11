@@ -99,6 +99,16 @@ def perturb(cfg: DictConfig, axis: str, value: float) -> DictConfig:
             new.sim.order_attrs.sla_due_triangular = [
                 float(v * value) for v in cfg.sim.order_attrs.sla_due_triangular
             ]
+        elif axis == "shelf_life_scale":
+            # The PRODUCT clock. Added because this revision introduced it: shelf
+            # life is now a modelled parameter that an operator estimates from
+            # data as imperfectly as any other, and perturbing only the customer
+            # clock would leave the newly-added dimension untested. It is also
+            # the axis that moves WHICH clock binds, so it is the sharpest test
+            # of whether the expiry-aware machinery earns its place.
+            new.sim.order_attrs.shelf_life_triangular = [
+                float(v * value) for v in cfg.sim.order_attrs.shelf_life_triangular
+            ]
         elif axis == "n_pickers_delta":
             new.sim.n_pickers = max(1, int(cfg.sim.n_pickers + int(value)))
         else:

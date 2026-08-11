@@ -78,6 +78,11 @@ def legacy_budget(n_shifts: int, n_intervals: int, n_rules: int, tau: int) -> in
     return int(n_shifts * per_shift)
 
 
+def _calib_samples(cfg) -> int:
+    """Stage-1 rollout budget. Mirrors `experiments.calibrate_rules._calib_samples`."""
+    return int(cfg.heuristics.calibration.get("n_rollout_samples", 5))
+
+
 def analytic_table(cfg) -> pd.DataFrame:
     """Budgets for the submitted setup and for this revision's setup."""
     N = int(round(cfg.sim.shift_hours * 60 / cfg.sim.interval_minutes))
@@ -99,13 +104,18 @@ def analytic_table(cfg) -> pd.DataFrame:
             ),
         },
         {
+            # M comes from config, not a literal: Stage 1 deliberately runs at a
+            # smaller rollout budget than labelling, and a hardcoded value here
+            # silently misreports the offline cost Reviewer 3 (1) asks for the
+            # moment that setting is tuned.
             "scheme": "revision, Stage-1 screening",
             "n_shifts": int(cfg.shifts.n_calib),
             "n_rules": len(SCREENING_POOL),
-            "tau": int(cfg.labeling.tau), "M": 10,
+            "tau": int(cfg.labeling.tau),
+            "M": _calib_samples(cfg),
             "steps": rollout_step_budget(
                 int(cfg.shifts.n_calib), N, len(SCREENING_POOL),
-                int(cfg.labeling.tau), 10,
+                int(cfg.labeling.tau), _calib_samples(cfg),
             ),
         },
     ]

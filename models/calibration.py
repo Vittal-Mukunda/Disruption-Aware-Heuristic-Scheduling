@@ -174,7 +174,9 @@ def cv_calibration_report(
     Parameters
     ----------
     df_train
-        Training parquet with `shift_id`, 25 features, 4 soft-label cols.
+        Training parquet with `shift_id`, the `f_*` features and the `p_*`
+        soft-label columns. Neither count is fixed: the feature map changed in
+        revision and the pool is whatever Stage 1 retained.
     fit_ranker_fn
         Callable `(df_fold_train, cfg_ranker, seed, extra_feature_cols) ->
         RankerCVResult`. Typically `models.heuristic_ranker.cross_validate_ranker`

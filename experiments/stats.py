@@ -235,7 +235,7 @@ def compare_methods(
         Long-form DataFrame with columns at least `[method_col, seed_col, metric]`.
         Rows must be seed-aligned across methods (50 shifts each by default).
     metric
-        Column to compare (e.g. "sla_breach_rate").
+        Column to compare (e.g. "composite_cost").
     baseline
         Method name to use as the reference for paired Wilcoxon. If None,
         only per-method CIs are reported (no pairwise p-values).
@@ -248,7 +248,23 @@ def compare_methods(
     pivot = df_long.pivot_table(
         index=seed_col, columns=method_col, values=metric, aggfunc="mean"
     )
-    pivot = pivot.dropna(axis=0, how="any")  # drop seeds missing any method
+    # A paired test needs every method on every seed. Dropping the incomplete
+    # rows is right, but doing it SILENTLY is not: if one method was evaluated
+    # with --n-test the comparison quietly shrinks to the intersection and still
+    # reports as though it covered the corpus.
+    n_before = len(pivot)
+    pivot = pivot.dropna(axis=0, how="any")
+    n_dropped = n_before - len(pivot)
+    if n_dropped:
+        print(f"[stats] WARNING: {metric}: dropped {n_dropped}/{n_before} seeds "
+              f"not present for every method; {len(pivot)} seeds remain paired.")
+    if len(pivot) == 0:
+        raise ValueError(
+            f"No seed is shared by all of {methods} for metric '{metric}'. "
+            f"The per-method parquets were produced on different test corpora — "
+            f"note that inserting the calibration block shifted the test seed "
+            f"range, so pre-revision results/ files do not align with new ones."
+        )
 
     rows: list[dict] = []
     raw_p: list[float] = []
@@ -292,23 +308,31 @@ def load_phase5_results(
     results_dir,
     methods: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Load per-method parquets into a single long-form DataFrame for `compare_methods`.
+    """Load per-method parquets into one long-form frame for `compare_methods`.
 
-    Each per-method parquet is expected to have the 9-col KPI schema from
-    `experiments.evaluate.KPI_COLUMNS`. A `method` column is appended.
+    Each parquet carries the KPI schema of `experiments.evaluate.KPI_COLUMNS`;
+    a `method` column is appended.
+
+    Methods with no parquet on disk are skipped WITH A WARNING. Silently
+    skipping them is how a comparison table ends up missing the baseline it was
+    meant to beat while still looking complete.
     """
     from pathlib import Path
     results_dir = Path(results_dir)
     if methods is None:
         methods = [p.stem for p in sorted(results_dir.glob("*.parquet"))]
     parts: list[pd.DataFrame] = []
+    missing: list[str] = []
     for m in methods:
         path = results_dir / f"{m}.parquet"
         if not path.exists():
+            missing.append(m)
             continue
-        df = pd.read_parquet(path)
-        df = df.assign(method=m)
-        parts.append(df)
+        parts.append(pd.read_parquet(path).assign(method=m))
+    if missing:
+        print(f"[stats] WARNING: no results under {results_dir} for {missing}; "
+              f"they are absent from the comparison. Run them, or pass "
+              f"--methods explicitly so the omission is deliberate.")
     if not parts:
         raise FileNotFoundError(f"no parquet results found under {results_dir}")
     return pd.concat(parts, axis=0, ignore_index=True)

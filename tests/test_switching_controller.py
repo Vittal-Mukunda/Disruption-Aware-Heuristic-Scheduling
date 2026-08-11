@@ -56,7 +56,10 @@ def _zero_state(pct_perishable: float = 0.5) -> np.ndarray:
 def test_fefo_mask_zeros_p_fefo(cfg_switching):
     probs = np.full(K, 1.0 / K)
     ranker = _ConstantRanker(probs)
-    ctrl = SwitchingController(ranker, cfg_switching, fefo_threshold=0.05)
+    ctrl = SwitchingController(
+        ranker, cfg_switching, fefo_threshold=0.05,
+        heuristic_names=HEURISTIC_NAMES,
+    )
     feats = _zero_state(pct_perishable=0.0)
     ctrl.select(feats)
     masked = ctrl.last_probs
@@ -81,7 +84,9 @@ def test_dwell_keeps_heuristic_for_t_min(cfg_switching):
 
     ranker = _SequenceRanker([confident_fifo, flat_fefo_lean, flat_fefo_lean])
     cfg = OmegaConf.create({"t_min_intervals": 2, "entropy_gate_ratio": 0.5})
-    ctrl = SwitchingController(ranker, cfg, fefo_threshold=0.05)
+    ctrl = SwitchingController(
+        ranker, cfg, fefo_threshold=0.05, heuristic_names=HEURISTIC_NAMES,
+    )
 
     feats = _zero_state(pct_perishable=0.5)
     h0 = ctrl.select(feats)
@@ -104,7 +109,9 @@ def test_entropy_gate_overrides_dwell_when_confident(cfg_switching):
 
     ranker = _SequenceRanker([confident_fifo, confident_fefo])
     cfg = OmegaConf.create({"t_min_intervals": 3, "entropy_gate_ratio": 0.5})
-    ctrl = SwitchingController(ranker, cfg, fefo_threshold=0.05)
+    ctrl = SwitchingController(
+        ranker, cfg, fefo_threshold=0.05, heuristic_names=HEURISTIC_NAMES,
+    )
 
     feats = _zero_state(pct_perishable=0.5)
     assert ctrl.select(feats) == "FIFO"
@@ -118,7 +125,9 @@ def test_select_sequence_resets_state(cfg_switching):
     probs2 = np.array([0.1, 0.7, 0.1, 0.1])  # FEFO
     ranker = _SequenceRanker([probs1, probs2, probs1, probs2])
     cfg = OmegaConf.create({"t_min_intervals": 2, "entropy_gate_ratio": 0.5})
-    ctrl = SwitchingController(ranker, cfg, fefo_threshold=0.05)
+    ctrl = SwitchingController(
+        ranker, cfg, fefo_threshold=0.05, heuristic_names=HEURISTIC_NAMES,
+    )
 
     seq = np.tile(_zero_state(0.5), (2, 1))
     out_a = ctrl.select_sequence(seq)
@@ -134,7 +143,9 @@ def test_fefo_mask_blocks_fefo_under_threshold(cfg_switching):
     probs = probs / probs.sum()
     ranker = _ConstantRanker(probs)
     cfg = OmegaConf.create({"t_min_intervals": 1, "entropy_gate_ratio": 0.5})
-    ctrl = SwitchingController(ranker, cfg, fefo_threshold=0.05)
+    ctrl = SwitchingController(
+        ranker, cfg, fefo_threshold=0.05, heuristic_names=HEURISTIC_NAMES,
+    )
 
     feats = _zero_state(pct_perishable=0.0)  # below threshold
     chosen = ctrl.select(feats)

@@ -1,8 +1,12 @@
-"""Regime discovery via Gaussian Mixture Model on the 25-D feature matrix.
+"""Regime discovery via Gaussian Mixture Model on the state feature matrix.
 
 Phase 4 — per-state soft regime assignment. The pipeline:
-  1. Sweep K in `cfg.regime.k_grid = [3, 4, 5, 6]`, fit a `GaussianMixture` with
-     each, score with BIC, pick K_star = argmin BIC.
+  1. Sweep K over `cfg.regime.k_grid`, fit a `GaussianMixture` with each
+     (`cfg.regime.n_init` restarts), score with BIC, pick K_star = argmin BIC.
+     The grid was widened in revision so BIC can actually turn: the submitted
+     {3,4,5,6} sweep fell monotonically to its own upper edge, which selects the
+     boundary rather than a mode. `discover_regimes` warns when K_star lands on
+     an endpoint (Reviewer 1, 3.a).
   2. Re-fit K_star `cfg.regime.n_ari_refits` (default 10) times with different
      random seeds. Compute Adjusted Rand Index between all pairs of hard
      assignments. Require mean pairwise ARI >= `cfg.regime.ari_threshold` (0.85)
@@ -16,7 +20,7 @@ Outputs:
   - `attach_regime_posteriors(df, gmm)` appends `regime_post_0..K-1` columns
     to a parquet-style DataFrame.
 
-The regime layer feeds the ranker as auxiliary features (concat to the 25-D
+The regime layer feeds the ranker as auxiliary features (concat to the
 state) and is also persisted so we can replay it on the test set without
 re-fitting.
 """

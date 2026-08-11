@@ -260,6 +260,11 @@ experiments:
     arrival_rate_scale:    [0.8, 0.9, 1.0, 1.1, 1.25]
     processing_time_scale: [0.8, 0.9, 1.0, 1.1, 1.25]
     sla_scale:             [0.8, 1.0, 1.25]
+    # The PRODUCT clock, perturbed independently of the customer clock. This
+    # revision introduced shelf life as a modelled parameter, so it is estimated
+    # from data as imperfectly as the rest — and it is the axis that changes
+    # which of the two deadlines binds first.
+    shelf_life_scale:      [0.8, 1.0, 1.25]
     n_pickers_delta:       [-2, -1, 0, 1, 2]
 
   stats:

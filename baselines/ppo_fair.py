@@ -33,6 +33,8 @@ so every swept configuration reads as a delta from what the paper reported.
 
 from __future__ import annotations
 
+import json
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -128,6 +130,16 @@ def train_ppo_fair(
         venv = VecNormalize(venv, norm_obs=norm_obs, norm_reward=norm_rew, clip_obs=10.0)
 
     sb3_kwargs = {k: v for k, v in hp.items() if k in _SB3_KEYS}
+    ignored = sorted(set(hp) - set(_SB3_KEYS))
+    if ignored:
+        # A swept knob that is silently dropped reports "no effect", which is
+        # exactly the wrong conclusion for Reviewer 1 (6.b).
+        raise ValueError(
+            f"PPO hyperparameters {ignored} are not recognised and would be "
+            f"silently ignored, making the sweep report them as having no "
+            f"effect. Known SB3 keys: {sorted(_SB3_KEYS)}; handled here: "
+            f"['normalize_obs', 'normalize_reward']."
+        )
     model = PPO(policy="MlpPolicy", env=venv, seed=SEED_PPO, verbose=0, **sb3_kwargs)
     model.learn(total_timesteps=int(total_timesteps), progress_bar=False)
 
@@ -137,6 +149,19 @@ def train_ppo_fair(
     if isinstance(venv, VecNormalize):
         # Without these the evaluated policy is not the trained policy.
         venv.save(str(run_dir / "vecnormalize.pkl"))
+    # The action space is an INDEX into the pool, so the pool has to travel with
+    # the policy. Stage 1 rewrites `cfg.heuristics.pool`; re-deriving it at load
+    # time would remap every action onto a different rule name without erroring.
+    (run_dir / "ppo_meta.json").write_text(
+        json.dumps({
+            "pool": list(resolve_pool(cfg)),
+            "total_timesteps": int(total_timesteps),
+            "hyperparams": {k: v for k, v in (hyperparams or {}).items()},
+            "normalize_obs": norm_obs,
+            "normalize_reward": norm_rew,
+        }, indent=2),
+        encoding="utf-8",
+    )
     return run_dir / "ppo_fair.zip"
 
 
@@ -170,7 +195,6 @@ def load_ppo_fair(
 ) -> PPOPolicy:
     """Reconstruct the evaluation policy, including normalisation statistics."""
     from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import VecNormalize
 
     run_dir = Path(run_dir)
     model_path = run_dir / "ppo_fair.zip"
@@ -181,12 +205,35 @@ def load_ppo_fair(
     obs_rms = None
     vec_path = run_dir / "vecnormalize.pkl"
     if vec_path.exists():
-        vn = VecNormalize.load(str(vec_path), venv=None)
-        obs_rms = vn.obs_rms if vn.norm_obs else None
+        # Unpickled directly rather than through `VecNormalize.load(path, venv)`.
+        # That classmethod ends in `set_venv(venv)` -> `VecEnv.__init__(self,
+        # venv.num_envs, ...)`, which raises AttributeError when venv is None —
+        # and there is no live env at evaluation time. Only the running
+        # statistics are needed here, and they survive the pickle intact.
+        with open(vec_path, "rb") as fh:
+            vn = pickle.load(fh)
+        obs_rms = getattr(vn, "obs_rms", None) if getattr(vn, "norm_obs", False) else None
 
-    return PPOPolicy(
-        model=PPO.load(str(model_path)), pool=resolve_pool(cfg), obs_rms=obs_rms
-    )
+    # Pool as TRAINED. `ppo_meta.json` is written by `train_ppo_fair`; older run
+    # directories predate it and fall back to the config pool with a warning,
+    # since a silent mismatch remaps every action to a different rule.
+    meta_path = run_dir / "ppo_meta.json"
+    if meta_path.exists():
+        pool = list(json.loads(meta_path.read_text(encoding="utf-8"))["pool"])
+    else:
+        pool = resolve_pool(cfg)
+        print(f"[ppo] WARNING: no {meta_path.name}; assuming the current config "
+              f"pool {pool}. If the pool changed since training, the action "
+              f"indices now mean different rules. Retrain to remove this doubt.")
+
+    model = PPO.load(str(model_path))
+    n_actions = int(getattr(model.action_space, "n", len(pool)))
+    if n_actions != len(pool):
+        raise RuntimeError(
+            f"PPO was trained with {n_actions} actions but the pool has "
+            f"{len(pool)} rules {pool}; the policy and the action set disagree."
+        )
+    return PPOPolicy(model=model, pool=pool, obs_rms=obs_rms)
 
 
 if __name__ == "__main__":
