@@ -499,6 +499,23 @@ code, not from running it. Stage 1 on 3 shifts is still the first thing to do.
    README's smoke test imported and the simulator's docstring says it
    deliberately does not use.
 
+### 7.2b Verified item by item
+
+Every code-side reviewer item was re-checked against the source, not against
+this document. 27/27 resolve. The two that were still open at the previous pass
+are now closed:
+
+- **R3.5** asked for training wall-clock *and* inference latency on every
+  ablation row. Latency was already per-shift in the KPI parquet; training
+  wall-clock was recorded nowhere. `e3_ablations` now times the retrain, writes
+  `<ablation>_cost.json`, and `summary` prints both as a table. Inference-only
+  ablations record `train_wall_clock_s: null` — that is the finding for those
+  rows, not a gap.
+- **R2.3** asked for the rollout variance to be *reported*. It was estimated and
+  written to `label_meta.json`, which is a labelling log. It now also travels
+  into `phase4_metrics.json`, so the trained artifact states how precise the
+  targets it was fitted to actually were.
+
 ### 7.3 Still open — decisions and prose, not code
 
 - **T3, the repositioning (R1.2e).** Still the author's call. Recommendation

@@ -350,6 +350,14 @@ def main() -> int:
         "smoke": bool(args.smoke),
         "pool": list(pool),
         "n_classes": len(pool),
+        # Reviewer 2 (3) asked for the rollout variance to be REPORTED, not just
+        # estimated. Carrying the label-precision summary into the model's own
+        # metrics file means the trained artifact states how precise the targets
+        # it was fitted to actually were, rather than leaving that in a
+        # separate labelling log nobody reads alongside the results.
+        "label_precision": label_meta.get("rollout_precision_train"),
+        "label_tau": label_meta.get("tau"),
+        "label_n_rollout_samples": label_meta.get("n_rollout_samples"),
         "n_train_rows": int(len(df_train)),
         "n_test_rows": int(len(df_test)),
         "n_train_shifts_inner": int(n_tr_shifts),

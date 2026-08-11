@@ -34,6 +34,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -162,10 +163,14 @@ def cmd_inference(args: argparse.Namespace) -> int:
         )
         summary = df[["service_failure_rate", "mean_tardiness",
                       "composite_cost", "throughput"]].mean()
+        # Inference-only: no retraining, so the training cost is None by
+        # construction rather than unmeasured.
+        _write_cost_meta(ab, train_wall_clock_s=None, retrained=False, df=df)
         print(f"  sla_breach={summary['service_failure_rate']:.4f}  "
               f"mean_tard={summary['mean_tardiness']:.4f}  "
               f"composite_cost={summary['composite_cost']:.4f}  "
-              f"throughput={summary['throughput']:.2f}")
+              f"throughput={summary['throughput']:.2f}  "
+              f"inference={df['decision_latency_ms_mean'].mean():.3f}ms/decision")
     return 0
 
 
@@ -342,7 +347,14 @@ def cmd_retrain(args: argparse.Namespace) -> int:
         "--skip-cv-cal",
         *extra_flags,
     ]
+    # Reviewer 3 (5) asks for the training wall-clock alongside every ablation
+    # row. Without it an ablation that merely costs less to fit reads as a free
+    # simplification, and the reader cannot see what the removed component buys
+    # per unit of compute.
+    t_train0 = time.perf_counter()
     subprocess.check_call(cmd, cwd=str(REPO_ROOT))
+    train_wall = time.perf_counter() - t_train0
+    print(f"[E3 retrain] {ablation}: training wall-clock {train_wall:.1f}s")
 
     from baselines.ours import load_ours
     cfg = OmegaConf.load(CONFIG_PATH)
@@ -353,10 +365,49 @@ def cmd_retrain(args: argparse.Namespace) -> int:
         ablation, policy, seeds, cfg,
         results_dir=RESULTS_DIR, save=True, verbose=False,
     )
+    _write_cost_meta(
+        ablation, train_wall_clock_s=train_wall, retrained=True,
+        train_flags=extra_flags, df=df,
+    )
     print(f"\n[E3 retrain] {ablation}: "
           f"sla_breach={df['service_failure_rate'].mean():.4f}  "
-          f"composite_cost={df['composite_cost'].mean():.4f}")
+          f"composite_cost={df['composite_cost'].mean():.4f}  "
+          f"train={train_wall:.1f}s  "
+          f"inference={df['decision_latency_ms_mean'].mean():.3f}ms/decision")
     return 0
+
+
+def _write_cost_meta(
+    ablation: str,
+    *,
+    train_wall_clock_s: float | None,
+    retrained: bool,
+    df: pd.DataFrame,
+    train_flags: list[str] | None = None,
+) -> Path:
+    """Persist the two cost columns Reviewer 3 (5) asks for, per ablation.
+
+    Inference latency is already per-shift in the KPI parquet (`evaluate.py`
+    records it); this pulls out the mean and pairs it with the training cost,
+    which nothing recorded before. `train_wall_clock_s` is None for the
+    inference-only ablations — that IS the finding for those rows: they cost
+    nothing to produce because they reuse the deployed model.
+    """
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "ablation": ablation,
+        "retrained": bool(retrained),
+        "train_wall_clock_s": (
+            None if train_wall_clock_s is None else float(train_wall_clock_s)
+        ),
+        "train_flags": list(train_flags or []),
+        "decision_latency_ms_mean": float(df["decision_latency_ms_mean"].mean()),
+        "decision_latency_ms_p95": float(df["decision_latency_ms_p95"].mean()),
+        "eval_wall_clock_s_per_shift": float(df["wall_clock_s"].mean()),
+    }
+    out = RESULTS_DIR / f"{ablation}_cost.json"
+    out.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return out
 
 
 def cmd_relabel(args: argparse.Namespace) -> int:
@@ -432,6 +483,27 @@ def cmd_summary(args: argparse.Namespace) -> int:
     out_path = e3_dir / "e3_summary.parquet"
     pd.concat(out_rows, ignore_index=True).to_parquet(out_path, index=False)
     print(f"\n[E3 summary] wrote {out_path.relative_to(REPO_ROOT)}")
+
+    # Reviewer 3 (5): the cost columns belong on every ablation row, not in a
+    # separate note. An ablation that is cheaper to fit AND no worse is a
+    # different finding from one that is merely no worse.
+    cost_rows: list[dict] = []
+    for p in sorted(RESULTS_DIR.glob("*_cost.json")):
+        cost_rows.append(json.loads(p.read_text(encoding="utf-8")))
+    if cost_rows:
+        cost_df = pd.DataFrame(cost_rows).sort_values("ablation")
+        cost_path = e3_dir / "e3_cost_summary.parquet"
+        cost_df.to_parquet(cost_path, index=False)
+        print("\n[E3 summary] cost of each ablation "
+              "(training wall-clock, inference latency):")
+        show = ["ablation", "retrained", "train_wall_clock_s",
+                "decision_latency_ms_mean", "decision_latency_ms_p95"]
+        print(cost_df[show].to_string(
+            index=False, float_format=lambda x: f"{x:.3f}", na_rep="n/a"))
+        print(f"[E3 summary] wrote {cost_path.relative_to(REPO_ROOT)}")
+    else:
+        print("\n[E3 summary] no *_cost.json yet — re-run the ablations to "
+              "record training wall-clock and inference latency (Reviewer 3, 5).")
     return 0
 
 
