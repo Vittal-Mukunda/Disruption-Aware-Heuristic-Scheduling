@@ -141,14 +141,31 @@ class SwitchingController:
 
     # ------------------------------------------------------------------
 
-    def select(self, features: np.ndarray) -> str:
+    def select(self, features: np.ndarray, pct_perishable: float | None = None) -> str:
+        """Choose a rule. `features` is the ranker's input vector.
+
+        `pct_perishable` must be supplied whenever `features` is NOT the full
+        state map — the parsimony ablation (Reviewer 3, 4) fits on a five-feature
+        subset, and `PCT_PERISHABLE_IDX` indexes the full map, so reading it
+        positionally out of a subset would mask FEFO on whatever feature happens
+        to sit at that offset. Callers holding the full state pass it explicitly.
+        """
         if features.ndim != 1:
             raise ValueError(f"features must be 1-D, got shape {features.shape}")
+        if pct_perishable is None:
+            if features.shape[0] <= PCT_PERISHABLE_IDX:
+                raise ValueError(
+                    f"features has {features.shape[0]} entries, too few to read "
+                    f"pct_perishable at index {PCT_PERISHABLE_IDX}. Pass "
+                    f"pct_perishable= explicitly when the ranker was fitted on a "
+                    f"feature subset."
+                )
+            pct_perishable = float(features[PCT_PERISHABLE_IDX])
 
         raw = self.ranker.predict_proba(features.reshape(1, -1))[0]
         masked = fefo_mask(
             raw.reshape(1, -1),
-            np.array([float(features[PCT_PERISHABLE_IDX])], dtype=np.float64),
+            np.array([float(pct_perishable)], dtype=np.float64),
             threshold=self.fefo_threshold,
             heuristic_names=self.heuristic_names,
         )[0]

@@ -267,6 +267,13 @@ def cmd_weights(args: argparse.Namespace) -> int:
     still wins is evidence that the ranking is not an artefact of the weighting,
     while a cell where it loses is a genuine caveat and must be reported as one.
     The paper must state at which ratio the conclusion flips, if it does.
+
+    ONE ASYMMETRY, DELIBERATELY LEFT IN. The rolling-horizon MPC scores its
+    rollouts through `env.potential()`, so it re-optimises against each cell's
+    weights for free, while DAHS carries labels distilled under the nominal ones.
+    The lookahead is therefore advantaged here — which is again the conservative
+    direction, since DAHS is being asked to beat a teacher that has adapted to
+    the new objective when it has not. Report it rather than leaving it implicit.
     """
     base_cfg = OmegaConf.load(CONFIG_PATH)
     seeds = canonical_test_seeds(base_cfg)

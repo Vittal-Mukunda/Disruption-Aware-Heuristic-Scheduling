@@ -41,7 +41,7 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from sklearn.mixture import GaussianMixture
 
-from models.switching_controller import SwitchingController
+from models.switching_controller import PCT_PERISHABLE_IDX, SwitchingController
 from simulation.state_extractor import N_FEATURES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -84,7 +84,12 @@ class OursPolicy:
                 f"but ranker expects {len(self.feature_cols)} "
                 f"(feature_cols={self.feature_cols[:3]}...)"
             )
-        return self.controller.select(full)
+        # Read the mask input from the FULL state, not from the ranker's vector:
+        # under the parsimony ablation the latter is a subset and the positional
+        # index would point at a different feature.
+        return self.controller.select(
+            full, pct_perishable=float(state[PCT_PERISHABLE_IDX])
+        )
 
 
 def load_ours(
