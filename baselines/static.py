@@ -1,9 +1,15 @@
-"""Phase 5 — static (fixed) heuristic baselines.
+"""Static (fixed) dispatching-rule baselines.
 
-One policy per name in `simulation.heuristics.HEURISTIC_NAMES`. The policy
-ignores the state vector and always returns its bound heuristic name. These
-are the floor of the Phase 5 comparison: any adaptive method must beat them
-on SLA breach rate to be worth shipping.
+One policy per rule: it ignores the state and always returns its bound name.
+These are the floor of the comparison — any adaptive method must beat the best
+of them on the composite objective to be worth shipping.
+
+Validity is checked against the whole rule LIBRARY (`simulation.heuristics.
+HEURISTICS`), not against the deployed pool. A rule the Stage-1 screen dropped
+from the selector's action set is still a legitimate standalone benchmark, and
+reporting it is what makes the screen's verdict auditable — the submitted module
+rejected any name outside the four-rule pool, so a screened-out rule could not
+be benchmarked at all.
 
 Usage:
 
@@ -14,7 +20,7 @@ Usage:
     seeds = canonical_test_seeds(cfg)
     df = evaluate_policy("FIFO", make_static_policy("FIFO"), seeds, cfg)
 
-Or use `run_static_baselines(seeds, cfg)` to evaluate all four in one call.
+`run_static_baselines(seeds, cfg)` evaluates the deployed pool in one call.
 """
 
 from __future__ import annotations
@@ -26,19 +32,14 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-from simulation.heuristics import HEURISTIC_NAMES
+from simulation.heuristics import HEURISTICS, resolve_pool
 
 
 def make_static_policy(name: str) -> Callable[[np.ndarray], str]:
-    """Return `policy(state) -> name` for the given heuristic.
-
-    Raises ValueError if `name` is not in the active pool. CR is intentionally
-    excluded (see HANDOFF gotcha #16).
-    """
-    if name not in HEURISTIC_NAMES:
+    """Return `policy(state) -> name` for the given rule."""
+    if name not in HEURISTICS:
         raise ValueError(
-            f"Heuristic '{name}' not in active pool {HEURISTIC_NAMES}. "
-            f"CR was dropped in Phase 2 — see gotcha #16."
+            f"Unknown heuristic '{name}'. Available: {sorted(HEURISTICS)}"
         )
     bound = str(name)
 
@@ -54,12 +55,13 @@ def run_static_baselines(
     cfg: DictConfig,
     results_dir: Path | None = None,
     verbose: bool = False,
+    rules: list[str] | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """Evaluate every heuristic in `HEURISTIC_NAMES` and persist one parquet each."""
+    """Evaluate each rule in `rules` (default: the deployed pool); one parquet each."""
     from experiments.evaluate import evaluate_policy
 
     out: dict[str, pd.DataFrame] = {}
-    for h in HEURISTIC_NAMES:
+    for h in (rules if rules is not None else resolve_pool(cfg)):
         if verbose:
             print(f"[static] {h}")
         out[h] = evaluate_policy(

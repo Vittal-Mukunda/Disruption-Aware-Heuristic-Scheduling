@@ -63,7 +63,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-from labeling.rollout_labeler import label_one_shift
+from labeling.rollout_labeler import label_one_shift_counted
 from seed import shift_corpora
 from simulation.heuristics import SCREENING_POOL, with_default_scales
 from simulation.warehouse_env import WarehouseEnv, reset_step_counter, simulated_steps
@@ -107,31 +107,68 @@ def _default_k(cfg: DictConfig) -> DictConfig:
 # ---------------------------------------------------------------------------
 
 
+def _calib_samples(cfg: DictConfig) -> int:
+    """Rollout budget for Stage 1. Deliberately far below the labelling budget.
+
+    Calibration and screening only need to *rank* candidates, not to produce
+    deployable labels, and every comparison here is paired under common random
+    numbers. Running them at the labelling budget of M=20 would cost roughly
+    12.3M interval-steps for the k-sweep alone — about six times the entire
+    labelling stage — for a ranking that is stable at M=5.
+    """
+    return int(cfg.heuristics.calibration.get("n_rollout_samples", 5))
+
+
+# Interval-steps simulated by this stage, accumulated in the DRIVER process.
+#
+# `simulation.warehouse_env._STEP_COUNTER` is a module-level global and so is
+# process-local: under joblib's loky backend every shift runs in a worker and
+# the driver's counter never advances. Reading `simulated_steps()` here after a
+# parallel map returns zero, which would report the offline simulation cost
+# Reviewer 3 (1) asks for as ~0 regardless of how much work was done. Workers
+# therefore return their own counts and the driver sums them.
+_STEPS: dict[str, int] = {"total": 0}
+
+
+def _reset_steps() -> None:
+    _STEPS["total"] = 0
+
+
+def _steps_total() -> int:
+    return int(_STEPS["total"])
+
+
 def _collect_costs(
     seeds: list[int], cfg: DictConfig, candidates: list[str], n_jobs: int
 ) -> pd.DataFrame:
     """Per-epoch rollout cost of every candidate on every calibration shift."""
-    rows = Parallel(n_jobs=n_jobs, verbose=1)(
-        delayed(label_one_shift)(i, s, cfg, candidates=candidates)
+    global _LAST_COLLECT_STEPS
+    m = _calib_samples(cfg)
+    out = Parallel(n_jobs=n_jobs, verbose=1)(
+        delayed(label_one_shift_counted)(i, s, cfg, n_samples=m, candidates=candidates)
         for i, s in enumerate(seeds)
     )
-    return pd.DataFrame([r for shift in rows for r in shift])
+    _STEPS["total"] += int(sum(s for _, s in out))
+    return pd.DataFrame([r for rows, _ in out for r in rows])
 
 
-def _run_static(seed: int, cfg: DictConfig, rule: str) -> float:
-    """Composite cost of one shift under a single fixed rule.
+def _run_static(seed: int, cfg: DictConfig, rule: str) -> tuple[float, int]:
+    """Composite cost of one shift under a single fixed rule, and its step count.
 
     Module level, not a closure, so joblib's loky backend can pickle it without
     relying on cloudpickle's closure handling.
     """
+    reset_step_counter()
     env = WarehouseEnv(int(seed), cfg)
-    return float(env.run_with_policy(rule)["composite_cost"])
+    cost = float(env.run_with_policy(rule)["composite_cost"])
+    return cost, simulated_steps()
 
 
 def _standalone_cost(seeds: list[int], cfg: DictConfig, rule: str, n_jobs: int) -> float:
     """Mean composite cost of running `rule` alone over the calibration shifts."""
-    vals = Parallel(n_jobs=n_jobs)(delayed(_run_static)(s, cfg, rule) for s in seeds)
-    return float(np.mean(vals))
+    out = Parallel(n_jobs=n_jobs)(delayed(_run_static)(s, cfg, rule) for s in seeds)
+    _STEPS["total"] += int(sum(s for _, s in out))
+    return float(np.mean([c for c, _ in out]))
 
 
 def _marginal_contribution(df: pd.DataFrame, pool: list[str], rule: str) -> np.ndarray:
@@ -167,7 +204,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     seeds = shift_corpora(cfg)["calib"]
     grid = [float(x) for x in cfg.heuristics.calibration.k_grid]
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    reset_step_counter()
+    _reset_steps()
 
     results: list[dict] = []
     for rule, key in PARAMETERISED.items():
@@ -225,7 +262,8 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
             "chosen": chosen,
             "n_calibration_shifts": len(seeds),
             "k_grid": grid,
-            "simulated_interval_steps": simulated_steps(),
+            "n_rollout_samples": _calib_samples(cfg),
+            "simulated_interval_steps": _steps_total(),
         }, indent=2),
         encoding="utf-8",
     )
@@ -233,7 +271,7 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     for rule, c in chosen.items():
         print(f"  {rule}: standalone k*={c['k_standalone']}  "
               f"portfolio k*={c['k_portfolio']}  -> deploying {c['k_deployed']}")
-    print(f"\n[calibrate] simulated interval-steps: {simulated_steps():,}")
+    print(f"\n[calibrate] simulated interval-steps: {_steps_total():,}")
     print(f"[calibrate] write these into config.yaml under `heuristics:` before screening.")
     return 0
 
@@ -248,7 +286,7 @@ def cmd_screen(args: argparse.Namespace) -> int:
     seeds = shift_corpora(cfg)["calib"]
     candidates = list(args.candidates) if args.candidates else list(SCREENING_POOL)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    reset_step_counter()
+    _reset_steps()
 
     print(f"[screen] {len(candidates)} candidates on {len(seeds)} calibration shifts: "
           f"{candidates}")
@@ -288,7 +326,7 @@ def cmd_screen(args: argparse.Namespace) -> int:
     if len(retained) < 2:
         print("[screen] WARNING: fewer than two rules survive; the selection "
               "problem is degenerate under the current objective.")
-    print(f"[screen] simulated interval-steps: {simulated_steps():,}")
+    print(f"[screen] simulated interval-steps: {_steps_total():,}")
     print(f"[screen] write the retained pool into config.yaml `heuristics.pool`.")
 
     (RESULTS_DIR / "pool_screening.json").write_text(
@@ -297,7 +335,8 @@ def cmd_screen(args: argparse.Namespace) -> int:
             "retained": retained,
             "top_win_rate": top_win,
             "n_calibration_shifts": len(seeds),
-            "simulated_interval_steps": simulated_steps(),
+            "n_rollout_samples": _calib_samples(cfg),
+            "simulated_interval_steps": _steps_total(),
         }, indent=2),
         encoding="utf-8",
     )

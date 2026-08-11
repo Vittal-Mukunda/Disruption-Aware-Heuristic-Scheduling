@@ -79,7 +79,7 @@ def test_compare_methods_runs_on_phase5_parquets():
         df_long_parts.append(pd.read_parquet(path).assign(method=m))
     df_long = pd.concat(df_long_parts, ignore_index=True)
     out = compare_methods(
-        df_long, metric="sla_breach_rate", baseline="ours",
+        df_long, metric="composite_cost", baseline="ours",
         n_resamples=1000,
     )
     assert set(out["method"]) == {"fifo", "ours"}
@@ -88,20 +88,24 @@ def test_compare_methods_runs_on_phase5_parquets():
     assert fifo_row["reject_bh"]
 
 
-def test_e1_runs_with_existing_pilot_parquet(tmp_path):
-    if not (REPO_ROOT / "data" / "pilot_costs.parquet").exists():
-        pytest.skip("data/pilot_costs.parquet not present")
-    fig_dir = tmp_path / "figs"
-    res_dir = tmp_path / "res"
-    cmd = [
-        sys.executable, "-m", "experiments.e1_diversity",
-        "--fig-dir", str(fig_dir), "--results-dir", str(res_dir),
-    ]
+def test_diversity_grid_runs_on_stage1_costs():
+    """Replaces the E1 per-shift heatmap (Reviewer 1, 4.e).
+
+    The submitted Figure 1 varied the INSTANCE (shift, interval) and so said
+    nothing about complementarity across the STATE SPACE. Its driver and its
+    `data/pilot_costs.parquet` input are both gone; the replacement bins win
+    rate over queue length x deadline pressure and is produced by Stage 1.
+    """
+    costs = (REPO_ROOT / "results" / "S1_calibration"
+             / "calibration_epoch_costs.parquet")
+    if not costs.exists():
+        pytest.skip(f"missing {costs}; run `make stage1-screen` first")
+    cmd = [sys.executable, "-m", "experiments.calibrate_rules", "diversity"]
     rc = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False,
                         capture_output=True, text=True)
     assert rc.returncode == 0, rc.stderr
-    assert (res_dir / "overall_win_rates.parquet").exists()
-    assert (fig_dir / "diversity_heatmap_interval.png").exists()
+    assert (REPO_ROOT / "results" / "S1_calibration"
+            / "diversity_state_grid.parquet").exists()
 
 
 def test_e2_stats_runs_on_existing_parquets():
@@ -111,7 +115,7 @@ def test_e2_stats_runs_on_existing_parquets():
         sys.executable, "-m", "experiments.e2_main", "stats",
         "--scenario", "default",
         "--methods", "fifo", "ours",
-        "--metrics", "sla_breach_rate",
+        "--metrics", "composite_cost",
     ]
     rc = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False,
                         capture_output=True, text=True)
@@ -133,13 +137,13 @@ def test_e2_apply_scenario_overlays_arrival_rate():
 def test_e3_no_calibration_policy_returns_valid_heuristic():
     from baselines.ours import REPO_ROOT as _ROOT
     from experiments.e3_ablations import load_no_calibration
-    from simulation.heuristics import HEURISTIC_NAMES
+    from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
     from simulation.warehouse_env import WarehouseEnv
     run_dir = _ROOT / "runs" / "phase4"
     if not run_dir.exists():
         pytest.skip("runs/phase4 not present")
     policy = load_no_calibration(run_dir)
-    cfg = OmegaConf.load(REPO_ROOT / "config.yaml")
+    cfg = with_default_scales(OmegaConf.load(REPO_ROOT / "config.yaml"))
     env = WarehouseEnv(42, cfg)
     h = policy(env.current_state())
     assert h in HEURISTIC_NAMES
@@ -148,13 +152,13 @@ def test_e3_no_calibration_policy_returns_valid_heuristic():
 def test_e3_no_switching_policy_argmax_equivalent():
     """T_min=0 means dwell never fires; controller always returns the argmax."""
     from experiments.e3_ablations import load_no_switching
-    from simulation.heuristics import HEURISTIC_NAMES
+    from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
     from simulation.warehouse_env import WarehouseEnv
     run_dir = REPO_ROOT / "runs" / "phase4"
     if not run_dir.exists():
         pytest.skip("runs/phase4 not present")
     policy = load_no_switching(run_dir)
-    cfg = OmegaConf.load(REPO_ROOT / "config.yaml")
+    cfg = with_default_scales(OmegaConf.load(REPO_ROOT / "config.yaml"))
     env = WarehouseEnv(42, cfg)
     h = policy(env.current_state())
     assert h in HEURISTIC_NAMES

@@ -67,13 +67,21 @@ def load_no_calibration(run_dir: Path = DEFAULT_RUN_DIR, cfg: DictConfig | None 
 
     from baselines.ours import OursPolicy
     from models.switching_controller import SwitchingController
-    from simulation.heuristics import HEURISTIC_NAMES
 
     cfg = cfg if cfg is not None else OmegaConf.load(CONFIG_PATH)
     calibrator = joblib.load(run_dir / "calibrator.joblib")
     regime_gmm = joblib.load(run_dir / "regime.joblib")
     meta = joblib.load(run_dir / "ranker_meta.joblib")
     feature_cols = list(meta["feature_cols"])
+    # Class order as TRAINED, not as currently configured — Stage 1 rewrites
+    # `cfg.heuristics.pool`, and an ablation that remapped the class indices
+    # would be measuring the remapping rather than the missing component.
+    classes = list(meta.get("classes") or [])
+    if not classes:
+        raise RuntimeError(
+            f"{run_dir / 'ranker_meta.joblib'} has no 'classes' entry; retrain "
+            f"with the current experiments/train_ranker.py."
+        )
 
     raw = _NoCalibrationRanker(calibrator.base_model, feature_cols)
     controller = SwitchingController(
@@ -81,7 +89,7 @@ def load_no_calibration(run_dir: Path = DEFAULT_RUN_DIR, cfg: DictConfig | None 
         cfg_switching=cfg.ranker.switching,
         fefo_threshold=float(cfg.heuristics.fefo_mask_threshold),
         feature_cols=feature_cols,
-        heuristic_names=HEURISTIC_NAMES,
+        heuristic_names=classes,
     )
     return OursPolicy(controller=controller, regime_gmm=regime_gmm,
                       feature_cols=feature_cols)
@@ -132,11 +140,11 @@ def cmd_inference(args: argparse.Namespace) -> int:
             ab, policy, seeds, cfg,
             results_dir=results_dir, save=True, verbose=args.verbose,
         )
-        summary = df[["sla_breach_rate", "mean_tardiness",
-                      "mean_cost", "throughput"]].mean()
-        print(f"  sla_breach={summary['sla_breach_rate']:.4f}  "
+        summary = df[["service_failure_rate", "mean_tardiness",
+                      "composite_cost", "throughput"]].mean()
+        print(f"  sla_breach={summary['service_failure_rate']:.4f}  "
               f"mean_tard={summary['mean_tardiness']:.4f}  "
-              f"mean_cost={summary['mean_cost']:.4f}  "
+              f"composite_cost={summary['composite_cost']:.4f}  "
               f"throughput={summary['throughput']:.2f}")
     return 0
 
@@ -270,8 +278,8 @@ def cmd_retrain(args: argparse.Namespace) -> int:
         results_dir=RESULTS_DIR, save=True, verbose=False,
     )
     print(f"\n[E3 retrain] {ablation}: "
-          f"sla_breach={df['sla_breach_rate'].mean():.4f}  "
-          f"mean_cost={df['mean_cost'].mean():.4f}")
+          f"sla_breach={df['service_failure_rate'].mean():.4f}  "
+          f"composite_cost={df['composite_cost'].mean():.4f}")
     return 0
 
 
@@ -299,7 +307,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
         parts.append(pd.read_parquet(p).assign(method=p.stem))
     df_long = pd.concat(parts, ignore_index=True)
 
-    metrics = ["sla_breach_rate", "mean_tardiness", "mean_cost"]
+    metrics = ["service_failure_rate", "mean_tardiness", "composite_cost"]
     out_rows: list[pd.DataFrame] = []
     for m in metrics:
         d = compare_methods(

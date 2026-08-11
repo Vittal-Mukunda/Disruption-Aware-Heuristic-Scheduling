@@ -1,13 +1,19 @@
-"""Phase 4 top-level driver — fit the regime layer, ranker, and calibrator.
+"""Stage 3 — fit the regime layer, the ranker, and the calibrator.
 
 Inputs:
-  data/train.parquet  (8000 rows, 25 features + 4 cost cols + 4 prob cols)
-  data/test.parquet   (post-θ=0.55 filter, 865 rows in the current snapshot)
-  config.yaml         (single source of truth)
+  data/train.parquet  one row per decision epoch: features + per-rule costs,
+                      standard errors, and soft labels
+  data/test.parquet   the same, ambiguity-filtered at cfg theta
+  config.yaml         hyperparameters (NOT the class set — see below)
+
+The RULE POOL is read from the label columns, never from config. Stage 1 may
+screen rules out after config.yaml was last edited, and the submitted code
+declared the class count in a third place (`cfg.ranker.num_class`) that could
+disagree with both. See `models.heuristic_ranker.prob_columns`.
 
 Outputs (under `runs/<run_id>/`):
   regime.joblib            -- fitted GaussianMixture (k_star, full covariance)
-  model.json               -- XGBoost ranker (multi:softprob, num_class=4)
+  model.json               -- XGBoost ranker (multi:softprob, K = |pool|)
   calibrator.joblib        -- CalibratedRanker wrapper (isotonic, prefit)
   phase4_regime.json       -- BIC sweep, K_star, mean ARI, stability flag
   phase4_metrics.json      -- ranker CV scores + calibration report (test set)
@@ -41,10 +47,11 @@ from models.calibration import (
 )
 from models.heuristic_ranker import (
     FEATURE_COLUMNS,
-    PROB_COLUMNS,
     RankerCVResult,
     build_ldl_training_arrays,
     cross_validate_ranker,
+    pool_from_frame,
+    prob_columns,
     soft_xent,
 )
 from regime.regime_discovery import (
@@ -53,7 +60,6 @@ from regime.regime_discovery import (
     regime_posterior_columns,
 )
 from seed import SEED_MODEL
-from simulation.heuristics import HEURISTIC_NAMES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -75,35 +81,43 @@ def _maybe_override_smoke(cfg: DictConfig, smoke: bool) -> DictConfig:
     return cfg
 
 
+def _single_combo_cfg(cfg_ranker: DictConfig, params: dict) -> DictConfig:
+    """A `cfg.ranker` clone whose HP grid is the single combination `params`.
+
+    `num_class` is deliberately absent: the class count is the width of the
+    label matrix, read by `cross_validate_ranker` from the frame itself.
+    """
+    return OmegaConf.create({
+        "objective": str(cfg_ranker.objective),
+        "sample_weight": str(cfg_ranker.sample_weight),
+        "cv": {
+            "n_splits": int(cfg_ranker.cv.n_splits),
+            "group_col": str(cfg_ranker.cv.group_col),
+        },
+        "hyperparams": {k: [v] for k, v in params.items()},
+        "calibration": OmegaConf.to_container(cfg_ranker.calibration, resolve=True),
+        "switching": OmegaConf.to_container(cfg_ranker.switching, resolve=True),
+    })
+
+
 def _fit_ranker_fixed_params_factory(best_params: dict):
     """Return a fit-fn for `cv_calibration_report` that skips the inner HP search."""
     def fit_fn(df_tr, cfg_ranker, seed, extra_cols):
-        # Construct a single-combo grid using best_params; cross_validate_ranker
-        # will GroupKFold internally and return the refit best model.
-        single_combo_cfg = OmegaConf.create({
-            "num_class": int(cfg_ranker.num_class),
-            "objective": str(cfg_ranker.objective),
-            "sample_weight": str(cfg_ranker.sample_weight),
-            "cv": {
-                "n_splits": int(cfg_ranker.cv.n_splits),
-                "group_col": str(cfg_ranker.cv.group_col),
-            },
-            "hyperparams": {k: [v] for k, v in best_params.items()},
-            "calibration": OmegaConf.to_container(cfg_ranker.calibration, resolve=True),
-            "switching": OmegaConf.to_container(cfg_ranker.switching, resolve=True),
-        })
+        # cross_validate_ranker will GroupKFold internally and refit the best
+        # (here: only) combination.
         return cross_validate_ranker(
-            df_tr, single_combo_cfg, seed, extra_feature_cols=extra_cols
+            df_tr, _single_combo_cfg(cfg_ranker, best_params), seed,
+            extra_feature_cols=extra_cols,
         )
     return fit_fn
 
 
-def _argmax_distribution(probs: np.ndarray) -> dict[str, int]:
-    """Per-class count of argmax labels."""
+def _argmax_distribution(probs: np.ndarray, pool: list[str]) -> dict[str, int]:
+    """Per-class count of argmax labels, keyed by rule name."""
     if probs.shape[0] == 0:
-        return {h: 0 for h in HEURISTIC_NAMES}
-    counts = np.bincount(probs.argmax(axis=1), minlength=len(HEURISTIC_NAMES))
-    return {h: int(counts[i]) for i, h in enumerate(HEURISTIC_NAMES)}
+        return {h: 0 for h in pool}
+    counts = np.bincount(probs.argmax(axis=1), minlength=len(pool))
+    return {h: int(counts[i]) for i, h in enumerate(pool)}
 
 
 def main() -> int:
@@ -129,23 +143,31 @@ def main() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[Phase 4] run_id={run_id}  smoke={args.smoke}  seed={args.seed}")
-    print(f"[Phase 4] heuristics = {list(HEURISTIC_NAMES)}  "
-          f"(cfg.ranker.num_class = {cfg.ranker.num_class})")
-    if int(cfg.ranker.num_class) != len(HEURISTIC_NAMES):
-        raise SystemExit(
-            f"cfg.ranker.num_class ({cfg.ranker.num_class}) != "
-            f"len(HEURISTIC_NAMES) ({len(HEURISTIC_NAMES)}) -- see gotcha #16."
-        )
 
     train_path = Path(args.train_path) if args.train_path else DATA_DIR / "train.parquet"
     test_path = Path(args.test_path) if args.test_path else DATA_DIR / "test.parquet"
     if not train_path.exists() or not test_path.exists():
-        raise SystemExit(f"Missing {train_path} or {test_path}; run Phase 3 first.")
+        raise SystemExit(
+            f"Missing {train_path} or {test_path}; run "
+            f"`python -m experiments.generate_labels` first."
+        )
     print(f"[Phase 4] data: {train_path} / {test_path}")
 
     df_train = pd.read_parquet(train_path)
     df_test = pd.read_parquet(test_path)
     print(f"[Phase 4] train: {len(df_train)} rows; test: {len(df_test)} rows")
+
+    # The pool is a property of the labels, not of the config: Stage 1 may have
+    # screened rules out since config.yaml was last edited. Train and test must
+    # agree, or the class indices mean different things on the two splits.
+    pool = pool_from_frame(df_train)
+    test_pool = pool_from_frame(df_test)
+    if pool != test_pool:
+        raise SystemExit(
+            f"Label pools differ between splits: train={pool}, test={test_pool}. "
+            f"Regenerate both with a single `generate_labels` run."
+        )
+    print(f"[Phase 4] pool (from labels, K={len(pool)}) = {pool}")
 
     # --- 1) Regime discovery -------------------------------------------------
     t0 = time.perf_counter()
@@ -230,18 +252,7 @@ def main() -> int:
 
     t0 = time.perf_counter()
     print("[Phase 4] refit ranker on inner-train with best HPs...")
-    refit_cfg = OmegaConf.create({
-        "num_class": int(cfg.ranker.num_class),
-        "objective": str(cfg.ranker.objective),
-        "sample_weight": str(cfg.ranker.sample_weight),
-        "cv": {
-            "n_splits": int(cfg.ranker.cv.n_splits),
-            "group_col": str(cfg.ranker.cv.group_col),
-        },
-        "hyperparams": {k: [v] for k, v in cv_result.best_params.items()},
-        "calibration": OmegaConf.to_container(cfg.ranker.calibration, resolve=True),
-        "switching": OmegaConf.to_container(cfg.ranker.switching, resolve=True),
-    })
+    refit_cfg = _single_combo_cfg(cfg.ranker, cv_result.best_params)
     final_cv = cross_validate_ranker(
         df_inner_tr, refit_cfg, seed=args.seed, extra_feature_cols=extra_cols
     )
@@ -272,7 +283,10 @@ def main() -> int:
     joblib.dump(calibrator, run_dir / "calibrator.joblib")
     joblib.dump(
         {"feature_cols": final_cv.feature_cols, "best_params": cv_result.best_params,
-         "regime_extra_cols": list(extra_cols), "k_star": int(regime_result.k_star)},
+         "regime_extra_cols": list(extra_cols), "k_star": int(regime_result.k_star),
+         # Class-index -> rule name. The deployment wrapper maps argmax through
+         # this; without it a re-screened pool would silently reindex the actions.
+         "classes": list(final_cv.classes)},
         run_dir / "ranker_meta.joblib",
     )
 
@@ -280,6 +294,8 @@ def main() -> int:
         "run_id": run_id,
         "seed": int(args.seed),
         "smoke": bool(args.smoke),
+        "pool": list(pool),
+        "n_classes": len(pool),
         "n_train_rows": int(len(df_train)),
         "n_test_rows": int(len(df_test)),
         "n_train_shifts_inner": int(n_tr_shifts),
@@ -300,12 +316,13 @@ def main() -> int:
         "cv_calibration": cv_cal_summary,
         "argmax_distribution_test_pre":
             _argmax_distribution(final_cv.model.predict_proba(
-                df_test[final_cv.feature_cols].to_numpy(np.float64))),
+                df_test[final_cv.feature_cols].to_numpy(np.float64)), pool),
         "argmax_distribution_test_post":
             _argmax_distribution(calibrator.predict_proba(
-                df_test[final_cv.feature_cols].to_numpy(np.float64))),
+                df_test[final_cv.feature_cols].to_numpy(np.float64)), pool),
         "argmax_distribution_test_truth":
-            _argmax_distribution(df_test[PROB_COLUMNS].to_numpy(np.float64)),
+            _argmax_distribution(
+                df_test[prob_columns(df_test)].to_numpy(np.float64), pool),
     }
     (run_dir / "phase4_metrics.json").write_text(
         json.dumps(metrics, indent=2, default=float), encoding="utf-8"

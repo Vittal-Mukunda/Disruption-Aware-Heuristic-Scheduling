@@ -71,6 +71,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
 
+from labeling.rollout_labeler import rollout_seed
 from seed import shift_corpora
 from simulation.heuristics import resolve_pool, with_default_scales
 from simulation.warehouse_env import WarehouseEnv
@@ -79,10 +80,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
 RESULTS_DIR = REPO_ROOT / "results" / "S1_perishability"
 
-# Pre-registered threshold. Below this share of decisions the claim is not
-# supported and the framing changes. Fixed here before the diagnostic is run so
-# the decision rule cannot be fitted to the answer.
+# Pre-registered thresholds, fixed before the diagnostic runs so the decision
+# rule cannot be fitted to the answer. All three must hold for the
+# "perishability-constrained" framing to stand.
+#
+#   MATERIALITY      share of decisions with at least one expiry-pivotal order.
+#                    A necessary condition, and a weak one: with a large queue it
+#                    saturates near 1 whether or not perishability matters.
+#   EXPIRY_BINDS     share of perishables whose product clock is tighter than
+#                    their customer clock. If this is ~0, FEFO is EDD by another
+#                    name and the second clock is decorative.
+#   DISCRIMINATION   share of decisions at which the CHOICE OF RULE changes how
+#                    much spoils. This is the binding condition — the others can
+#                    hold while this fails, and then perishability constrains the
+#                    world but not the decision.
 MATERIALITY_THRESHOLD: float = 0.05
+EXPIRY_BINDS_THRESHOLD: float = 0.10
+DISCRIMINATION_THRESHOLD: float = 0.10
 
 
 def _scan_one_shift(seed: int, cfg: DictConfig, rule: str) -> list[dict]:
@@ -189,22 +203,169 @@ def summarise(df: pd.DataFrame) -> dict:
     }
 
 
-def verdict(summary: dict) -> dict:
-    """State plainly which way the evidence falls, against the fixed threshold."""
-    rate = summary["epoch_any_expiry_pivotal"]
-    supported = bool(rate >= MATERIALITY_THRESHOLD)
-    return {
-        "threshold": MATERIALITY_THRESHOLD,
-        "epoch_any_expiry_pivotal": rate,
-        "perishability_claim_supported": supported,
-        "recommendation": (
-            "Retain 'perishability-constrained' framing and keep FEFO in the "
-            "candidate pool; report this diagnostic in Section 3."
-            if supported
-            else "Drop 'perishability-constrained' from the title and framing, "
-            "remove FEFO from the pool, and report this diagnostic as the "
-            "reason. Reviewer 1 (1.d) is answered either way."
+def _spoiled(env: WarehouseEnv, t_ref: float) -> tuple[int, float]:
+    """(count, economic weight) of arrived orders spoiled as of `t_ref`."""
+    sp = [o for o in env.arrived_orders() if o.is_spoiled(t_ref)]
+    return len(sp), float(sum(o.weight for o in sp))
+
+
+def _discriminate_one_shift(
+    seed: int, cfg: DictConfig, pool: list[str], tau: int, n_samples: int,
+    base_seed: int, behaviour: str,
+) -> list[dict]:
+    """Per epoch, does the CHOICE OF RULE change how much spoils?
+
+    This is the sharp form of the reviewer's question and the pivotality scan
+    above is only its precondition. An order can be expiry-pivotal at an epoch —
+    one interval of delay would spoil it — while every rule in the pool happens
+    to treat it identically, in which case perishability constrains the *world*
+    but not the *decision*, and an expiry-aware rule earns nothing.
+
+    For each rule we roll forward `tau` intervals over `n_samples` shared
+    continuations and record the spoilage accrued inside the window. The spread
+    across rules is the quantity that matters: if it is zero the rule choice is
+    irrelevant to spoilage, however pivotal the individual orders were.
+    """
+    env = WarehouseEnv(int(seed), cfg)
+    rows: list[dict] = []
+
+    for t in range(env.n_intervals):
+        env.observe()
+        steps = min(tau, env.n_intervals - t)
+        if steps <= 0:
+            break
+        sp0_n, sp0_w = _spoiled(env, env.t)
+        phi0 = env.potential()
+
+        per_rule_spoil: dict[str, float] = {}
+        per_rule_cost: dict[str, float] = {}
+        for h in pool:
+            sn, sw, cc = [], [], []
+            for m in range(n_samples):
+                b = env.branch(rollout_seed(base_seed, seed, t, m))
+                b.run_with_policy(h, n_steps=steps)
+                n1, w1 = _spoiled(b, b.t)
+                sn.append(n1 - sp0_n)
+                sw.append(w1 - sp0_w)
+                cc.append(b.potential() - phi0)
+            per_rule_spoil[h] = float(np.mean(sw))
+            per_rule_cost[h] = float(np.mean(cc))
+
+        spoil_vals = np.array(list(per_rule_spoil.values()))
+        cost_vals = np.array(list(per_rule_cost.values()))
+        rows.append({
+            "shift_seed": int(seed),
+            "interval_idx": int(t),
+            "spoil_spread": float(spoil_vals.max() - spoil_vals.min()),
+            "cost_spread": float(cost_vals.max() - cost_vals.min()),
+            "best_for_spoilage": pool[int(spoil_vals.argmin())],
+            "best_for_cost": pool[int(cost_vals.argmin())],
+            **{f"spoil_{h}": v for h, v in per_rule_spoil.items()},
+        })
+        env.step(behaviour)
+    return rows
+
+
+def rule_discrimination(
+    cfg: DictConfig, seeds: list[int], pool: list[str], n_jobs: int
+) -> tuple[pd.DataFrame, dict]:
+    """Does the rule choice move spoilage at all, and does FEFO win when it does?"""
+    tau = int(cfg.labeling.tau)
+    m = int(cfg.heuristics.calibration.get("n_rollout_samples", 5))
+    base_seed = int(cfg.seeds.rollout)
+    behaviour = pool[0]
+
+    out = Parallel(n_jobs=n_jobs, verbose=1)(
+        delayed(_discriminate_one_shift)(s, cfg, pool, tau, m, base_seed, behaviour)
+        for s in seeds
+    )
+    df = pd.DataFrame([r for shift in out for r in shift])
+    if df.empty:
+        return df, {}
+
+    discriminating = df["spoil_spread"] > 1e-9
+    fefo_share = (
+        float((df.loc[discriminating, "best_for_spoilage"] == "FEFO").mean())
+        if discriminating.any() else 0.0
+    )
+    return df, {
+        # THE decision-relevance number.
+        "epochs_where_rule_changes_spoilage": float(discriminating.mean()),
+        "mean_spoilage_spread_weighted": float(df["spoil_spread"].mean()),
+        "mean_spoilage_spread_when_discriminating": (
+            float(df.loc[discriminating, "spoil_spread"].mean())
+            if discriminating.any() else 0.0
         ),
+        # Does the expiry-aware rule actually win the spoilage criterion? If FEFO
+        # rarely minimises spoilage even where spoilage is contested, it does not
+        # earn its slot and the Stage-1 screen should drop it.
+        "fefo_wins_spoilage_share": fefo_share,
+        "mean_cost_spread": float(df["cost_spread"].mean()),
+    }
+
+
+def verdict(summary: dict, disc: dict | None = None) -> dict:
+    """State plainly which way the evidence falls, against fixed thresholds.
+
+    TWO conditions, both pre-registered, and both required. The pivotality rate
+    alone is a weak test: with a queue of a hundred-odd orders, roughly a fifth
+    of them perishable, *some* order is nearly always within one interval of its
+    expiry, so `epoch_any_expiry_pivotal` approaches 1 whether or not
+    perishability matters to the controller. The binding condition is the second
+    one — that the choice of rule actually moves spoilage.
+    """
+    pivotal = summary["epoch_any_expiry_pivotal"]
+    binds = summary["expiry_binds_rate"]
+    discriminates = (disc or {}).get("epochs_where_rule_changes_spoilage", 0.0)
+    fefo_wins = (disc or {}).get("fefo_wins_spoilage_share", 0.0)
+
+    cond_pivotal = bool(pivotal >= MATERIALITY_THRESHOLD)
+    cond_binds = bool(binds >= EXPIRY_BINDS_THRESHOLD)
+    cond_discriminates = bool(discriminates >= DISCRIMINATION_THRESHOLD)
+    supported = cond_pivotal and cond_binds and cond_discriminates
+
+    if supported:
+        rec = (
+            "Retain the 'perishability-constrained' framing and keep FEFO as a "
+            "screening candidate. Report all three statistics in Section 3.5."
+        )
+    elif cond_pivotal and cond_binds and not cond_discriminates:
+        rec = (
+            "Perishability is present in the instances but NOT decision-relevant: "
+            "the rule choice does not move spoilage. Keep the two-clock order "
+            "model, since it is the honest formulation, but withdraw the claim "
+            "that the setting is perishability-CONSTRAINED, drop FEFO, and report "
+            "this diagnostic as the reason. This is a publishable negative result "
+            "and directly answers Reviewer 1 (1.d)."
+        )
+    else:
+        rec = (
+            "Product expiry rarely binds before the customer deadline under the "
+            "current shelf-life distribution. Either re-parameterise shelf life "
+            "so the two clocks genuinely compete and re-run, or drop "
+            "perishability from the paper entirely. Do NOT re-parameterise and "
+            "then report only the favourable configuration."
+        )
+
+    return {
+        "thresholds": {
+            "epoch_any_expiry_pivotal": MATERIALITY_THRESHOLD,
+            "expiry_binds_rate": EXPIRY_BINDS_THRESHOLD,
+            "epochs_where_rule_changes_spoilage": DISCRIMINATION_THRESHOLD,
+        },
+        "measured": {
+            "epoch_any_expiry_pivotal": pivotal,
+            "expiry_binds_rate": binds,
+            "epochs_where_rule_changes_spoilage": discriminates,
+            "fefo_wins_spoilage_share": fefo_wins,
+        },
+        "conditions_met": {
+            "orders_are_pivotal": cond_pivotal,
+            "expiry_binds_before_due": cond_binds,
+            "rule_choice_moves_spoilage": cond_discriminates,
+        },
+        "perishability_claim_supported": supported,
+        "recommendation": rec,
     }
 
 
@@ -215,6 +376,9 @@ def main() -> int:
     p.add_argument("--rules", nargs="*", default=None,
                    help="Behaviour rules to scan under. Default: the whole pool.")
     p.add_argument("--n-jobs", type=int, default=-1)
+    p.add_argument("--skip-discrimination", action="store_true",
+                   help="Pivotality scan only; skip the rollout-based "
+                        "rule-discrimination pass.")
     args = p.parse_args()
 
     cfg = with_default_scales(OmegaConf.load(CONFIG_PATH))
@@ -226,29 +390,51 @@ def main() -> int:
           f"SLA ~ Tri{list(cfg.sim.order_attrs.sla_due_triangular)}, "
           f"interval = {cfg.sim.interval_minutes} min")
 
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
     df = scan(cfg, seeds, rules, args.n_jobs)
     summary = summarise(df)
-    v = verdict(summary)
-
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(RESULTS_DIR / "pivotality_scan.parquet", index=False)
+
+    disc_df, disc = (pd.DataFrame(), {})
+    if not args.skip_discrimination:
+        print("\n[perishability] rule-discrimination pass "
+              "(does the CHOICE of rule move spoilage?)")
+        disc_df, disc = rule_discrimination(cfg, seeds, rules, args.n_jobs)
+        if not disc_df.empty:
+            disc_df.to_parquet(RESULTS_DIR / "rule_discrimination.parquet", index=False)
+
+    v = verdict(summary, disc)
     (RESULTS_DIR / "pivotality_summary.json").write_text(
-        json.dumps({"summary": summary, "verdict": v}, indent=2), encoding="utf-8"
+        json.dumps(
+            {"summary": summary, "discrimination": disc, "verdict": v},
+            indent=2, default=float,
+        ),
+        encoding="utf-8",
     )
 
     print("\n--- Reviewer 1, comment 1.d ---")
-    print(f"  decisions where >=1 queued order is expiry-pivotal : "
-          f"{summary['epoch_any_expiry_pivotal']:.1%}")
-    print(f"  queued perishables that are expiry-pivotal         : "
+    print("  necessary conditions")
+    print(f"    decisions with >=1 expiry-pivotal order          : "
+          f"{summary['epoch_any_expiry_pivotal']:.1%}  "
+          f"(>= {MATERIALITY_THRESHOLD:.0%})")
+    print(f"    perishables whose expiry binds before their due  : "
+          f"{summary['expiry_binds_rate']:.1%}  "
+          f"(>= {EXPIRY_BINDS_THRESHOLD:.0%})")
+    print("  binding condition")
+    print(f"    decisions where the RULE CHOICE moves spoilage   : "
+          f"{disc.get('epochs_where_rule_changes_spoilage', float('nan')):.1%}  "
+          f"(>= {DISCRIMINATION_THRESHOLD:.0%})")
+    print(f"    FEFO minimises spoilage, where contested         : "
+          f"{disc.get('fefo_wins_spoilage_share', float('nan')):.1%}")
+    print("  context")
+    print(f"    queued perishables that are expiry-pivotal       : "
           f"{summary['expiry_pivotal_rate_perishables']:.1%}")
-    print(f"  perishables whose expiry binds before their due    : "
-          f"{summary['expiry_binds_rate']:.1%}")
-    print(f"  economic weight sitting on expiry-pivotal orders   : "
+    print(f"    economic weight on expiry-pivotal orders         : "
           f"{summary['pivotal_value_share']:.1%}")
-    print(f"  (reference) decisions with >=1 due-pivotal order   : "
+    print(f"    (reference) decisions with >=1 due-pivotal order : "
           f"{summary['epoch_any_due_pivotal']:.1%}")
-    print(f"\n  claim supported at threshold {MATERIALITY_THRESHOLD:.0%}: "
-          f"{v['perishability_claim_supported']}")
+    print(f"\n  claim supported: {v['perishability_claim_supported']}")
     print(f"  {v['recommendation']}")
     return 0
 

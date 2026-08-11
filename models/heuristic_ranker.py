@@ -1,9 +1,9 @@
 """XGBoost `multi:softprob` ranker trained on rollout-induced soft labels.
 
-The training set is `data/train.parquet`, with one row per snapshot and a
-4-vector `[p_FIFO, p_FEFO, p_WSPT, p_ATC]` soft label. XGBoost's softprob
-objective expects integer class labels, so we convert via the standard
-*Label Distribution Learning row-replication* trick:
+The training set is `data/train.parquet`, one row per decision epoch with a
+`|H|`-vector soft label `[p_<rule> ...]`. XGBoost's softprob objective expects
+integer class labels, so we convert via the standard *Label Distribution
+Learning row-replication* trick:
 
   Each row (x_i, p_i) becomes K replica rows (x_i, k, w_ik) for k = 0..K-1
   with replica weight  w_ik = p_ik * (1 / (1 + H(p_i)))  (normalized to mean 1).
@@ -20,8 +20,22 @@ Cross-validation: 5-fold `GroupKFold` over `shift_id`. Hyperparameter grid is
 weighted cross-entropy on the validation split, computed against the soft labels
 (no replication of validation rows).
 
-Optional regime-posterior features can be concatenated to the 25-D state
-vector via `extra_feature_cols`.
+Optional regime-posterior features can be concatenated to the state vector via
+`extra_feature_cols`.
+
+THE CLASS SET COMES FROM THE DATA (revision, Reviewer 1, 4.d)
+------------------------------------------------------------
+The submitted module hard-wired a four-rule pool: `PROB_COLUMNS` was built from
+the module-level `HEURISTIC_NAMES` and the class count was read from a separate
+`cfg.ranker.num_class` key, with a guard that raised when the two disagreed.
+Two independent declarations of the same fact, and neither was the labels.
+
+The pool is now whatever the Stage-1 screen retained, so it is a property of the
+dataset rather than of the config. `prob_columns()` reads it off the frame in
+the order `experiments/generate_labels.py` wrote it, which is the order that
+defines the classifier's class indices. A config edited between labelling and
+training can no longer silently permute the classes, because the config is no
+longer consulted.
 """
 
 from __future__ import annotations
@@ -35,14 +49,35 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import GroupKFold
 
-from simulation.heuristics import HEURISTIC_NAMES
 from simulation.state_extractor import FEATURE_NAMES
 
 if TYPE_CHECKING:
     from omegaconf import DictConfig
 
 FEATURE_COLUMNS: list[str] = [f"f_{name}" for name in FEATURE_NAMES]
-PROB_COLUMNS: list[str] = [f"p_{h}" for h in HEURISTIC_NAMES]
+
+PROB_PREFIX: str = "p_"
+
+
+def prob_columns(df: pd.DataFrame) -> list[str]:
+    """The soft-label columns, in the order the labeller wrote them.
+
+    That order IS the classifier's class indexing, so it must be read from the
+    frame rather than re-derived from a config that may have been edited since.
+    """
+    cols = [c for c in df.columns if c.startswith(PROB_PREFIX)]
+    if not cols:
+        raise ValueError(
+            f"No '{PROB_PREFIX}<rule>' soft-label columns in the frame "
+            f"(columns: {list(df.columns)[:12]}...). Run "
+            f"`python -m experiments.generate_labels` first."
+        )
+    return cols
+
+
+def pool_from_frame(df: pd.DataFrame) -> list[str]:
+    """The deployed rule pool, recovered from the label columns."""
+    return [c[len(PROB_PREFIX):] for c in prob_columns(df)]
 
 
 @dataclass
@@ -63,6 +98,10 @@ class RankerCVResult:
         List of (params_dict, mean_xent) for the full HP search.
     feature_cols
         Exact column order used at fit time -- must be reused at inference.
+    classes
+        Rule names in class-index order, recovered from the label columns. The
+        deployment wrapper maps `argmax` back to a rule name through this, so it
+        must travel with the model rather than being re-derived from config.
     """
 
     model: xgb.XGBClassifier
@@ -71,6 +110,7 @@ class RankerCVResult:
     per_fold_xent: list[float]
     grid_results: list[tuple[dict, float]] = field(default_factory=list)
     feature_cols: list[str] = field(default_factory=list)
+    classes: list[str] = field(default_factory=list)
 
 
 def _row_entropy(probs: np.ndarray) -> np.ndarray:
@@ -157,35 +197,37 @@ def cross_validate_ranker(
     Parameters
     ----------
     df
-        Must contain the 25 `f_<name>` columns, the 4 `p_<H>` columns, and
-        `shift_id` for the group split.
+        Must contain the `f_<name>` feature columns, the `p_<rule>` soft-label
+        columns, and `shift_id` for the group split.
     cfg_ranker
-        `cfg.ranker` sub-tree. Reads `num_class`, `cv.n_splits`, `cv.group_col`,
-        and the `hyperparams` grid.
+        `cfg.ranker` sub-tree. Reads `cv.n_splits`, `cv.group_col`, and the
+        `hyperparams` grid. The class count is NOT read from config — it is the
+        number of soft-label columns in `df`.
     seed
         Base random_state for XGBoost (use `SEED_MODEL`).
     extra_feature_cols
         Optional list of additional feature columns to concatenate to the
-        canonical 25-D state (e.g., `regime_post_*`).
+        canonical state (e.g., `regime_post_*`).
     n_jobs_fit
         n_jobs passed to each XGBClassifier. Default 1 keeps the call serial
         because the outer HP loop is already CPU-bound.
     """
     feature_cols = list(FEATURE_COLUMNS) + list(extra_feature_cols or [])
-    missing = [c for c in feature_cols + PROB_COLUMNS if c not in df.columns]
+    prob_cols = prob_columns(df)
+    missing = [c for c in feature_cols if c not in df.columns]
     if missing:
-        raise ValueError(f"DataFrame missing columns: {missing[:5]}...")
+        raise ValueError(f"DataFrame missing feature columns: {missing[:5]}...")
     if cfg_ranker.cv.group_col not in df.columns:
         raise ValueError(f"DataFrame missing group column '{cfg_ranker.cv.group_col}'")
-    num_class = int(cfg_ranker.num_class)
-    if num_class != len(HEURISTIC_NAMES):
+    num_class = len(prob_cols)
+    if num_class < 2:
         raise ValueError(
-            f"cfg.ranker.num_class ({num_class}) != len(HEURISTIC_NAMES) "
-            f"({len(HEURISTIC_NAMES)}). Phase 2 dropped CR; update config."
+            f"Only {num_class} rule(s) in the label set {prob_cols}; the "
+            f"selection problem is degenerate. Check the Stage-1 screen."
         )
 
     X = df[feature_cols].to_numpy(dtype=np.float64)
-    P = df[PROB_COLUMNS].to_numpy(dtype=np.float64)
+    P = df[prob_cols].to_numpy(dtype=np.float64)
     groups = df[str(cfg_ranker.cv.group_col)].to_numpy()
     n_splits = int(cfg_ranker.cv.n_splits)
 
@@ -231,6 +273,7 @@ def cross_validate_ranker(
         per_fold_xent=best_fold_scores,
         grid_results=grid_results,
         feature_cols=feature_cols,
+        classes=[c[len(PROB_PREFIX):] for c in prob_cols],
     )
 
 

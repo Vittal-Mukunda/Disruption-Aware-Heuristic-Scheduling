@@ -57,6 +57,51 @@ import pandas as pd
 from scipy import stats
 
 
+# Canonical KPI names, defined once so no driver re-invents them.
+#
+# The submitted schema had `sla_breach_rate` (late / *completed*) and
+# `mean_cost`. Both are gone: the first hid every unserved order from its own
+# denominator (Reviewer 2, 1) and the second named a per-interval average as if
+# it were the objective. Anything still referring to them is reading a schema
+# that no longer exists, which is a hard error rather than a silent zero.
+PRIMARY_METRIC: str = "composite_cost"
+FAILURE_METRIC: str = "service_failure_rate"
+
+#: Default reporting set for drivers that do not take a metric list from config.
+DEFAULT_METRICS: list[str] = [
+    PRIMARY_METRIC,
+    FAILURE_METRIC,
+    "sla_breach_rate_arrived",
+    "mean_tardiness",
+    "spoilage_rate",
+    "throughput",
+    "unserved",
+    "picker_utilization",
+]
+
+#: Submitted name -> revised name, for reading pre-revision parquets and for the
+#: response letter's mapping between the two result sets.
+RENAMED_METRICS: dict[str, str] = {
+    "sla_breach_rate": "sla_breach_rate_served",
+    "mean_cost": "mean_interval_cost",
+}
+
+
+def require_metrics(df: pd.DataFrame, metrics: list[str]) -> None:
+    """Fail loudly when a driver asks for a metric the KPI schema no longer has."""
+    missing = [m for m in metrics if m not in df.columns]
+    if not missing:
+        return
+    hints = [
+        f"{m} -> {RENAMED_METRICS[m]}" for m in missing if m in RENAMED_METRICS
+    ]
+    raise KeyError(
+        f"KPI columns {missing} are not in this result frame. "
+        + (f"Renamed in revision: {hints}. " if hints else "")
+        + f"Available: {sorted(df.columns)}"
+    )
+
+
 def metric_order(cfg) -> list[str]:
     """Reporting order: the objective first, then its components and context.
 

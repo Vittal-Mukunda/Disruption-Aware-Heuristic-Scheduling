@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 from omegaconf import OmegaConf
 
-from simulation.heuristics import HEURISTIC_NAMES
+from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
 from simulation.kpis import compute_kpis
 from simulation.state_extractor import N_FEATURES
 from simulation.warehouse_env import WarehouseEnv
@@ -25,7 +25,7 @@ CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.yaml"
 
 @pytest.fixture(scope="module")
 def cfg():
-    return OmegaConf.load(CONFIG_PATH)
+    return with_default_scales(OmegaConf.load(CONFIG_PATH))
 
 
 def test_one_shift_under_5s(cfg):

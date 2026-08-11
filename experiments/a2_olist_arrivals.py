@@ -53,7 +53,7 @@ FIG_DIR = REPO_ROOT / "figures" / "A2"
 
 ARRIVAL_MODES = ["poisson", "olist"]
 METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "fefo"]
-METRICS = ["sla_breach_rate", "mean_cost", "mean_tardiness"]
+METRICS = ["service_failure_rate", "composite_cost", "mean_tardiness"]
 SUMMARY_PATH = RESULTS_DIR / "olist_arrivals_summary.parquet"
 
 

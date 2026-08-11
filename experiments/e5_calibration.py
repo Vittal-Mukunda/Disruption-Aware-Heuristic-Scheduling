@@ -34,8 +34,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from models.calibration import brier_one_hot, soft_cross_entropy, top1_ece  # noqa: E402
-from models.heuristic_ranker import PROB_COLUMNS  # noqa: E402
-from simulation.heuristics import HEURISTIC_NAMES  # noqa: E402
+from models.heuristic_ranker import pool_from_frame, prob_columns  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -100,10 +99,18 @@ def _plot_reliability_pre_post(
 
 
 def _per_class_reliability(
-    probs_post: np.ndarray, y_true: np.ndarray, out_path: Path,
+    probs_post: np.ndarray, y_true: np.ndarray, out_path: Path, classes: list[str],
 ) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(9, 8))
-    for k, h in enumerate(HEURISTIC_NAMES):
+    # Grid sized to the pool. The submitted version hard-wired 2x2, which
+    # silently dropped classes 5+ once the pool grew past four (Reviewer 1, 4.d).
+    n = len(classes)
+    ncols = min(4, n)
+    nrows = int(np.ceil(n / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(2.6 * ncols, 2.9 * nrows),
+                             squeeze=False)
+    for ax in axes.flat[n:]:
+        ax.axis("off")
+    for k, h in enumerate(classes):
         ax = axes.flat[k]
         conf_k = probs_post[:, k]
         correct_k = (y_true == k).astype(np.float64)
@@ -142,8 +149,9 @@ def cmd_reliability(args: argparse.Namespace) -> int:
         from regime.regime_discovery import attach_regime_posteriors
         df = attach_regime_posteriors(df, regime_gmm)
 
+    classes = list(meta.get("classes") or pool_from_frame(df))
     X = df[feature_cols].to_numpy(dtype=np.float64)
-    P_true = df[PROB_COLUMNS].to_numpy(dtype=np.float64)
+    P_true = df[prob_columns(df)].to_numpy(dtype=np.float64)
     y_hard = P_true.argmax(axis=1).astype(np.int64)
     probs_pre = base_model.predict_proba(X)
     probs_post = calibrator.predict_proba(X)
@@ -169,7 +177,7 @@ def cmd_reliability(args: argparse.Namespace) -> int:
         FIG_DIR / "reliability_pre_post.png",
     )
     _per_class_reliability(probs_post, y_hard,
-                           FIG_DIR / "per_class_reliability.png")
+                           FIG_DIR / "per_class_reliability.png", classes)
 
     table = pd.DataFrame([
         {"metric": "ece", "pre": ece_pre, "post": ece_post},
@@ -194,6 +202,7 @@ def cmd_shap(args: argparse.Namespace) -> int:
     booster.load_model(str(run_dir / "model.json"))
 
     df = pd.read_parquet(test_path)
+    classes = list(meta.get("classes") or pool_from_frame(df))
     if not all(c in df.columns for c in feature_cols):
         regime_gmm = joblib.load(run_dir / "regime.joblib")
         from regime.regime_discovery import attach_regime_posteriors
@@ -243,10 +252,12 @@ def cmd_shap(args: argparse.Namespace) -> int:
     fig, ax = plt.subplots(figsize=(7.5, max(4, 0.3 * top_k)))
     top_features_idx = np.argsort(-overall)[:top_k]
     y = np.arange(top_k)
-    width = 0.18
-    for k, h in enumerate(HEURISTIC_NAMES):
+    # Bar offsets centred on the class count rather than hard-wired to four.
+    width = 0.72 / max(len(classes), 1)
+    for k, h in enumerate(classes):
         vals = mean_abs[k, top_features_idx]
-        ax.barh(y + (k - 1.5) * width, vals[::-1], height=width, label=h)
+        ax.barh(y + (k - (len(classes) - 1) / 2) * width, vals[::-1],
+                height=width, label=h)
     ax.set_yticks(y)
     ax.set_yticklabels([feature_cols[i] for i in top_features_idx][::-1])
     ax.set_xlabel("Mean |SHAP value|")

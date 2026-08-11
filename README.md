@@ -8,7 +8,7 @@
 
 <br/>
 
-[![Manuscript](https://img.shields.io/badge/Manuscript-PDF-b31b1b?style=flat-square)](paper/manuscript.pdf)
+[![Manuscript](https://img.shields.io/badge/Manuscript-PDF-b31b1b?style=flat-square)](paper/dahs_ieee_paper.pdf)
 [![Python](https://img.shields.io/badge/Python-3.10--3.12-3776AB?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Method](https://img.shields.io/badge/Method-Offline_Rollout_Distillation-E8740C?style=flat-square)](#4-the-dahs-method)
 [![SLA breach](https://img.shields.io/badge/SLA_breach-1.33%25-2EA043?style=flat-square)](#6-results)
@@ -1207,7 +1207,8 @@ DAHS/
 │
 ├── paper/                      # manuscript
 │   ├── manuscript.md           #   manuscript source
-│   ├── manuscript.pdf          #   compiled manuscript
+│   ├── dahs_ieee_paper.tex     #   IEEE-format source
+│   ├── dahs_ieee_paper.pdf     #   compiled manuscript
 │   └── references.bib          #   bibliography
 │
 └── demo/                       # interactive dashboard
@@ -1240,14 +1241,14 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 
 # 3. Import smoke test
-python -c "import simpy, xgboost, sklearn, shap, stable_baselines3; print('ok')"
+python -c "import xgboost, sklearn, shap, stable_baselines3, omegaconf; print('ok')"
 
 # 4. Run the test suite
 python -m pytest -q
 ```
 
 This installs the simulator, training pipeline, baselines, and dependencies
-(simpy, numpy, pandas, scikit-learn, xgboost, shap, torch, stable-baselines3,
+(numpy, pandas, scikit-learn, xgboost, shap, torch, stable-baselines3,
 matplotlib, and others — see `pyproject.toml`).
 
 ## Running the Interactive Dashboard
@@ -1286,22 +1287,31 @@ Trained model weights, evaluation results (`results/`), and manuscript figures
 The experiment entry points live in `experiments/`; the `Makefile` wraps them as
 phase targets (run `make help` for the full list). Key targets:
 
+The pipeline is five ordered stages. Stage 1 must precede Stage 2: it settles
+the rule pool and the ATC/COVERT look-ahead scales that labelling consumes, and
+`config.yaml` ships those scales as `null` so an uncalibrated run fails loudly
+rather than silently reusing the submitted value.
+
 | Target | Purpose |
 |---|---|
 | `make install` | Editable install with dev extras |
 | `make gate` | Import smoke test |
-| `make eval` | Per-method shift evaluation harness |
-| `make e1` | Heuristic-diversity heatmap (Figure 1) |
-| `make e2-stats` | Bootstrap CI + Wilcoxon + BH-FDR on per-method results |
-| `make e4-tau` | Rollout-horizon sweep (Table 3, Figure 5) |
-| `make e5-reliability` | Reliability diagrams + ECE/Brier (Figure 9) |
-| `make e5-shap` | Global + per-class SHAP importance (Figure 10) |
+| `make stage1` | Calibrate ATC/COVERT, screen the pool, state-space diversity, perishability diagnostic |
+| `make stage2` | Label the corpus — the one expensive run |
+| `make stage2-smoke` | 3 train + 2 test shifts, end-to-end check |
+| `make stage3` | Regime layer, ranker, calibrator |
+| `make stage4-teacher` | Rolling-horizon MPC — the distillation teacher |
+| `make stage4-fqi` | Offline fitted-Q baseline: HP search + eval |
+| `make stage4-rl-sensitivity` | PPO hyperparameter grid + offline action coverage |
+| `make stage5-weights` | Objective-weight sensitivity |
+| `make stage5-misspecification` | Label nominal, evaluate perturbed |
+| `make e5-reliability` | Reliability diagrams + ECE/Brier |
 | `make paper-figures` | Regenerate manuscript figures |
 | `make test` | Run `pytest` |
 
 Windows users without `make` can invoke the underlying module commands directly,
-e.g. `python -m experiments.e1_diversity` (see `Makefile` for each target's exact
-command).
+e.g. `python -m experiments.calibrate_rules screen` (see `Makefile` for each
+target's exact command).
 
 **Real-data experiments.** The Olist Brazilian e-commerce dataset is *not*
 included in this repository. Only the real-data validation experiments
@@ -1342,12 +1352,12 @@ STEP 1 — PYTHON BACKEND
     macOS / Linux:         source .venv/bin/activate
 - Upgrade pip:             python -m pip install --upgrade pip
 - Install the package with development extras (this reads pyproject.toml and
-  pulls simpy, numpy, pandas, scipy, scikit-learn, xgboost, shap, matplotlib,
+  pulls numpy, pandas, scipy, scikit-learn, xgboost, shap, matplotlib,
   seaborn, joblib, tqdm, loguru, hydra-core, omegaconf, stable-baselines3,
   gymnasium, torch, sb3-contrib, plus pytest and ruff):
                            pip install -e ".[dev]"
 - Verify the install:
-      python -c "import simpy, xgboost, sklearn, shap, stable_baselines3; print('backend ok')"
+      python -c "import xgboost, sklearn, shap, stable_baselines3, omegaconf; print('backend ok')"
 - Run the test suite as a smoke check:   python -m pytest -q
 
 STEP 2 — INTERACTIVE DASHBOARD (static, no build)

@@ -25,7 +25,8 @@ from experiments.evaluate import (
     evaluate_policy,
     evaluate_policy_env_aware,
 )
-from simulation.heuristics import HEURISTIC_NAMES
+from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
+from simulation.state_extractor import N_FEATURES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -36,7 +37,15 @@ PPO_DIR = REPO_ROOT / "runs" / "ppo_fair"
 
 @pytest.fixture(scope="module")
 def cfg():
-    return OmegaConf.load(CONFIG_PATH)
+    """Config with provisional ATC/COVERT scales filled in.
+
+    `config.yaml` ships `atc_lookahead_k: null` so that an uncalibrated
+    production run fails loudly rather than silently reusing the submitted 2.0
+    (Reviewer 1, 4.c). Tests still have to *run* those rules before Stage 1 has
+    fitted anything, which is exactly what `with_default_scales` is for. Nothing
+    here is a reported rule benchmark.
+    """
+    return with_default_scales(OmegaConf.load(CONFIG_PATH))
 
 
 @pytest.fixture(scope="module")
@@ -49,12 +58,21 @@ def _assert_kpi_row(row: dict) -> None:
     for col in KPI_COLUMNS:
         assert col in row, f"missing column {col!r}"
     assert row["throughput"] > 0, "expected some orders completed"
-    assert 0.0 <= row["sla_breach_rate"] <= 1.0
+    assert 0.0 <= row["service_failure_rate"] <= 1.0
+    assert 0.0 <= row["sla_breach_rate_arrived"] <= 1.0
+    assert 0.0 <= row["sla_breach_rate_served"] <= 1.0
     assert 0.0 <= row["spoilage_rate"] <= 1.0
     assert 0.0 <= row["picker_utilization"] <= 1.0
     assert row["mean_tardiness"] >= 0.0
-    assert row["mean_cost"] >= 0.0
+    assert row["composite_cost"] >= 0.0
     assert row["wall_clock_s"] > 0.0
+    # The outcome partition must account for every arrived order (Reviewer 2, 1).
+    assert row["arrived"] == pytest.approx(
+        row["throughput"] + row["unserved"] + row["dropped"]
+    )
+    # An unserved order can only ever hurt, so counting arrivals cannot report a
+    # lower failure rate than counting completions alone.
+    assert row["sla_breach_rate_arrived"] >= 0.0
     for col in KPI_COLUMNS:
         assert np.isfinite(row[col]), f"{col} = {row[col]!r} not finite"
 
@@ -80,9 +98,20 @@ def test_static_all_heuristics_smoke(cfg, one_test_seed, tmp_path):
         _assert_kpi_row(df.iloc[0].to_dict())
 
 
-def test_make_static_policy_rejects_cr():
-    with pytest.raises(ValueError, match="CR"):
-        make_static_policy("CR")
+def test_make_static_policy_accepts_any_library_rule():
+    """A screened-out rule is still a legitimate standalone benchmark.
+
+    The submitted module rejected any name outside the deployed four-rule pool,
+    so CR — dropped by the original pilot — could not be benchmarked at all, and
+    the screen's verdict was therefore unauditable (Reviewer 1, 4.b/4.d).
+    """
+    assert make_static_policy("CR")(np.zeros(N_FEATURES)) == "CR"
+    assert make_static_policy("SPT")(np.zeros(N_FEATURES)) == "SPT"
+
+
+def test_make_static_policy_rejects_unknown_rule():
+    with pytest.raises(ValueError, match="Unknown heuristic"):
+        make_static_policy("NOT_A_RULE")
 
 
 @pytest.mark.skipif(
@@ -111,7 +140,7 @@ def test_ours_reset_clears_dwell(cfg):
 
     policy = load_ours(PHASE4_DIR, cfg=cfg)
     assert policy.controller.current_heuristic is None
-    dummy_state = np.zeros(25, dtype=np.float64)
+    dummy_state = np.zeros(N_FEATURES, dtype=np.float64)
     _ = policy(dummy_state)
     assert policy.controller.current_heuristic is not None
     policy.reset()
@@ -119,8 +148,14 @@ def test_ours_reset_clears_dwell(cfg):
 
 
 def test_greedy_mpc_one_shift(cfg, one_test_seed, tmp_path):
-    """Env-aware greedy 1-step MPC: smoke + parquet round-trip."""
-    from baselines.greedy_mpc import make_greedy_mpc_policy
+    """Env-aware greedy 1-step MPC: smoke + parquet round-trip.
+
+    `baselines/greedy_mpc.py` is gone: it scored with the deleted
+    `snapshot_labeler.composite_cost` and evaluated the single pre-sampled
+    future. The tau=1 case is now a named alias of the rolling-horizon teacher,
+    so both MPC baselines share one estimator (Reviewer 2, 6).
+    """
+    from baselines.rolling_horizon_mpc import make_greedy_mpc_policy
 
     df = evaluate_policy_env_aware(
         "greedy_mpc", make_greedy_mpc_policy(), one_test_seed, cfg,

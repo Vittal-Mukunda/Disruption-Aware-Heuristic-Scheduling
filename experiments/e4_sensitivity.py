@@ -118,16 +118,16 @@ def cmd_t_min(args: argparse.Namespace) -> int:
             f"t_min_{v}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
         )
-        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost",
+        for metric in ("service_failure_rate", "mean_tardiness", "composite_cost",
                        "throughput", "picker_utilization"):
             summary_rows.append(_bootstrap_summary(df, metric, int(v), "t_min"))
-        sla = df["sla_breach_rate"].mean()
-        cost = df["mean_cost"].mean()
-        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+        sla = df["service_failure_rate"].mean()
+        cost = df["composite_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  composite_cost={cost:.4f}")
 
     summary = pd.DataFrame(summary_rows)
     summary.to_parquet(RESULTS_DIR / "t_min_summary.parquet", index=False)
-    for metric in ("sla_breach_rate", "mean_cost"):
+    for metric in ("service_failure_rate", "composite_cost"):
         _plot_curve(summary, "t_min", metric)
     print(f"\n[E4 t_min] summary -> "
           f"{(RESULTS_DIR / 't_min_summary.parquet').relative_to(REPO_ROOT)}")
@@ -155,17 +155,17 @@ def cmd_arrival_noise(args: argparse.Namespace) -> int:
             f"arrival_x{mult}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
         )
-        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost",
+        for metric in ("service_failure_rate", "mean_tardiness", "composite_cost",
                        "throughput", "picker_utilization"):
             summary_rows.append(_bootstrap_summary(df, metric, float(mult),
                                                    "arrival_noise"))
-        sla = df["sla_breach_rate"].mean()
-        cost = df["mean_cost"].mean()
-        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+        sla = df["service_failure_rate"].mean()
+        cost = df["composite_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  composite_cost={cost:.4f}")
 
     summary = pd.DataFrame(summary_rows)
     summary.to_parquet(RESULTS_DIR / "arrival_noise_summary.parquet", index=False)
-    for metric in ("sla_breach_rate", "mean_cost"):
+    for metric in ("service_failure_rate", "composite_cost"):
         _plot_curve(summary, "arrival_noise", metric)
     print(f"\n[E4 arrival_noise] summary -> "
           f"{(RESULTS_DIR / 'arrival_noise_summary.parquet').relative_to(REPO_ROOT)}")
@@ -207,16 +207,16 @@ def cmd_tau(args: argparse.Namespace) -> int:
             f"tau_{tau}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
         )
-        for metric in ("sla_breach_rate", "mean_tardiness", "mean_cost"):
+        for metric in ("service_failure_rate", "mean_tardiness", "composite_cost"):
             summary_rows.append(_bootstrap_summary(df, metric, int(tau), "tau"))
-        sla = df["sla_breach_rate"].mean()
-        cost = df["mean_cost"].mean()
-        print(f"  sla_breach={sla:.4f}  mean_cost={cost:.4f}")
+        sla = df["service_failure_rate"].mean()
+        cost = df["composite_cost"].mean()
+        print(f"  sla_breach={sla:.4f}  composite_cost={cost:.4f}")
 
     if summary_rows:
         summary = pd.DataFrame(summary_rows)
         summary.to_parquet(RESULTS_DIR / "tau_summary.parquet", index=False)
-        for metric in ("sla_breach_rate", "mean_cost"):
+        for metric in ("service_failure_rate", "composite_cost"):
             _plot_curve(summary, "tau", metric)
         print(f"\n[E4 tau] summary -> "
               f"{(RESULTS_DIR / 'tau_summary.parquet').relative_to(REPO_ROOT)}")
@@ -243,9 +243,106 @@ def cmd_theta(args: argparse.Namespace) -> int:
     return 0
 
 
+WEIGHT_AXES: tuple[str, ...] = ("w_breach", "w_spoil", "w_tardy", "w_holding")
+
+
+def cmd_weights(args: argparse.Namespace) -> int:
+    """Objective-weight sensitivity — does the METHOD RANKING survive the weights?
+
+    WHY (Reviewer 1, 6.c). Promoting the composite cost to primary metric makes
+    its weights the load-bearing assumption behind every comparison in the paper,
+    and `w_spoil = 5.0` in particular is a judgement introduced in this revision:
+    it encodes "destroyed stock costs more than a late shipment". A reviewer who
+    accepts that the objective is primary will immediately ask what happens when
+    it changes. Declaring the weights "fixed before learning" answers the
+    tuning-bias question, not this one.
+
+    WHAT THIS IS AND IS NOT. Policies are NOT re-optimised per weight vector —
+    that would mean re-labelling and retraining once per cell, which is the whole
+    campaign several times over. Each cell re-runs evaluation with a different
+    cost functional, so the quantity measured is the robustness of the RANKING to
+    the decision-maker's weights, holding the controllers fixed at the ones
+    trained under nominal weights. That is the conservative direction: DAHS is
+    the method most specialised to the nominal weights, so any cell where it
+    still wins is evidence that the ranking is not an artefact of the weighting,
+    while a cell where it loses is a genuine caveat and must be reported as one.
+    The paper must state at which ratio the conclusion flips, if it does.
+    """
+    base_cfg = OmegaConf.load(CONFIG_PATH)
+    seeds = canonical_test_seeds(base_cfg)
+    if args.n_test is not None:
+        seeds = seeds[: int(args.n_test)]
+    axes = args.axes if args.axes else list(WEIGHT_AXES)
+    methods = list(args.methods)
+    out_dir = RESULTS_DIR / "weights"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    from experiments.evaluate import _build_policy, evaluate_policy_env_aware
+
+    rows: list[dict] = []
+    for axis in axes:
+        grid = list(base_cfg.experiments.e4_sensitivity[axis])
+        nominal = float(base_cfg.objective[axis])
+        print(f"\n[E4 weights] {axis}: {grid}  (nominal {nominal})")
+        for v in grid:
+            cfg = OmegaConf.create(OmegaConf.to_container(base_cfg, resolve=True))
+            cfg.objective[axis] = float(v)
+            for m in methods:
+                policy, env_aware = _build_policy(m, args.run_dir)
+                runner = evaluate_policy_env_aware if env_aware else evaluate_policy
+                df = runner(
+                    f"{axis}_{v}_{m}", policy, seeds, cfg,
+                    results_dir=out_dir, save=True, verbose=False,
+                )
+                rows.append({
+                    "axis": axis,
+                    "value": float(v),
+                    "is_nominal": bool(float(v) == nominal),
+                    "method": m,
+                    "composite_cost": float(df["composite_cost"].mean()),
+                    "service_failure_rate": float(df["service_failure_rate"].mean()),
+                    "spoilage_rate": float(df["spoilage_rate"].mean()),
+                })
+                print(f"  {axis}={v:<8} {m:<14} "
+                      f"cost={rows[-1]['composite_cost']:9.3f}  "
+                      f"fail={rows[-1]['service_failure_rate']:.4f}")
+
+    table = pd.DataFrame(rows)
+    table.to_parquet(RESULTS_DIR / "weights_summary.parquet", index=False)
+
+    # The headline: is the arg-min method the same in every cell?
+    print("\n[E4 weights] winner by cell (lowest composite cost):")
+    winners: list[str] = []
+    for (axis, value), grp in table.groupby(["axis", "value"], sort=True):
+        w = grp.loc[grp["composite_cost"].idxmin(), "method"]
+        winners.append(str(w))
+        print(f"  {axis}={value:<8} -> {w}")
+    unique = sorted(set(winners))
+    if len(unique) == 1:
+        print(f"\n[E4 weights] RANKING INVARIANT: {unique[0]} wins all "
+              f"{len(winners)} cells. The conclusion does not depend on the "
+              f"objective weights over the swept ranges.")
+    else:
+        print(f"\n[E4 weights] RANKING IS NOT INVARIANT — winners: {unique}. "
+              f"Report the cells where the conclusion flips, and at which ratio. "
+              f"Do NOT report only the favourable cells.")
+    print(f"[E4 weights] summary -> "
+          f"{(RESULTS_DIR / 'weights_summary.parquet').relative_to(REPO_ROOT)}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="knob", required=True)
+
+    p_w = sub.add_parser("weights", help="Objective-weight sensitivity (R1, 6.c).")
+    p_w.add_argument("--axes", nargs="*", default=None,
+                     help=f"Subset of {list(WEIGHT_AXES)}.")
+    p_w.add_argument("--methods", nargs="*",
+                     default=["ours", "rolling_mpc", "edd", "fifo"])
+    p_w.add_argument("--run-dir", type=Path, default=None)
+    p_w.add_argument("--n-test", type=int, default=None)
+    p_w.set_defaults(func=cmd_weights)
 
     p_t = sub.add_parser("t_min", help="Dwell length sweep.")
     p_t.add_argument("--values", type=int, nargs="*", default=None)

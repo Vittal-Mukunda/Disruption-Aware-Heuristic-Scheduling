@@ -119,7 +119,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
                 )
 
                 # Summarize this cell × method with bootstrap CI
-                for metric in ("sla_breach_rate", "mean_cost", "mean_tardiness"):
+                for metric in ("service_failure_rate", "composite_cost", "mean_tardiness"):
                     ci = bootstrap_mean_ci(
                         df[metric].to_numpy(dtype=np.float64),
                         n_resamples=10000, seed=1337,
@@ -155,7 +155,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
     print("\n[E8 grid] Robustness Grid Summary")
     print("=" * 100)
 
-    for metric in ("sla_breach_rate", "mean_cost", "mean_tardiness"):
+    for metric in ("service_failure_rate", "composite_cost", "mean_tardiness"):
         print(f"\n{metric.upper()}")
         print("-" * 100)
 
@@ -182,7 +182,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
                         print(f"      {method:15s} {pt:8.4f} [{lo:8.4f}, {hi:8.4f}]")
 
     # Heatmaps: one per metric, rows = method, cols = (arrival × sla), values = point estimate
-    for metric in ("sla_breach_rate", "mean_cost"):
+    for metric in ("service_failure_rate", "composite_cost"):
         df_pivot = df_summary[df_summary["metric"] == metric].copy()
         df_pivot["cell"] = (
             df_pivot["arrival_rate"].astype(str) + "_" + df_pivot["sla_tightness"]

@@ -9,7 +9,7 @@ import pytest
 from omegaconf import OmegaConf
 
 from labeling.soft_label_converter import (
-    _row_entropy,
+    row_entropy,
     costs_to_probs,
     fefo_mask,
 )
@@ -47,7 +47,7 @@ def test_beta_search_hits_target_band_on_realistic_costs(cfg_labeling):
     rng = np.random.default_rng(2)
     costs = rng.uniform(0, 6, size=(2000, K))
     probs, beta = costs_to_probs(costs, cfg_labeling)
-    median = float(np.median(_row_entropy(probs)))
+    median = float(np.median(row_entropy(probs)))
     lo, hi = (float(x) for x in cfg_labeling.target_median_entropy)
     # The search returns either an in-band beta or the closest-to-midpoint one;
     # on realistic costs there should always be an in-band candidate in beta_grid.
@@ -71,14 +71,14 @@ def test_degenerate_zero_variance_returns_uniform(cfg_labeling):
 
 
 def test_fefo_mask_zeroes_below_threshold():
-    probs = np.array([
-        [0.25, 0.25, 0.25, 0.25],   # below threshold -> FEFO zeroed
-        [0.10, 0.40, 0.30, 0.20],   # above threshold -> untouched
-    ])
-    pct_perish = np.array([0.0, 0.5])
-    out = fefo_mask(probs, pct_perish, threshold=0.05)
+    uniform = np.full(K, 1.0 / K)
+    skewed = np.full(K, 0.5 / (K - 1))
+    skewed[0] = 0.5
+    probs = np.vstack([uniform, skewed])
+    pct_perish = np.array([0.0, 0.5])   # row 0 below threshold, row 1 above
+    out = fefo_mask(probs, pct_perish, threshold=0.05, heuristic_names=HEURISTIC_NAMES)
 
-    # Row 0: FEFO -> 0, others renormalized over the remaining mass.
+    # Row 0: FEFO -> 0, others renormalised over the remaining mass.
     assert out[0, FEFO_IDX] == 0.0
     assert np.isclose(out[0].sum(), 1.0)
     # Row 1: unchanged.
@@ -86,16 +86,36 @@ def test_fefo_mask_zeroes_below_threshold():
 
 
 def test_fefo_mask_handles_degenerate_row():
-    """If softmax produces a row that's ~all FEFO, masking should fall back gracefully."""
+    """A row that is ~all FEFO must fall back to uniform, not to NaN."""
     probs = np.zeros((1, K))
     probs[0, FEFO_IDX] = 1.0
-    out = fefo_mask(probs, np.array([0.0]), threshold=0.05)
+    out = fefo_mask(probs, np.array([0.0]), threshold=0.05,
+                    heuristic_names=HEURISTIC_NAMES)
     assert np.isclose(out[0, FEFO_IDX], 0.0)
     assert np.isclose(out[0].sum(), 1.0)
+    assert np.isfinite(out).all()
 
 
 def test_fefo_mask_threshold_boundary():
     # pct_perishable exactly at threshold should NOT be masked (strict <).
-    probs = np.array([[0.25, 0.25, 0.25, 0.25]])
-    out = fefo_mask(probs, np.array([0.05]), threshold=0.05)
+    probs = np.full((1, K), 1.0 / K)
+    out = fefo_mask(probs, np.array([0.05]), threshold=0.05,
+                    heuristic_names=HEURISTIC_NAMES)
     assert np.allclose(out, probs)
+
+
+def test_fefo_mask_is_a_noop_when_the_rule_was_screened_out():
+    """The Stage-1 screen may legitimately drop FEFO (Reviewer 1, 4.d)."""
+    pool = [h for h in HEURISTIC_NAMES if h != "FEFO"]
+    probs = np.full((2, len(pool)), 1.0 / len(pool))
+    out = fefo_mask(probs, np.array([0.0, 0.0]), threshold=0.05,
+                    heuristic_names=pool)
+    assert np.array_equal(out, probs)
+
+
+def test_fefo_mask_rejects_a_pool_of_the_wrong_width():
+    """A label matrix and a pool that disagree is an error, not a silent shift."""
+    probs = np.full((1, K), 1.0 / K)
+    with pytest.raises(ValueError):
+        fefo_mask(probs, np.array([0.0]), threshold=0.05,
+                  heuristic_names=HEURISTIC_NAMES[:-1])

@@ -7,10 +7,10 @@ re-implemented.
 
 Wire-up:
 
-  state (25-D)            from `WarehouseEnv.current_state()`
+  state (N_FEATURES-D)    from `WarehouseEnv.observe()`
        |
        v
-  regime_post (K-D)       `GaussianMixture.predict_proba` on the 25-D state
+  regime_post (K-D)       `GaussianMixture.predict_proba` on the state
        |
        v
   full feature vector     concat in the order persisted as
@@ -23,9 +23,12 @@ Wire-up:
        v
   SwitchingController     FEFO mask, dwell counter T_min, entropy gate
 
-`load_ours(run_dir)` returns an `OursPolicy` instance with a `__call__` that
-takes a 25-D state and returns one of HEURISTIC_NAMES, and a `reset()` that
-the harness calls between shifts to clear dwell state.
+`load_ours(run_dir)` returns an `OursPolicy` whose `__call__` takes a state
+vector and returns a rule name, plus a `reset()` the harness calls between
+shifts to clear dwell state.
+
+The rule pool comes from `ranker_meta["classes"]` — the class order the model
+was fitted with — not from `cfg.heuristics.pool`, which Stage 1 rewrites.
 """
 
 from __future__ import annotations
@@ -39,7 +42,6 @@ from omegaconf import DictConfig, OmegaConf
 from sklearn.mixture import GaussianMixture
 
 from models.switching_controller import SwitchingController
-from simulation.heuristics import HEURISTIC_NAMES
 from simulation.state_extractor import N_FEATURES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -111,7 +113,21 @@ def load_ours(
         raise RuntimeError(
             f"ranker_meta feature_cols has {len(feature_cols)} entries, "
             f"expected {expected_total} ({N_FEATURES} base + "
-            f"{regime_gmm.n_components} regime). Did Phase 4 finish cleanly?"
+            f"{regime_gmm.n_components} regime). Did Stage 3 finish cleanly?"
+        )
+
+    # The class order the model was TRAINED with, not the current config pool.
+    # Stage 1 rescreens the pool, so reading `cfg.heuristics.pool` here would
+    # remap class indices onto different rule names whenever the config moved
+    # after training — the controller would deploy the wrong rule under the
+    # right name, silently and without erroring.
+    classes = list(meta.get("classes") or [])
+    if not classes:
+        raise RuntimeError(
+            f"{run_dir / 'ranker_meta.joblib'} has no 'classes' entry. It was "
+            f"written by a pre-revision Stage 3, when the pool was a fixed "
+            f"module constant. Retrain with the current "
+            f"`experiments/train_ranker.py`."
         )
 
     controller = SwitchingController(
@@ -119,7 +135,7 @@ def load_ours(
         cfg_switching=cfg.ranker.switching,
         fefo_threshold=float(cfg.heuristics.fefo_mask_threshold),
         feature_cols=feature_cols,
-        heuristic_names=HEURISTIC_NAMES,
+        heuristic_names=classes,
     )
     return OursPolicy(
         controller=controller,

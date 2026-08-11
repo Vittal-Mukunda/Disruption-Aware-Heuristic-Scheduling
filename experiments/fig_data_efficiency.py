@@ -35,22 +35,22 @@ FIG_DIR = ROOT / "figures" / "data_efficiency"
 def main() -> int:
     de = pd.DataFrame(json.loads(DE_JSON.read_text()))
     grp = de.groupby("budget").agg(
-        sla_mean=("sla_breach_rate_mean", "mean"),
-        sla_std=("sla_breach_rate_mean", "std"),
-        cost_mean=("mean_cost_mean", "mean"),
-        cost_std=("mean_cost_mean", "std"),
+        sla_mean=("service_failure_rate_mean", "mean"),
+        sla_std=("service_failure_rate_mean", "std"),
+        cost_mean=("composite_cost_mean", "mean"),
+        cost_std=("composite_cost_mean", "std"),
     ).reset_index()
 
     snap = pd.read_parquet(ROOT / "results" / "snapshot_xgb.parquet")
     mpc = pd.read_parquet(ROOT / "results" / "greedy_mpc.parquet")
     ref = {
         "snapshot_xgb": {
-            "sla": float(snap["sla_breach_rate"].mean()),
-            "cost": float(snap["mean_cost"].mean()),
+            "sla": float(snap["service_failure_rate"].mean()),
+            "cost": float(snap["composite_cost"].mean()),
         },
         "greedy_mpc": {
-            "sla": float(mpc["sla_breach_rate"].mean()),
-            "cost": float(mpc["mean_cost"].mean()),
+            "sla": float(mpc["service_failure_rate"].mean()),
+            "cost": float(mpc["composite_cost"].mean()),
         },
     }
 

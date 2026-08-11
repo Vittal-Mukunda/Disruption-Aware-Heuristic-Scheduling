@@ -27,8 +27,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.frozen import FrozenEstimator
 from sklearn.model_selection import GroupShuffleSplit
 
-from models.heuristic_ranker import FEATURE_COLUMNS, PROB_COLUMNS
-from simulation.heuristics import HEURISTIC_NAMES
+from models.heuristic_ranker import FEATURE_COLUMNS, prob_columns
 
 
 @dataclass
@@ -113,7 +112,7 @@ class CalibratedRanker:
 
     def fit(self, df_cal: pd.DataFrame) -> "CalibratedRanker":
         X_cal = df_cal[self.feature_cols].to_numpy(dtype=np.float64)
-        P_cal = df_cal[PROB_COLUMNS].to_numpy(dtype=np.float64)
+        P_cal = df_cal[prob_columns(df_cal)].to_numpy(dtype=np.float64)
         y_cal = np.argmax(P_cal, axis=1).astype(np.int64)
 
         # sklearn >=1.6 deprecated `cv='prefit'`; wrap the fit model in
@@ -141,7 +140,7 @@ def evaluate_calibration(
     fit `CalibratedRanker` (or None if you only want the pre-cal numbers).
     """
     X = df_cal[ranker_cv.feature_cols].to_numpy(dtype=np.float64)
-    P_true = df_cal[PROB_COLUMNS].to_numpy(dtype=np.float64)
+    P_true = df_cal[prob_columns(df_cal)].to_numpy(dtype=np.float64)
     y_hard = np.argmax(P_true, axis=1).astype(np.int64)
 
     probs_pre = ranker_cv.model.predict_proba(X)
@@ -197,10 +196,11 @@ def cv_calibration_report(
     splitter = GroupKFold(n_splits=int(cfg_ranker.cv.n_splits))
 
     cal_frac = float(cfg_ranker.calibration.calibration_split)
+    prob_cols = prob_columns(df_train)
     per_fold: list[dict] = []
     for fold_i, (tr_idx, va_idx) in enumerate(
         splitter.split(df_train, np.argmax(
-            df_train[PROB_COLUMNS].to_numpy(np.float64), axis=1), groups=groups)
+            df_train[prob_cols].to_numpy(np.float64), axis=1), groups=groups)
     ):
         df_fold_tr = df_train.iloc[tr_idx].reset_index(drop=True)
         df_fold_va = df_train.iloc[va_idx].reset_index(drop=True)
@@ -236,5 +236,5 @@ def cv_calibration_report(
         "mean_brier_pre": float(np.mean([r["brier_pre"] for r in per_fold])),
         "mean_brier_post": float(np.mean([r["brier_post"] for r in per_fold])),
         "mean_soft_xent_post": float(np.mean([r["soft_xent_post"] for r in per_fold])),
-        "K": len(HEURISTIC_NAMES),
+        "K": len(prob_cols),
     }

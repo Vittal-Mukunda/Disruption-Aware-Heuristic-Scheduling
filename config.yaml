@@ -79,7 +79,17 @@ heuristics:
   covert_lookahead_k: null
   calibration:
     k_grid: [0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 20.0]
-    mode: standalone              # 'standalone' | 'portfolio'; both are reported
+    # There is no `mode` switch. BOTH calibrations Reviewer 1 (4.c) asks for are
+    # always computed and always reported; the portfolio value is the one
+    # deployed, because the pool is what ships. A switch here would let one of
+    # the two go unreported, which is the thing the reviewer is guarding against.
+    # Calibration only has to RANK k values, not produce deployable labels, so
+    # it runs at a much smaller rollout budget than labelling. At M=20 the
+    # k-sweep costs ~12.3M interval-steps — six times the entire labelling
+    # stage — because it is a full label pass per k per parameterised rule.
+    # M=5 cuts that to ~3M with no effect on the ranking, since the k values
+    # are compared under common random numbers and the comparison is paired.
+    n_rollout_samples: 5
 
   fefo_mask_threshold: 0.05       # mask FEFO when pct_perishable < this
 
@@ -93,7 +103,14 @@ heuristics:
 # test (Reviewer 1, 4.c).
 shifts:
   seed_seq_root: 42
-  n_train: 100
+  # 250 train shifts, not 100. An earlier draft cut this to 100 on the strength
+  # of the submitted sample-efficiency result, which is circular: that result is
+  # itself being re-derived. It also runs against Section 6.12's own argument
+  # that the statistical cost of an |H|-class problem grows faster than linearly
+  # in |H| — and the pool has doubled from four rules to eight. Labelling cost is
+  # linear in shifts and is not the bottleneck (rule calibration is), so the
+  # corpus stays large.
+  n_train: 250
   n_calib: 30
   n_test: 50
 
@@ -108,9 +125,10 @@ labeling:
   target_median_entropy: [0.3, 0.7]
   ambiguity_filter:
     theta_confidence: 0.55
-  # Report the rollout standard error alongside the mean cost (Reviewer 2, 3
-  # asks for the variance explicitly).
-  record_standard_error: true
+  # NOTE. There is no `record_standard_error` switch: the per-cell standard
+  # error is ALWAYS recorded (`se_<rule>` columns) and always summarised into
+  # `label_meta.json`. Reviewer 2 (3) asks for the variance to be reported, and
+  # a flag that could turn it off would be a way to not report it.
 
 # ---------------------------------------------------------------------------
 # Regime discovery
@@ -216,9 +234,25 @@ experiments:
 
   e4_sensitivity:
     tau:           [1, 2, 3, 4]
-    n_samples:     [1, 5, 10, 20]   # the variance arm of Proposition 1
+    n_samples:     [1, 5, 10, 20]   # the variance arm of Propositions 1 and 2
     t_min:         [0, 1, 2, 3, 4]
     theta:         [0.40, 0.50, 0.55, 0.60, 0.70]
+    arrival_noise: [0.5, 1.0, 1.5, 2.0]   # multiplier on the base arrival rate
+    # Objective-weight sensitivity. Reviewer 1 (6.c) asked that the composite
+    # cost be made the primary metric, which it now is (experiments/stats.py) —
+    # and that promotion makes the weights the load-bearing assumption of every
+    # reported comparison. A reviewer who accepts "the objective is primary"
+    # will immediately ask what happens when it changes, so the weights are
+    # swept rather than merely declared fixed-before-learning.
+    #
+    # w_spoil in particular is a judgement we introduced in this revision:
+    # 5.0 encodes "destroyed stock costs more than a late shipment". The sweep
+    # reports whether the method ranking is invariant to that judgement. If it
+    # is not, the paper must say at which ratio the conclusion flips.
+    w_breach:      [1.0, 3.0, 6.0]
+    w_spoil:       [1.0, 3.0, 5.0, 10.0]
+    w_tardy:       [0.1, 0.2, 0.5]
+    w_holding:     [0.0, 0.005, 0.05]
 
   # Model misspecification: label under nominal parameters, evaluate under
   # perturbed ones (Reviewer 2, 5). Proposition 1 bounds truncation error only.

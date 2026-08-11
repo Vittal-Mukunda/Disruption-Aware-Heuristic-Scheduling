@@ -34,9 +34,11 @@ pair, costing sum_t |H|*(t + tau) = O(n_intervals^2 * |H|) interval-steps per
 shift. This one walks the shift forward once and branches at each epoch:
 O(n_intervals * |H| * M * tau). At the submitted setting (32 epochs, 4 rules,
 tau=4) the old scheme cost ~2,500 steps per shift; the new scheme at M=20 costs
-~10,300 with 4 rules. Combined with the corpus shrinking from 250 to 100 shifts
-— licensed by the paper's own sample-efficiency result — total labelling work is
-roughly twice the submitted campaign, for twenty times the samples per cell.
+~10,300 with 4 rules. The corpus stays at 250 shifts and the pool doubles to
+eight, so total labelling work rises rather than falls: the saving is per
+sample, and it is what makes M=20 affordable at all. Rule calibration, not
+labelling, is the binding cost in this campaign — see
+`experiments/calibrate_rules.py`, which runs at a deliberately smaller M.
 
 `simulation.warehouse_env.simulated_steps()` instruments the exact figure, which
 Reviewer 3 (1) asked for.
@@ -285,10 +287,12 @@ def label_one_shift(
 ) -> list[dict]:
     """One row per decision epoch for a single shift.
 
-    Walks the shift forward once under the round-robin behaviour policy,
-    branching at each epoch. The behaviour policy is unchanged from the
-    submitted version — a round robin over the pool gives uniform action
-    coverage, which is what keeps the offline-RL baseline a fair comparison.
+    Walks the shift forward once under `cfg.labeling.observed_policy`, branching
+    at each epoch. That policy determines only which states are VISITED — the
+    labels themselves are counterfactual, since every candidate rule is rolled
+    out at every epoch regardless of what the behaviour policy did. DAHS is
+    therefore insensitive to the choice; the offline-RL baseline is not, which
+    is the whole point of `behaviour_policy()` and of Reviewer 1 (6.b).
 
     `candidates` overrides the configured pool. Stage-1 screening and the ATC
     calibration pass the full candidate library here so that every rule is
@@ -332,6 +336,37 @@ def label_one_shift(
     return rows
 
 
+def label_one_shift_counted(
+    shift_id: int,
+    shift_seed: int,
+    cfg: DictConfig,
+    tau: int | None = None,
+    n_samples: int | None = None,
+    candidates: Sequence[str] | None = None,
+) -> tuple[list[dict], int]:
+    """`label_one_shift` plus the interval-steps it actually simulated.
+
+    WHY THIS EXISTS. `simulation.warehouse_env._STEP_COUNTER` is a module-level
+    global, so it is PROCESS-LOCAL. Under joblib's default loky backend every
+    shift is labelled in a worker process and the parent's counter never sees
+    that work — reading `simulated_steps()` in the driver after a parallel map
+    returns the parent's own count, which is zero. The offline simulation cost
+    Reviewer 3 (1) asks for would then be reported as ~0 regardless of the
+    campaign size.
+
+    Resetting inside the task and returning the count makes the figure additive
+    and correct under any backend, including `n_jobs=1` where the workers and
+    the parent are the same process.
+    """
+    from simulation.warehouse_env import reset_step_counter, simulated_steps
+
+    reset_step_counter()
+    rows = label_one_shift(
+        shift_id, shift_seed, cfg, tau=tau, n_samples=n_samples, candidates=candidates
+    )
+    return rows, simulated_steps()
+
+
 def rollout_step_budget(
     n_shifts: int, n_intervals: int, n_rules: int, tau: int, n_samples: int
 ) -> int:
@@ -351,8 +386,11 @@ compute_costs_at_snapshot = costs_at_epoch
 
 __all__ = [
     "SnapshotCosts",
+    "behaviour_policy",
     "costs_at_epoch",
+    "costs_at_epoch_successive_halving",
     "label_one_shift",
+    "label_one_shift_counted",
     "rollout_seed",
     "rollout_step_budget",
     "CostWeights",

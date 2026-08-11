@@ -53,8 +53,8 @@ DEFAULT_METHODS: list[str] = [
     "fifo", "fefo", "wspt", "atc", "linucb",
     "greedy_mpc", "snapshot_xgb", "ppo_fair", "ours",
 ]
-DEFAULT_METRICS: list[str] = ["sla_breach_rate", "mean_tardiness",
-                              "mean_cost", "throughput", "picker_utilization"]
+DEFAULT_METRICS: list[str] = ["service_failure_rate", "mean_tardiness",
+                              "composite_cost", "throughput", "picker_utilization"]
 
 
 def apply_scenario(cfg: DictConfig, scenario: str) -> DictConfig:
@@ -245,8 +245,8 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
             rep_log.append({
                 "budget": int(budget),
                 "rep": int(rep),
-                "sla_breach_rate_mean": float(df_eval["sla_breach_rate"].mean()),
-                "mean_cost_mean": float(df_eval["mean_cost"].mean()),
+                "service_failure_rate_mean": float(df_eval["service_failure_rate"].mean()),
+                "composite_cost_mean": float(df_eval["composite_cost"].mean()),
             })
 
     if not args.dry_run and rep_log:

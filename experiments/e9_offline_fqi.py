@@ -31,7 +31,9 @@ import pandas as pd
 from omegaconf import DictConfig, OmegaConf
 
 from baselines.offline_fqi import (
+    MASKED_RULE,
     OfflineFQIPolicy,
+    _load_regime_gmm,
     default_hp,
     load_offline_fqi,
     log_transitions,
@@ -40,7 +42,9 @@ from baselines.offline_fqi import (
     train_fqi,
 )
 from experiments.evaluate import canonical_test_seeds, evaluate_policy
-from seed import spawn_shift_seeds
+from experiments.stats import require_metrics
+from seed import shift_corpora
+from simulation.heuristics import resolve_pool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -54,22 +58,25 @@ N_HP_VALIDATION_SHIFTS = 50  # held-out validation slice of the 250 training shi
 
 
 def _train_seeds(cfg: DictConfig) -> list[int]:
-    seeds = spawn_shift_seeds(
-        n=int(cfg.labeling.n_train_shifts) + int(cfg.labeling.n_test_shifts),
-        root=int(cfg.labeling.seed_seq_root),
-    )
-    return seeds[: int(cfg.labeling.n_train_shifts)]
+    """The training block — the same shifts DAHS labels, so the comparison is paired."""
+    return shift_corpora(cfg)["train"]
 
 
 def _load_or_build_transitions(cfg: DictConfig) -> dict[str, np.ndarray]:
-    """Round-robin transition log over all 250 training shifts, cached to disk."""
+    """Transition log over the training block, cached to disk.
+
+    The behaviour policy is `cfg.labeling.observed_policy`, the same one that
+    generated the DAHS state-visitation corpus. Delete the cache after changing
+    it, the pool, or the objective — the file has no schema stamp.
+    """
     if TRANSITIONS_CACHE.exists():
         data = np.load(TRANSITIONS_CACHE)
         return {k: data[k] for k in data.files}
     train_seeds = _train_seeds(cfg)
-    print(f"[e9] logging round-robin transitions for {len(train_seeds)} shifts...")
+    print(f"[e9] logging transitions for {len(train_seeds)} shifts under "
+          f"behaviour policy '{cfg.labeling.observed_policy}'...")
     t0 = time.perf_counter()
-    transitions = log_transitions(train_seeds, cfg)
+    transitions = log_transitions(train_seeds, cfg, resolve_pool(cfg))
     TRANSITIONS_CACHE.parent.mkdir(parents=True, exist_ok=True)
     np.savez(TRANSITIONS_CACHE, **transitions)
     print(
@@ -102,26 +109,30 @@ def _hp_combos(cfg: DictConfig) -> list[dict]:
 def _train_policy(
     transitions: dict[str, np.ndarray], hp: dict, cfg: DictConfig
 ) -> OfflineFQIPolicy:
+    pool = resolve_pool(cfg)
+    fefo_idx = pool.index(MASKED_RULE) if MASKED_RULE in pool else None
     model = train_fqi(
         transitions,
         gamma=hp["gamma"],
         n_iterations=hp["n_iterations"],
         xgb_params=hp["xgb_params"],
         fefo_threshold=float(cfg.heuristics.fefo_mask_threshold),
+        fefo_idx=fefo_idx,
         model_seed=int(cfg.seeds.model),
         verbose=False,
     )
     return OfflineFQIPolicy(
-        model=model, fefo_threshold=float(cfg.heuristics.fefo_mask_threshold)
+        model=model,
+        fefo_threshold=float(cfg.heuristics.fefo_mask_threshold),
+        arms=pool,
+        regime_gmm=_load_regime_gmm(cfg),
     )
 
 
 def _mean_kpis(df: pd.DataFrame) -> dict[str, float]:
-    return {
-        "sla_breach_rate": float(df["sla_breach_rate"].mean()),
-        "mean_cost": float(df["mean_cost"].mean()),
-        "mean_tardiness": float(df["mean_tardiness"].mean()),
-    }
+    keys = ["composite_cost", "service_failure_rate", "mean_tardiness"]
+    require_metrics(df, keys)
+    return {k: float(df[k].mean()) for k in keys}
 
 
 # --------------------------------------------------------------------------- #
@@ -132,14 +143,14 @@ def cmd_hpsearch(args: argparse.Namespace) -> int:
     transitions = _load_or_build_transitions(cfg)
     train_seeds = _train_seeds(cfg)
 
-    n_fit = int(cfg.labeling.n_train_shifts) - N_HP_VALIDATION_SHIFTS
+    n_fit = len(_train_seeds(cfg)) - N_HP_VALIDATION_SHIFTS
     fit_ids = np.arange(n_fit)
     val_seeds = train_seeds[n_fit:]
     fit_transitions = subset_transitions(transitions, fit_ids)
     print(
         f"[e9 hpsearch] fit on shifts 0..{n_fit - 1} "
         f"({fit_transitions['states'].shape[0]} transitions); "
-        f"select on validation shifts {n_fit}..{int(cfg.labeling.n_train_shifts) - 1}"
+        f"select on validation shifts {n_fit}..{len(_train_seeds(cfg)) - 1}"
     )
 
     combos = _hp_combos(cfg)
@@ -156,20 +167,20 @@ def cmd_hpsearch(args: argparse.Namespace) -> int:
             "max_depth": hp["xgb_params"]["max_depth"],
             "n_estimators": hp["xgb_params"]["n_estimators"],
             "learning_rate": hp["xgb_params"]["learning_rate"],
-            "val_sla_breach_rate": kpis["sla_breach_rate"],
-            "val_mean_cost": kpis["mean_cost"],
+            "val_service_failure_rate": kpis["service_failure_rate"],
+            "val_composite_cost": kpis["composite_cost"],
         })
         print(
             f"  [{i + 1:>2d}/{len(combos)}] gamma={hp['gamma']:.2f} "
             f"depth={hp['xgb_params']['max_depth']} "
             f"n_est={hp['xgb_params']['n_estimators']} "
             f"lr={hp['xgb_params']['learning_rate']:.2f}  "
-            f"val_cost={kpis['mean_cost']:.3f} "
-            f"val_breach={kpis['sla_breach_rate']:.4f} "
+            f"val_cost={kpis['composite_cost']:.3f} "
+            f"val_breach={kpis['service_failure_rate']:.4f} "
             f"({time.perf_counter() - t0:.0f}s)"
         )
 
-    table = pd.DataFrame(rows).sort_values("val_mean_cost").reset_index(drop=True)
+    table = pd.DataFrame(rows).sort_values("val_composite_cost").reset_index(drop=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     table.to_parquet(RESULTS_DIR / "hpsearch.parquet", index=False)
 
@@ -186,7 +197,7 @@ def cmd_hpsearch(args: argparse.Namespace) -> int:
     with open(HP_WINNER_PATH, "w", encoding="utf-8") as fh:
         json.dump(winner, fh, indent=2)
 
-    print(f"\n[e9 hpsearch] selected on validation mean_cost (lower is better):")
+    print(f"\n[e9 hpsearch] selected on validation composite_cost (lower is better):")
     print(table.to_string(index=False))
     print(f"\n[e9 hpsearch] winner -> {HP_WINNER_PATH.name}: {winner}")
     return 0
@@ -209,7 +220,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     hp = _load_winner_hp(cfg)
     test_seeds = canonical_test_seeds(cfg)
 
-    print(f"[e9 eval] training FQI on all {int(cfg.labeling.n_train_shifts)} "
+    print(f"[e9 eval] training FQI on all {len(_train_seeds(cfg))} "
           f"shifts with hp={hp}")
     t0 = time.perf_counter()
     policy = _train_policy(transitions, hp, cfg)
@@ -219,6 +230,14 @@ def cmd_eval(args: argparse.Namespace) -> int:
         "xgb_params": hp["xgb_params"],
         "fefo_threshold": float(cfg.heuristics.fefo_mask_threshold),
         "n_transitions": int(transitions["states"].shape[0]),
+        # Needed by `load_offline_fqi` to rebuild the same action set and the
+        # same feature vector at deployment.
+        "arms": list(resolve_pool(cfg)),
+        "behaviour_policy": str(cfg.labeling.observed_policy),
+        "use_regime_features": bool(
+            cfg.baselines.offline_fqi.get("use_regime_features", False)
+        ),
+        "state_dim": int(transitions["states"].shape[1]),
     })
     print(f"[e9 eval] trained + saved to {RUN_DIR} ({time.perf_counter() - t0:.0f}s)")
 
@@ -228,8 +247,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     )
     kpis = _mean_kpis(df)
     print(f"\n[e9 eval] offline_fqi over {len(df)} test shifts:")
-    print(f"  sla_breach_rate = {kpis['sla_breach_rate']:.4f}")
-    print(f"  mean_cost       = {kpis['mean_cost']:.4f}")
+    print(f"  service_failure_rate = {kpis['service_failure_rate']:.4f}")
+    print(f"  composite_cost       = {kpis['composite_cost']:.4f}")
     print(f"  mean_tardiness  = {kpis['mean_tardiness']:.4f}")
 
     print("\n[e9 eval] context (frozen results/ parquets):")
@@ -237,8 +256,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
         p = REPO_ROOT / "results" / f"{m}.parquet"
         if p.exists():
             k = _mean_kpis(pd.read_parquet(p))
-            print(f"  {m:<14s} sla_breach={k['sla_breach_rate']:.4f}  "
-                  f"mean_cost={k['mean_cost']:.4f}  "
+            print(f"  {m:<14s} sla_breach={k['service_failure_rate']:.4f}  "
+                  f"composite_cost={k['composite_cost']:.4f}  "
                   f"mean_tardiness={k['mean_tardiness']:.4f}")
     return 0
 
@@ -251,7 +270,7 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
     transitions = _load_or_build_transitions(cfg)
     hp = _load_winner_hp(cfg)
     test_seeds = canonical_test_seeds(cfg)
-    n_train = int(cfg.labeling.n_train_shifts)
+    n_train = len(_train_seeds(cfg))
 
     budgets = [int(b) for b in cfg.experiments.e2.data_efficiency_budgets]
     n_reps = int(cfg.experiments.e2.data_efficiency_reps)
@@ -274,13 +293,13 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
             kpis = _mean_kpis(df)
             rows.append({
                 "budget": budget, "rep": rep,
-                "sla_breach_rate": kpis["sla_breach_rate"],
-                "mean_cost": kpis["mean_cost"],
+                "service_failure_rate": kpis["service_failure_rate"],
+                "composite_cost": kpis["composite_cost"],
             })
             print(
                 f"  budget={budget:>3d} rep={rep}  "
-                f"sla_breach={kpis['sla_breach_rate']:.4f} "
-                f"mean_cost={kpis['mean_cost']:.3f} "
+                f"sla_breach={kpis['service_failure_rate']:.4f} "
+                f"composite_cost={kpis['composite_cost']:.3f} "
                 f"({time.perf_counter() - t0:.0f}s)"
             )
 
@@ -290,10 +309,10 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
     table.to_parquet(out, index=False)
 
     agg = table.groupby("budget").agg(
-        sla_breach_mean=("sla_breach_rate", "mean"),
-        sla_breach_std=("sla_breach_rate", "std"),
-        mean_cost_mean=("mean_cost", "mean"),
-        mean_cost_std=("mean_cost", "std"),
+        service_failure_mean=("service_failure_rate", "mean"),
+        service_failure_std=("service_failure_rate", "std"),
+        composite_cost_mean=("composite_cost", "mean"),
+        composite_cost_std=("composite_cost", "std"),
     ).reset_index()
     print(f"\n[e9 data_efficiency] offline_fqi by budget -> {out.name}:")
     print(agg.to_string(index=False))
@@ -332,19 +351,19 @@ def cmd_robustness_grid(args: argparse.Namespace) -> int:
                 results_dir=grid_dir / cell_id, save=True, verbose=False,
             )
             ci = bootstrap_mean_ci(
-                df["sla_breach_rate"].to_numpy(dtype=np.float64),
+                df["service_failure_rate"].to_numpy(dtype=np.float64),
                 n_resamples=10000, seed=1337,
             ).as_row()
             rows.append({
                 "arrival_rate": float(arrival_rate), "sla_tightness": sla_key,
                 "cell_id": cell_id,
-                "sla_breach_rate": float(df["sla_breach_rate"].mean()),
+                "service_failure_rate": float(df["service_failure_rate"].mean()),
                 "sla_breach_ci_lo": float(ci["ci_lo"]),
                 "sla_breach_ci_hi": float(ci["ci_hi"]),
-                "mean_cost": float(df["mean_cost"].mean()),
+                "composite_cost": float(df["composite_cost"].mean()),
             })
-            print(f"  {cell_id:<20} sla_breach={rows[-1]['sla_breach_rate']:.4f}  "
-                  f"mean_cost={rows[-1]['mean_cost']:.3f}")
+            print(f"  {cell_id:<20} sla_breach={rows[-1]['service_failure_rate']:.4f}  "
+                  f"composite_cost={rows[-1]['composite_cost']:.3f}")
 
     table = pd.DataFrame(rows)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -355,7 +374,7 @@ def cmd_robustness_grid(args: argparse.Namespace) -> int:
     e8 = pd.read_parquet(
         REPO_ROOT / "results" / "E8" / "robustness_grid_summary.parquet"
     )
-    dahs = e8[(e8["method"] == "ours") & (e8["metric"] == "sla_breach_rate")]
+    dahs = e8[(e8["method"] == "ours") & (e8["metric"] == "service_failure_rate")]
     print(f"\n[e9 robustness_grid] offline_fqi vs DAHS — SLA breach, 12 untuned cells:")
     print(f"  {'cell':<20}{'offline_fqi':>13}{'DAHS':>11}{'winner':>13}")
     dahs_wins = 0
@@ -363,9 +382,9 @@ def cmd_robustness_grid(args: argparse.Namespace) -> int:
         m = dahs[(dahs["arrival_rate"] == r["arrival_rate"])
                  & (dahs["sla_tightness"] == r["sla_tightness"])]
         d = float(m["point"].iloc[0]) if not m.empty else float("nan")
-        dahs_better = d <= r["sla_breach_rate"]
+        dahs_better = d <= r["service_failure_rate"]
         dahs_wins += int(dahs_better)
-        print(f"  {r['cell_id']:<20}{r['sla_breach_rate']:>13.4f}{d:>11.4f}"
+        print(f"  {r['cell_id']:<20}{r['service_failure_rate']:>13.4f}{d:>11.4f}"
               f"{'DAHS' if dahs_better else 'offline_fqi':>13}")
     print(f"\n[e9 robustness_grid] DAHS <= offline_fqi in {dahs_wins}/{len(rows)} "
           f"cells -> {out.name}")
@@ -407,8 +426,8 @@ def cmd_summary(args: argparse.Namespace) -> int:
         if p.exists():
             frames[m] = pd.read_parquet(p)
             k = _mean_kpis(frames[m])
-            print(f"  {m:<14s} sla_breach={k['sla_breach_rate']:.4f}  "
-                  f"mean_cost={k['mean_cost']:.4f}  "
+            print(f"  {m:<14s} sla_breach={k['service_failure_rate']:.4f}  "
+                  f"composite_cost={k['composite_cost']:.4f}  "
                   f"mean_tardiness={k['mean_tardiness']:.4f}")
 
     # Paired DAHS - offline_fqi (negative => DAHS better; lower is better).
@@ -418,7 +437,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
         if list(ours["shift_seed"]) == list(fqi_s["shift_seed"]):
             print("\n[e9 summary] paired DAHS - offline_fqi "
                   "(negative => DAHS better; 95% bootstrap CI):")
-            for metric in ("sla_breach_rate", "mean_cost", "mean_tardiness"):
+            for metric in ("service_failure_rate", "composite_cost", "mean_tardiness"):
                 diff = (ours[metric] - fqi_s[metric]).to_numpy()
                 m, lo, hi = _paired_bootstrap(diff)
                 verdict = "DAHS better" if hi < 0 else (
@@ -440,7 +459,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
 def _load_dahs_data_efficiency() -> pd.DataFrame | None:
     """Load the frozen DAHS data-efficiency curve (5 budgets x 5 reps).
 
-    Schema (per record): budget, rep, sla_breach_rate_mean, mean_cost_mean.
+    Schema (per record): budget, rep, service_failure_rate_mean, composite_cost_mean.
     """
     p = REPO_ROOT / "results" / "data_efficiency" / "data_efficiency_summary.json"
     if not p.exists():
@@ -455,12 +474,12 @@ def _plot_data_efficiency(de: pd.DataFrame) -> None:
     import matplotlib.pyplot as plt
 
     agg = de.groupby("budget").agg(
-        mean=("sla_breach_rate", "mean"), std=("sla_breach_rate", "std")
+        mean=("service_failure_rate", "mean"), std=("service_failure_rate", "std")
     ).reset_index()
     fig, ax = plt.subplots(figsize=(7, 5))
     dahs = _load_dahs_data_efficiency()
     if dahs is not None:
-        d = dahs.groupby("budget")["sla_breach_rate_mean"].agg(
+        d = dahs.groupby("budget")["service_failure_rate_mean"].agg(
             ["mean", "std"]).reset_index()
         ax.errorbar(
             d["budget"], d["mean"], yerr=d["std"].fillna(0.0),

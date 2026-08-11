@@ -18,7 +18,6 @@ from models.calibration import (
 )
 from models.heuristic_ranker import (
     FEATURE_COLUMNS,
-    PROB_COLUMNS,
     cross_validate_ranker,
 )
 from simulation.heuristics import HEURISTIC_NAMES

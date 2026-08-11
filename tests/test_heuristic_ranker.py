@@ -11,10 +11,11 @@ from omegaconf import OmegaConf
 
 from models.heuristic_ranker import (
     FEATURE_COLUMNS,
-    PROB_COLUMNS,
     build_ldl_training_arrays,
     cross_validate_ranker,
     inverse_entropy_weights,
+    pool_from_frame,
+    prob_columns,
     soft_xent,
 )
 from simulation.heuristics import HEURISTIC_NAMES
@@ -111,19 +112,39 @@ def test_cross_validate_ranker_learns_clear_signal(cfg_ranker_small):
     result = cross_validate_ranker(df, cfg_ranker_small, seed=42)
     X = df[result.feature_cols].to_numpy(np.float64)
     P_pred = result.model.predict_proba(X)
-    P_true = df[PROB_COLUMNS].to_numpy(np.float64)
+    P_true = df[prob_columns(df)].to_numpy(np.float64)
     xent = soft_xent(P_true, P_pred)
     # Uniform-prediction baseline: H(uniform) = log K. Model must beat it.
     assert xent < float(np.log(K)) - 0.2, f"model xent {xent} too close to uniform"
 
 
-def test_num_class_mismatch_raises(cfg_ranker_small):
-    bad_cfg = OmegaConf.merge(cfg_ranker_small, OmegaConf.create({"num_class": K + 1}))
+def test_class_set_comes_from_the_labels_not_the_config(cfg_ranker_small):
+    """The pool is a property of the dataset (Reviewer 1, 4.d).
+
+    The submitted code declared it in three places — `HEURISTIC_NAMES`,
+    `cfg.ranker.num_class`, and the label columns — and guarded only the first
+    two against each other. Dropping a rule from the labels must now simply
+    produce a (K-1)-class model, with no config edit anywhere.
+    """
     df = _make_easy_dataset()
+    dropped = HEURISTIC_NAMES[-1]
+    df_small = df.drop(columns=[f"p_{dropped}"])
+
+    # Renormalise so the remaining soft labels still sum to one per row.
+    cols = prob_columns(df_small)
+    P = df_small[cols].to_numpy(np.float64)
+    df_small[cols] = P / P.sum(axis=1, keepdims=True)
+
+    assert pool_from_frame(df_small) == HEURISTIC_NAMES[:-1]
+    result = cross_validate_ranker(df_small, cfg_ranker_small, seed=0)
+    assert result.classes == HEURISTIC_NAMES[:-1]
+    P_pred = result.model.predict_proba(
+        df_small[result.feature_cols].to_numpy(np.float64)
+    )
+    assert P_pred.shape == (len(df_small), K - 1)
+
+
+def test_missing_label_columns_raise(cfg_ranker_small):
+    df = _make_easy_dataset().drop(columns=[f"p_{h}" for h in HEURISTIC_NAMES])
     with pytest.raises(ValueError):
-        cross_validate_ranker(df, bad_cfg, seed=0)
-
-
-def test_num_class_matches_heuristic_names():
-    cfg = OmegaConf.load(CONFIG_PATH)
-    assert int(cfg.ranker.num_class) == len(HEURISTIC_NAMES)
+        cross_validate_ranker(df, cfg_ranker_small, seed=0)
