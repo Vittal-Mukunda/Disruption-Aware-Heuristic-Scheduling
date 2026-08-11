@@ -21,7 +21,7 @@
 PY ?= python
 RUN_ID ?= dev
 
-.PHONY: help install gate test clean \
+.PHONY: help install gate test clean clean-stale \
         stage1 stage1-calibrate stage1-screen stage1-diversity \
         stage1-perishability stage1-budget \
         stage2 stage2-smoke \
@@ -60,6 +60,7 @@ help:
 	@echo "  stage5-sensitivity       t_min and arrival-noise sweeps"
 	@echo ""
 	@echo "  test                     Run pytest"
+	@echo "  clean-stale              Delete pre-revision labels/models/results  [DO THIS FIRST]"
 	@echo "  clean                    Empty runs/, results/, figures/ (keeps dirs)"
 
 install:
@@ -156,6 +157,22 @@ paper-figures: stage1-diversity e2-stats e3-summary stage5-sensitivity e5-reliab
 
 test:
 	$(PY) -m pytest
+
+# Everything committed under data/, runs/ and results/ predates the revision:
+# the deleted objective, the four-rule pool, the completed-orders-only KPI
+# schema, and a test-seed block that only PARTIALLY overlaps the current one
+# (the calibration block was inserted between train and test, shifting it by 30).
+# Comparing new numbers against those files is not conservative, it is wrong —
+# and a paired test across them would be silently misaligned rather than empty.
+# Run this once before the campaign.
+clean-stale:
+	@$(PY) -c "import shutil, glob, os; \
+[os.remove(p) for p in glob.glob('data/*.parquet')]; \
+[os.remove(p) for p in glob.glob('data/*.npz')]; \
+[os.remove(p) for p in glob.glob('data/label_meta.json')]; \
+[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*')]; \
+[shutil.rmtree(d, ignore_errors=True) or os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \
+print('removed pre-revision labels, models and results')"
 
 clean:
 	@$(PY) -c "import shutil, os; \

@@ -167,10 +167,38 @@ def main() -> int:
     df_test = pd.read_parquet(test_path)
     print(f"[Phase 4] train: {len(df_train)} rows; test: {len(df_test)} rows")
 
+    # PROVENANCE GATE. Pre-revision label parquets are structurally valid — the
+    # `f_*` and `p_*` columns are all present and well formed — so every schema
+    # check below passes on them and the run would quietly fit a model to labels
+    # generated under the deleted objective and the four-rule pool. The only
+    # thing that distinguishes them is the stamp Stage 2 writes beside the file.
+    meta_path = train_path.parent / "label_meta.json"
+    if not meta_path.exists():
+        raise SystemExit(
+            f"No {meta_path} beside {train_path.name}.\n"
+            f"These labels were not produced by the current Stage 2, so they "
+            f"predate the corrected objective, the two-clock order model and the "
+            f"screened pool. Training on them would succeed and produce a wrong "
+            f"model.\n"
+            f"Run `python -m experiments.generate_labels` first (and delete the "
+            f"stale data/*.parquet)."
+        )
+    label_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    print(f"[Phase 4] labels: tau={label_meta.get('tau')} "
+          f"M={label_meta.get('n_rollout_samples')} "
+          f"beta={label_meta.get('beta'):.4f} "
+          f"policy={label_meta.get('observed_policy')}")
+
     # The pool is a property of the labels, not of the config: Stage 1 may have
     # screened rules out since config.yaml was last edited. Train and test must
     # agree, or the class indices mean different things on the two splits.
     pool = pool_from_frame(df_train)
+    if list(label_meta.get("pool", pool)) != pool:
+        raise SystemExit(
+            f"label_meta.json records pool {label_meta['pool']} but "
+            f"{train_path.name} carries {pool}. The parquet and its stamp are "
+            f"from different runs; regenerate both."
+        )
     test_pool = pool_from_frame(df_test)
     if pool != test_pool:
         raise SystemExit(

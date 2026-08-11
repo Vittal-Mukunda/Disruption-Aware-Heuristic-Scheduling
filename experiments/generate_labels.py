@@ -304,8 +304,19 @@ def main() -> int:
         "wall_clock_s": {"train": t_train, "test": t_test},
         "objective_weights": OmegaConf.to_container(cfg.objective, resolve=True),
     }
+    meta_json = json.dumps(meta, indent=2, default=float)
     meta_path = run_dir / "label_meta.json"
-    meta_path.write_text(json.dumps(meta, indent=2, default=float), encoding="utf-8")
+    meta_path.write_text(meta_json, encoding="utf-8")
+
+    # A second copy NEXT TO THE PARQUETS, which is what makes it a provenance
+    # stamp rather than a run log. `experiments/train_ranker.py` refuses to train
+    # without it. The repository still carries `data/train.parquet` from the
+    # pre-revision campaign — four rules, the deleted objective — and its `p_*`
+    # columns are perfectly well formed, so every schema check passes and a Stage
+    # 3 run against it would produce a plausible model trained on labels the
+    # revision exists to replace. Nothing else distinguishes the two files.
+    sidecar = train_path.parent / "label_meta.json"
+    sidecar.write_text(meta_json, encoding="utf-8")
 
     print(f"\n[stage2] saved:")
     for p, n in ((train_path, len(train_df)), (test_path, len(test_df)),
@@ -315,6 +326,7 @@ def main() -> int:
         except ValueError:
             print(f"  {p}  ({n} rows)")
     print(f"  {meta_path.relative_to(REPO_ROOT)}")
+    print(f"  {sidecar.relative_to(REPO_ROOT)}")
     print(f"[stage2] simulated interval-steps: {steps_total:,} "
           f"(a priori budget {budget:,})")
     print(f"[stage2] total wall-clock: {t_train + t_test:.1f}s")
