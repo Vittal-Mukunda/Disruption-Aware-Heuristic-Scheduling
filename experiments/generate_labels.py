@@ -251,6 +251,7 @@ def main() -> int:
     print(f"  epochs with best/second gap < 1 SE: "
           f"{train_se['frac_separation_below_1se']:.1%}")
 
+    test_unfiltered = test_df.copy()
     test_df = test_df[keep_mask].reset_index(drop=True)
 
     train_path = Path(args.train_out) if args.train_out else DATA_DIR / "train.parquet"
@@ -261,6 +262,15 @@ def main() -> int:
     test_path.parent.mkdir(parents=True, exist_ok=True)
     train_df.to_parquet(train_path, index=False)
     test_df.to_parquet(test_path, index=False)
+
+    # The PRE-FILTER test set, kept so the `random_ambiguity_filter` control can
+    # drop a matched NUMBER of rows at random instead of by confidence. Without
+    # it that ablation cannot be run honestly — the submitted implementation
+    # substituted a hardcoded drop fraction measured in an earlier campaign.
+    unfiltered_path = test_path.with_name(
+        test_path.name.replace(".parquet", "_unfiltered.parquet")
+    )
+    test_unfiltered.to_parquet(unfiltered_path, index=False)
 
     # The pool and its ORDER are part of the dataset contract: `p_<rule>` column
     # order defines the ranker's class indices. Downstream stages read this
@@ -298,7 +308,8 @@ def main() -> int:
     meta_path.write_text(json.dumps(meta, indent=2, default=float), encoding="utf-8")
 
     print(f"\n[stage2] saved:")
-    for p, n in ((train_path, len(train_df)), (test_path, len(test_df))):
+    for p, n in ((train_path, len(train_df)), (test_path, len(test_df)),
+                 (unfiltered_path, len(test_unfiltered))):
         try:
             print(f"  {p.relative_to(REPO_ROOT)}  ({n} rows)")
         except ValueError:

@@ -191,6 +191,7 @@ def cross_validate_ranker(
     seed: int,
     extra_feature_cols: list[str] | None = None,
     n_jobs_fit: int = 1,
+    base_feature_cols: list[str] | None = None,
 ) -> RankerCVResult:
     """5-fold GroupKFold HP search; return the refit best model.
 
@@ -211,8 +212,15 @@ def cross_validate_ranker(
     n_jobs_fit
         n_jobs passed to each XGBClassifier. Default 1 keeps the call serial
         because the outer HP loop is already CPU-bound.
+    base_feature_cols
+        Override the canonical state columns. Used by the parsimony ablation
+        Reviewer 3 (4) asks for, which refits on a top-k subset; leaving this
+        `None` uses the full feature map.
     """
-    feature_cols = list(FEATURE_COLUMNS) + list(extra_feature_cols or [])
+    feature_cols = (
+        list(base_feature_cols) if base_feature_cols is not None
+        else list(FEATURE_COLUMNS)
+    ) + list(extra_feature_cols or [])
     prob_cols = prob_columns(df)
     missing = [c for c in feature_cols if c not in df.columns]
     if missing:

@@ -134,6 +134,14 @@ def main() -> int:
                         help="Override the train parquet path (default: data/train.parquet).")
     parser.add_argument("--test-path", type=Path, default=None,
                         help="Override the test parquet path (default: data/test.parquet).")
+    parser.add_argument("--no-regime", action="store_true",
+                        help="Skip the regime layer entirely (E3 `no_regime` "
+                             "ablation). Dropping the posterior COLUMNS from the "
+                             "input parquet does not ablate anything, because "
+                             "this driver re-fits the GMM and re-attaches them.")
+    parser.add_argument("--feature-cols", nargs="*", default=None,
+                        help="Restrict the base state to these f_* columns "
+                             "(E3 `top5_features`, Reviewer 3 comment 4).")
     args = parser.parse_args()
 
     cfg = OmegaConf.load(CONFIG_PATH)
@@ -169,40 +177,60 @@ def main() -> int:
         )
     print(f"[Phase 4] pool (from labels, K={len(pool)}) = {pool}")
 
+    base_cols = list(args.feature_cols) if args.feature_cols else None
+    if base_cols:
+        missing = [c for c in base_cols if c not in df_train.columns]
+        if missing:
+            raise SystemExit(f"--feature-cols not in the data: {missing}")
+        print(f"[Phase 4] restricted state ({len(base_cols)} features): {base_cols}")
+
     # --- 1) Regime discovery -------------------------------------------------
-    t0 = time.perf_counter()
-    print("[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...")
-    regime_result = discover_regimes(df_train, cfg.regime, seed=args.seed)
-    t_regime = time.perf_counter() - t0
-    print(f"  K* = {regime_result.k_star}  BIC = {regime_result.bic:.1f}  "
-          f"mean ARI = {regime_result.mean_ari:.4f}  "
-          f"stable={regime_result.stable}  ({t_regime:.1f}s)")
-    print(f"  BIC sweep: {regime_result.bic_per_k}")
+    regime_result = None
+    extra_cols: list[str] = []
+    if args.no_regime:
+        # The ablation has to happen HERE. Stripping `regime_post_*` from the
+        # input parquet achieves nothing, because this driver would re-fit the
+        # GMM and re-attach them — which is why the submitted `no_regime`
+        # ablation, had it been run, would have reproduced the full model.
+        print("[Phase 4] --no-regime: skipping the regime layer entirely.")
+    else:
+        t0 = time.perf_counter()
+        print("[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...")
+        regime_result = discover_regimes(df_train, cfg.regime, seed=args.seed)
+        t_regime = time.perf_counter() - t0
+        print(f"  K* = {regime_result.k_star}  BIC = {regime_result.bic:.1f}  "
+              f"mean ARI = {regime_result.mean_ari:.4f}  "
+              f"stable={regime_result.stable}  ({t_regime:.1f}s)")
+        print(f"  BIC sweep: {regime_result.bic_per_k}")
 
-    df_train = attach_regime_posteriors(df_train, regime_result.gmm)
-    df_test = attach_regime_posteriors(df_test, regime_result.gmm)
-    extra_cols = regime_posterior_columns(regime_result.k_star)
-    print(f"  attached regime posteriors: {extra_cols}")
+        df_train = attach_regime_posteriors(df_train, regime_result.gmm)
+        df_test = attach_regime_posteriors(df_test, regime_result.gmm)
+        extra_cols = regime_posterior_columns(regime_result.k_star)
+        print(f"  attached regime posteriors: {extra_cols}")
 
-    joblib.dump(regime_result.gmm, run_dir / "regime.joblib")
-    (run_dir / "phase4_regime.json").write_text(
-        json.dumps({
-            "k_star": int(regime_result.k_star),
-            "bic": float(regime_result.bic),
-            "mean_ari": float(regime_result.mean_ari),
-            "stable": bool(regime_result.stable),
-            "ari_threshold": float(cfg.regime.ari_threshold),
-            "bic_per_k": {int(k): float(v) for k, v in regime_result.bic_per_k.items()},
-            "extra_feature_cols": list(extra_cols),
-        }, indent=2),
-        encoding="utf-8",
-    )
+        joblib.dump(regime_result.gmm, run_dir / "regime.joblib")
+    if regime_result is not None:
+        (run_dir / "phase4_regime.json").write_text(
+            json.dumps({
+                "k_star": int(regime_result.k_star),
+                "bic": float(regime_result.bic),
+                "mean_ari": float(regime_result.mean_ari),
+                "stable": bool(regime_result.stable),
+                "ari_threshold": float(cfg.regime.ari_threshold),
+                "bic_per_k": {
+                    int(k): float(v) for k, v in regime_result.bic_per_k.items()
+                },
+                "extra_feature_cols": list(extra_cols),
+            }, indent=2),
+            encoding="utf-8",
+        )
 
     # --- 2) Ranker HP search on training data --------------------------------
     t0 = time.perf_counter()
     print("[Phase 4] HP search on training data (cross_validate_ranker)...")
     cv_result: RankerCVResult = cross_validate_ranker(
-        df_train, cfg.ranker, seed=args.seed, extra_feature_cols=extra_cols
+        df_train, cfg.ranker, seed=args.seed, extra_feature_cols=extra_cols,
+        base_feature_cols=base_cols,
     )
     t_hp = time.perf_counter() - t0
     print(f"  best params = {cv_result.best_params}")
@@ -254,7 +282,8 @@ def main() -> int:
     print("[Phase 4] refit ranker on inner-train with best HPs...")
     refit_cfg = _single_combo_cfg(cfg.ranker, cv_result.best_params)
     final_cv = cross_validate_ranker(
-        df_inner_tr, refit_cfg, seed=args.seed, extra_feature_cols=extra_cols
+        df_inner_tr, refit_cfg, seed=args.seed, extra_feature_cols=extra_cols,
+        base_feature_cols=base_cols,
     )
     t_refit = time.perf_counter() - t0
     print(f"  refit wall: {t_refit:.1f}s")
@@ -283,7 +312,9 @@ def main() -> int:
     joblib.dump(calibrator, run_dir / "calibrator.joblib")
     joblib.dump(
         {"feature_cols": final_cv.feature_cols, "best_params": cv_result.best_params,
-         "regime_extra_cols": list(extra_cols), "k_star": int(regime_result.k_star),
+         "regime_extra_cols": list(extra_cols),
+         "k_star": int(regime_result.k_star) if regime_result is not None else 0,
+         "no_regime": bool(args.no_regime),
          # Class-index -> rule name. The deployment wrapper maps argmax through
          # this; without it a re-screened pool would silently reindex the actions.
          "classes": list(final_cv.classes)},
@@ -300,11 +331,13 @@ def main() -> int:
         "n_test_rows": int(len(df_test)),
         "n_train_shifts_inner": int(n_tr_shifts),
         "n_cal_shifts_inner": int(n_cal_shifts),
-        "regime": {
-            "k_star": int(regime_result.k_star),
-            "mean_ari": float(regime_result.mean_ari),
-            "stable": bool(regime_result.stable),
-        },
+        "regime": (
+            None if regime_result is None else {
+                "k_star": int(regime_result.k_star),
+                "mean_ari": float(regime_result.mean_ari),
+                "stable": bool(regime_result.stable),
+            }
+        ),
         "ranker": {
             "best_params": cv_result.best_params,
             "best_mean_cv_soft_xent": float(cv_result.best_mean_xent),

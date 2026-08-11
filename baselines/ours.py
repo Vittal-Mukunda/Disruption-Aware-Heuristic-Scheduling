@@ -58,8 +58,11 @@ class OursPolicy:
     """
 
     controller: SwitchingController
-    regime_gmm: GaussianMixture
+    regime_gmm: GaussianMixture | None
     feature_cols: list[str]
+    # Index map from the full state into the ranker's base columns. Non-trivial
+    # only for the parsimony ablation (Reviewer 3, 4), which fits on a subset.
+    base_idx: list[int] | None = None
 
     def reset(self) -> None:
         self.controller.reset()
@@ -69,8 +72,12 @@ class OursPolicy:
             raise ValueError(
                 f"expected 1-D state of length {N_FEATURES}, got shape {state.shape}"
             )
-        regime_post = self.regime_gmm.predict_proba(state.reshape(1, -1))[0]
-        full = np.concatenate([state, regime_post]).astype(np.float64)
+        base = state if self.base_idx is None else state[self.base_idx]
+        if self.regime_gmm is None:
+            full = np.asarray(base, dtype=np.float64)
+        else:
+            regime_post = self.regime_gmm.predict_proba(state.reshape(1, -1))[0]
+            full = np.concatenate([base, regime_post]).astype(np.float64)
         if full.shape[0] != len(self.feature_cols):
             raise RuntimeError(
                 f"feature length mismatch: built {full.shape[0]} from state+regime "
@@ -96,24 +103,48 @@ def load_ours(
     """
     run_dir = Path(run_dir)
     if not run_dir.exists():
-        raise FileNotFoundError(f"Phase 4 run dir not found: {run_dir}")
-    for required in ("calibrator.joblib", "regime.joblib", "ranker_meta.joblib"):
+        raise FileNotFoundError(f"Stage 3 run dir not found: {run_dir}")
+    for required in ("calibrator.joblib", "ranker_meta.joblib"):
         if not (run_dir / required).exists():
             raise FileNotFoundError(f"missing artifact: {run_dir / required}")
 
     cfg = cfg if cfg is not None else OmegaConf.load(DEFAULT_CONFIG_PATH)
 
     calibrator = joblib.load(run_dir / "calibrator.joblib")
-    regime_gmm = joblib.load(run_dir / "regime.joblib")
     meta = joblib.load(run_dir / "ranker_meta.joblib")
     feature_cols = list(meta["feature_cols"])
 
-    expected_total = N_FEATURES + int(regime_gmm.n_components)
+    # The `no_regime` ablation trains without the layer, so there is no GMM to
+    # load. Everything else is identical, which is what makes it an ablation.
+    no_regime = bool(meta.get("no_regime", False))
+    regime_gmm = None
+    if not no_regime:
+        if not (run_dir / "regime.joblib").exists():
+            raise FileNotFoundError(f"missing artifact: {run_dir / 'regime.joblib'}")
+        regime_gmm = joblib.load(run_dir / "regime.joblib")
+
+    # Base columns may be a SUBSET of the full state (parsimony ablation), so the
+    # inference-time vector is rebuilt by name rather than assumed to be the
+    # whole feature map followed by the posteriors.
+    from simulation.state_extractor import FEATURE_NAMES
+
+    n_regime = 0 if regime_gmm is None else int(regime_gmm.n_components)
+    base_cols = [c for c in feature_cols if not c.startswith("regime_post_")]
+    base_idx: list[int] | None = None
+    if base_cols != [f"f_{n}" for n in FEATURE_NAMES]:
+        try:
+            base_idx = [FEATURE_NAMES.index(c[len("f_"):]) for c in base_cols]
+        except ValueError as exc:
+            raise RuntimeError(
+                f"ranker_meta feature_cols contains a column that is neither a "
+                f"regime posterior nor a known state feature: {exc}"
+            ) from None
+    expected_total = len(base_cols) + n_regime
     if len(feature_cols) != expected_total:
         raise RuntimeError(
             f"ranker_meta feature_cols has {len(feature_cols)} entries, "
-            f"expected {expected_total} ({N_FEATURES} base + "
-            f"{regime_gmm.n_components} regime). Did Stage 3 finish cleanly?"
+            f"expected {expected_total} ({len(base_cols)} base + {n_regime} "
+            f"regime). Did Stage 3 finish cleanly?"
         )
 
     # The class order the model was TRAINED with, not the current config pool.
@@ -141,4 +172,5 @@ def load_ours(
         controller=controller,
         regime_gmm=regime_gmm,
         feature_cols=feature_cols,
+        base_idx=base_idx,
     )

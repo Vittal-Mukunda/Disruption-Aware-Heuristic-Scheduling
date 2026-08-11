@@ -1,22 +1,31 @@
-"""Phase 6 / E3 — ablation studies.
+"""E3 — ablation studies. One entry per `cfg.experiments.e3_ablations`.
 
-Five ablations per HANDOFF §3.2 (the sixth, `tau1_snapshot_only`, is already
-covered by Phase 5's `snapshot_xgb`).
+Three tiers, by what has to be recomputed:
 
-  - no_calibration:           load the raw XGBoost ranker, skip isotonic.
-  - no_switching_controller:  calibrated probs + FEFO mask, but no T_min and no
-                              entropy gate (always switch to argmax).
-  - no_regime:                re-train the ranker on the 25-D state alone, no
-                              regime-posterior features.
-  - hard_labels:              re-train with one-hot argmax(p) labels instead of
-                              the soft KL objective.
-  - random_ambiguity_filter:  re-train where the θ=0.55 confidence filter is
-                              replaced by a same-size random row-drop.
+INFERENCE-ONLY — swap the deployment stack, reuse the trained model.
+  - no_calibration:           raw XGBoost softprob, no isotonic wrapper.
+  - no_switching_controller:  calibrated probs + FEFO mask, no dwell, no gate.
 
-The first two are *inference-only* and run in this session. The last three
-require Phase 4 retraining (~42 min each on this laptop) — they are wired here
-as `python -m experiments.e3_ablations retrain <name>` CLIs that the user kicks
-off explicitly.
+RETRAIN — `python -m experiments.e3_ablations retrain <name>`.
+  - no_regime:                fit without the regime layer at all.
+  - hard_labels:              one-hot argmax(p) instead of the soft KL target.
+  - random_ambiguity_filter:  drop the same NUMBER of test rows at random as the
+                              theta filter drops by confidence.
+  - top5_features:            refit on the five most important state features
+                              (Reviewer 3, comment 4 — parsimony).
+
+RELABEL — `python -m experiments.e3_ablations relabel <name>` prints the recipe;
+these change the ESTIMATOR, so no transform of an existing parquet produces them.
+  - tau1_snapshot_only:       tau=1 labels (this is `snapshot_xgb`).
+  - single_sample_rollout:    M=1, the submitted labelling scheme.
+
+TWO OF THESE WERE PREVIOUSLY UNRUNNABLE, not merely unrun. `no_regime` was
+implemented by deleting `regime_post_*` columns from the input parquet, but
+`experiments/train_ranker.py` re-fits the GMM and re-attaches them, so the
+"ablated" model was the full model; it is now a driver flag. And
+`random_ambiguity_filter` compared against a hardcoded drop fraction from an
+earlier campaign because the pre-filter test set was not on disk; the labeller
+now writes it.
 """
 
 from __future__ import annotations
@@ -42,7 +51,16 @@ DEFAULT_RUN_DIR = REPO_ROOT / "runs" / "phase4"
 RESULTS_DIR = REPO_ROOT / "results" / "E3"
 
 INFERENCE_ABLATIONS = ["no_calibration", "no_switching_controller"]
-RETRAIN_ABLATIONS = ["no_regime", "hard_labels", "random_ambiguity_filter"]
+RETRAIN_ABLATIONS = [
+    "no_regime", "hard_labels", "random_ambiguity_filter", "top5_features",
+]
+#: Ablations that require a fresh LABELLING pass, not just a retrain. Both change
+#: the rollout estimator itself, so `experiments/generate_labels.py` has to run
+#: first; `cmd_relabel` prints the exact two-command recipe.
+RELABEL_ABLATIONS = {
+    "tau1_snapshot_only": ["--tau", "1"],
+    "single_sample_rollout": ["--n-samples", "1"],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -154,24 +172,52 @@ def cmd_inference(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _prepare_no_regime_data(
+def _copy_through(
     train_path: Path, test_path: Path, out_dir: Path
 ) -> tuple[Path, Path]:
-    """Strip regime-posterior columns. Phase 4 driver re-fits regime by default,
-    but `no_regime` means we *exclude* the posteriors from the ranker feature set.
+    """No data transform: the ablation is a train_ranker FLAG, not a data edit.
+
+    `no_regime` and `top5_features` were previously attempted by editing the
+    parquet — dropping `regime_post_*` columns in the first case. That achieves
+    nothing: `experiments/train_ranker.py` re-fits the GMM and re-attaches the
+    posteriors, so the "ablated" model was the full model. Both are now real
+    flags on the driver (`--no-regime`, `--feature-cols`).
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    df_tr = pd.read_parquet(train_path)
-    df_te = pd.read_parquet(test_path)
-    drop_cols = [c for c in df_tr.columns if c.startswith("regime_post_")]
-    if drop_cols:
-        df_tr = df_tr.drop(columns=drop_cols)
-        df_te = df_te.drop(columns=drop_cols)
-    tr_out = out_dir / "train.parquet"
-    te_out = out_dir / "test.parquet"
-    df_tr.to_parquet(tr_out, index=False)
-    df_te.to_parquet(te_out, index=False)
-    return tr_out, te_out
+    return train_path, test_path
+
+
+def _top_k_feature_cols(run_dir: Path, k: int = 5) -> list[str]:
+    """The k most important state features of the deployed model (Reviewer 3, 4).
+
+    Prefers the SHAP table if E5 has been run, since that is what the paper
+    reports; falls back to the booster's own gain importance. Regime posteriors
+    are excluded — this ablation is about the hand-crafted state.
+    """
+    shap_path = REPO_ROOT / "results" / "E5" / "shap_global_importance.parquet"
+    if shap_path.exists():
+        imp = pd.read_parquet(shap_path).sort_values(
+            "mean_abs_shap", ascending=False
+        )
+        ranked = [str(f) for f in imp["feature"]]
+    else:
+        import joblib as _joblib
+        import xgboost as _xgb
+
+        meta = _joblib.load(run_dir / "ranker_meta.joblib")
+        booster = _xgb.XGBClassifier()
+        booster.load_model(str(run_dir / "model.json"))
+        cols = list(meta["feature_cols"])
+        order = np.argsort(-np.asarray(booster.feature_importances_))
+        ranked = [cols[i] for i in order]
+        print(f"[E3 top5] {shap_path} not found; ranking by XGBoost gain instead.")
+
+    base = [c for c in ranked if c.startswith("f_")][:k]
+    if len(base) < k:
+        raise SystemExit(
+            f"only {len(base)} state features available to rank; expected >= {k}"
+        )
+    return base
 
 
 def _prepare_hard_labels_data(
@@ -197,39 +243,48 @@ def _prepare_hard_labels_data(
 def _prepare_random_filter_data(
     train_path: Path, test_path: Path, out_dir: Path, seed: int
 ) -> tuple[Path, Path]:
-    """Replace the θ-filter with a same-size random row-drop on the test split.
+    """Replace the theta-filter with a random drop of the SAME SIZE.
 
-    The training set is unaffected (Phase 3 doesn't filter train); this ablation
-    just shows that the calibration / acceptance numbers don't hinge on the
-    confidence-filter selection mechanism.
+    The question this answers is whether the reported test numbers come from the
+    confidence filter selecting genuinely unambiguous states, or merely from
+    evaluating on fewer rows. The honest control keeps the row count identical
+    and randomises which rows survive.
+
+    That requires the UNFILTERED test set. The submitted implementation did not
+    have it on disk and substituted a hardcoded `0.4593` drop fraction — the
+    ratio 735/1600 measured in one earlier run — applied to the TRAIN split,
+    which is a different quantity on a different corpus and would silently go
+    stale the moment either changed. `experiments/generate_labels.py` now writes
+    `test_unfiltered.parquet` beside the filtered one, so the control is exact.
     """
-    from omegaconf import OmegaConf as _Omega
-
-    cfg = _Omega.load(CONFIG_PATH)
     out_dir.mkdir(parents=True, exist_ok=True)
-    df_te_filtered = pd.read_parquet(test_path)
-    # Try to recover the un-filtered test set from phase3 raw outputs if present;
-    # otherwise approximate by un-doing the filter is impossible, so we just
-    # use the same row count as a random-drop of the *un-thinned* test parquet,
-    # which lives at data/test.parquet (the filtered one) — the cleanest semantic
-    # is "random-drop equal in count to what the θ-filter would drop." Since we
-    # don't have the un-filtered parquet on disk, we instead random-drop a
-    # matched FRACTION of the train.parquet rows. The Phase 3 dropped fraction
-    # is recoverable from the master plan log if needed.
-    drop_frac = float(cfg.labeling.ambiguity_filter.theta_confidence) - 0.0
+    unfiltered_path = test_path.with_name(
+        test_path.name.replace(".parquet", "_unfiltered.parquet")
+    )
+    if not unfiltered_path.exists():
+        raise SystemExit(
+            f"missing {unfiltered_path}. The random-filter control needs the "
+            f"pre-filter test set to drop a matched NUMBER of rows at random. "
+            f"Re-run `python -m experiments.generate_labels`, which writes it."
+        )
+    df_full = pd.read_parquet(unfiltered_path)
+    n_keep = len(pd.read_parquet(test_path))
+    if n_keep > len(df_full):
+        raise SystemExit(
+            f"filtered test set ({n_keep} rows) is larger than the unfiltered "
+            f"one ({len(df_full)}); the two are from different runs."
+        )
     rng = np.random.default_rng(seed)
-    df_tr = pd.read_parquet(train_path)
-    keep_mask = rng.uniform(size=len(df_tr)) > (1.0 - 1.0)  # placeholder: keep all
-    # NB: the master plan's intent is "drop same NUMBER as the θ filter would have."
-    # Phase 3 train was unfiltered, so we replicate the test-side filtered drop
-    # rate on the train set to make the comparison faithful.
-    drop_count = max(1, int(round(0.4593 * len(df_tr))))  # 735/1600 ≈ 0.459
-    drop_idx = rng.choice(len(df_tr), size=drop_count, replace=False)
-    keep_mask = np.ones(len(df_tr), dtype=bool)
-    keep_mask[drop_idx] = False
-    df_tr.iloc[keep_mask].to_parquet(out_dir / "train.parquet", index=False)
-    df_te_filtered.to_parquet(out_dir / "test.parquet", index=False)
-    return out_dir / "train.parquet", out_dir / "test.parquet"
+    keep_idx = rng.choice(len(df_full), size=n_keep, replace=False)
+    df_random = df_full.iloc[np.sort(keep_idx)].reset_index(drop=True)
+    print(f"[E3 random_filter] kept {n_keep}/{len(df_full)} test rows at random "
+          f"(theta-filter kept the same count by confidence)")
+
+    tr_out = out_dir / "train.parquet"
+    te_out = out_dir / "test.parquet"
+    pd.read_parquet(train_path).to_parquet(tr_out, index=False)
+    df_random.to_parquet(te_out, index=False)
+    return tr_out, te_out
 
 
 def cmd_retrain(args: argparse.Namespace) -> int:
@@ -245,8 +300,15 @@ def cmd_retrain(args: argparse.Namespace) -> int:
     train_path = REPO_ROOT / "data" / "train.parquet"
     test_path = REPO_ROOT / "data" / "test.parquet"
 
+    extra_flags: list[str] = []
     if ablation == "no_regime":
-        tr, te = _prepare_no_regime_data(train_path, test_path, out_dir)
+        tr, te = _copy_through(train_path, test_path, out_dir)
+        extra_flags = ["--no-regime"]
+    elif ablation == "top5_features":
+        tr, te = _copy_through(train_path, test_path, out_dir)
+        top5 = _top_k_feature_cols(DEFAULT_RUN_DIR, k=5)
+        print(f"[E3 top5_features] retaining {top5}")
+        extra_flags = ["--feature-cols", *top5]
     elif ablation == "hard_labels":
         tr, te = _prepare_hard_labels_data(train_path, test_path, out_dir)
     else:  # random_ambiguity_filter
@@ -256,7 +318,7 @@ def cmd_retrain(args: argparse.Namespace) -> int:
 
     print(f"[E3 retrain] {ablation}: train={tr}  test={te}")
     if args.dry_run:
-        print("  --dry-run: not invoking train_ranker.")
+        print(f"  --dry-run: not invoking train_ranker (flags: {extra_flags}).")
         return 0
 
     cmd = [
@@ -265,6 +327,7 @@ def cmd_retrain(args: argparse.Namespace) -> int:
         "--train-path", str(tr),
         "--test-path", str(te),
         "--skip-cv-cal",
+        *extra_flags,
     ]
     subprocess.check_call(cmd, cwd=str(REPO_ROOT))
 
@@ -280,6 +343,36 @@ def cmd_retrain(args: argparse.Namespace) -> int:
     print(f"\n[E3 retrain] {ablation}: "
           f"sla_breach={df['service_failure_rate'].mean():.4f}  "
           f"composite_cost={df['composite_cost'].mean():.4f}")
+    return 0
+
+
+def cmd_relabel(args: argparse.Namespace) -> int:
+    """Print the recipe for the two ablations that need a fresh labelling pass.
+
+    `tau1_snapshot_only` and `single_sample_rollout` change the ESTIMATOR, not
+    the model, so no data transform on an existing parquet can produce them.
+
+    `single_sample_rollout` (M=1) is the submitted labelling scheme, and it is
+    the ablation that justifies M=20: at M=1 the rollout variance is identically
+    zero and each label is hindsight-optimal for one realised future rather than
+    an estimate of expected cost. If its KPIs match the deployed model's, the
+    multi-sample machinery Reviewer 2 (3) asked for bought nothing and the paper
+    must say so.
+    """
+    name = args.ablation
+    flags = " ".join(RELABEL_ABLATIONS[name])
+    data = f"data/e3_{name}"
+    print(f"[E3 relabel] {name} — changes the estimator, so it needs a full "
+          f"labelling pass.\n")
+    print(f"  1) python -m experiments.generate_labels {flags} \\")
+    print(f"       --train-out {data}/train.parquet \\")
+    print(f"       --test-out {data}/test.parquet")
+    print(f"  2) python -m experiments.train_ranker --run-id e3_{name} \\")
+    print(f"       --train-path {data}/train.parquet \\")
+    print(f"       --test-path {data}/test.parquet --skip-cv-cal")
+    print(f"  3) python -m experiments.evaluate --method ours \\")
+    print(f"       --run-dir runs/e3_{name} --results-dir results/E3")
+    print("\n  Step 1 is the expensive one; run it from a detached session.")
     return 0
 
 
@@ -349,6 +442,11 @@ def main() -> int:
     p_re.add_argument("--dry-run", action="store_true",
                       help="Prepare data but don't kick off training.")
     p_re.set_defaults(func=cmd_retrain)
+
+    p_rl = sub.add_parser("relabel",
+                          help="Recipe for ablations needing a labelling pass.")
+    p_rl.add_argument("ablation", type=str, choices=sorted(RELABEL_ABLATIONS))
+    p_rl.set_defaults(func=cmd_relabel)
 
     p_sum = sub.add_parser("summary", help="Aggregate E3 results + stats.")
     p_sum.add_argument("--scenario", type=str, default="default")
