@@ -1,6 +1,38 @@
-"""Phase 6 — statistical inference helpers (bootstrap CI, paired Wilcoxon, BH-FDR).
+"""Statistical inference helpers (bootstrap CI, paired Wilcoxon, BH-FDR).
 
-E2/E3/E4 all share the same statistical recipe per HANDOFF §3.2 and config.yaml
+WHICH METRIC IS PRIMARY (Reviewer 1, 6.c)
+-----------------------------------------
+    "The authors say in P12 that 'The primary KPI is the SLA-breach rate'.
+     However, that is only part of the composite cost, which also weighs
+     tardiness and unprocessed orders. The composite cost should therefore be
+     the primary metric of comparison, but when analyzing results, the authors
+     focus more on the SLA-breach rate. I assume that all the algorithms were
+     optimized for composite cost, but even that was unclear."
+
+Both halves of this are correct and both are now fixed at the source rather than
+in the prose.
+
+1. THE OBJECTIVE IS PRIMARY. `cfg.experiments.stats.primary_metric` is
+   `composite_cost`, and `metric_order()` returns it first in every table, plot
+   and significance sweep. The breach rate is a *component* of the objective and
+   is reported as one, alongside the other components — tardiness, spoilage and
+   unserved work — so a reader can see the decomposition rather than a single
+   component promoted to headline. This also removes the incentive that produced
+   the accounting problem Reviewer 2 identified: once the objective leads, a
+   method cannot look good by improving one component at the expense of another
+   that goes unreported.
+
+2. EVERY METHOD OPTIMISES THE SAME OBJECTIVE, and it is now checkable rather
+   than assumed. `simulation.cost` defines it once; the rollout labels integrate
+   it (`labeling.rollout_labeler`), the PPO reward is its negated per-interval
+   increment (`baselines.ppo_fair`), fitted Q-iteration regresses the same
+   increment (`baselines.offline_fqi`), LinUCB's payoff is its negation, and the
+   rolling-horizon MPC minimises it directly. The static rules do not optimise
+   anything and are evaluated against it. In the submitted code the objective
+   was written out twice, in the labeller and in the evaluation harness, which
+   is precisely why the reviewer could not tell what was being optimised.
+
+The statistical recipe is otherwise unchanged, per `config.yaml`
 `experiments.stats`:
 
   - Bootstrap 95% CI via percentile method (cfg.experiments.stats.bootstrap_resamples
@@ -23,6 +55,26 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+
+def metric_order(cfg) -> list[str]:
+    """Reporting order: the objective first, then its components and context.
+
+    Every table and figure in the paper consumes this, so the metric hierarchy
+    is defined in one place (`cfg.experiments.stats`) instead of being decided
+    independently at each call site — which is how the submitted paper ended up
+    declaring one metric primary in Section 5 and analysing a different one
+    throughout Section 6.
+    """
+    primary = str(cfg.experiments.stats.primary_metric)
+    secondary = [str(m) for m in cfg.experiments.stats.secondary_metrics]
+    return [primary] + [m for m in secondary if m != primary]
+
+
+def is_lower_better(metric: str) -> bool:
+    """Direction of improvement, so forest plots and rankings orient correctly."""
+    higher_better = {"throughput", "picker_utilization", "arrived"}
+    return metric not in higher_better
 
 
 @dataclass

@@ -1,96 +1,135 @@
-# DAHS — Single source of truth for simulation & model parameters.
-# Loaded by Hydra at experiment entry points. Sub-configs override fields as needed.
-# Reference: master plan v3, Part IV (PHASE 0-8).
+# DAHS — single source of truth for simulation, objective and model parameters.
+# Loaded with OmegaConf at every experiment entry point.
+#
+# REVISION NOTE. Keys removed relative to the submitted version:
+#   sim.arrivals.batch_prob, sim.arrivals.batch_size_triangular
+#     Declared, documented as "Boysen et al. 2019 waves", and read by nothing.
+#     Arrivals were pure Poisson. Removed rather than left advertising an
+#     unimplemented feature.
+#   baselines.linucb.feature_dim
+#     Now derived from simulation.state_extractor.N_FEATURES so the two cannot
+#     drift apart.
+#   baselines.offline_ld.enabled
+#     Dead switch; the offline-RL baseline is offline_fqi.
+
+run_id: dev
 
 # ---------------------------------------------------------------------------
-# Run identity
-# ---------------------------------------------------------------------------
-run_id: dev                       # overridden on CLI; runs/<run_id>/ holds artifacts
-
-# ---------------------------------------------------------------------------
-# Random seeds (mirror seed.py registry; loaded centrally)
+# Random seeds
 # ---------------------------------------------------------------------------
 seeds:
-  sim: 42                         # SimPy / order arrivals / processing times
-  model: 1337                     # XGBoost, GMM, Platt scaling
-  ppo: 2024                       # stable-baselines3 PPO
+  sim: 42
+  model: 1337
+  ppo: 2024
+  rollout: 20260804          # base seed for branch() streams; see labeling.rollout_labeler
 
 # ---------------------------------------------------------------------------
-# Warehouse simulation (Phase 1)
+# Warehouse simulation
 # ---------------------------------------------------------------------------
 sim:
   shift_hours: 8
-  interval_minutes: 15            # -> 32 decision intervals per shift
+  interval_minutes: 15            # -> 32 periodic-review decision epochs
   n_pickers: 10
-  queue_capacity: 200
+  queue_capacity: 200             # overflow is recorded as `dropped`, not discarded
 
   arrivals:
-    arrival_mode: poisson         # 'poisson' (exponential gaps) or 'olist' (empirical Olist burstiness, CV 2.68) -- see experiments/a2_olist_arrivals.py
-    base_rate_per_minute: 1.65    # Poisson base rate; raised in Phase 2 to stress the system (see HANDOFF §2.C)
-    batch_prob: 0.15              # P(batch arrival) per interval -- Boysen et al. 2019 waves
-    batch_size_triangular: [3, 8, 20]   # min, mode, max items per batch arrival
+    arrival_mode: poisson         # 'poisson' | 'olist' (empirical burstiness, CV 2.68)
+    base_rate_per_minute: 1.65
 
   order_attrs:
-    processing_time_triangular: [2.0, 5.0, 12.0]      # minutes
-    sla_due_triangular:         [15.0, 45.0, 90.0]    # minutes from arrival (tightened in Phase 2 — see HANDOFF §2.C)
-    perishable_prob: 0.2                              # Bernoulli, 0.0-0.4 across scenarios
+    # All three triangulars are stated in the main text, not only the appendix
+    # (Reviewer 1, 5.c). Values are reported as (min, mode, max) in minutes.
+    processing_time_triangular: [2.0, 5.0, 12.0]     # pick time
+    sla_due_triangular:         [15.0, 45.0, 90.0]   # CUSTOMER clock, from arrival
+    shelf_life_triangular:      [20.0, 60.0, 120.0]  # PRODUCT clock, from arrival
+    perishable_prob: 0.2
     priority_classes: [low, medium, high]
-    priority_weights: [0.5, 0.35, 0.15]
+    priority_weights: [0.5, 0.35, 0.15]              # class mix, not economic weight
 
 # ---------------------------------------------------------------------------
-# Heuristics (Phase 1)
+# Objective (Section 3)
+# ---------------------------------------------------------------------------
+# Fixed before any learning; never tuned per method. See simulation/cost.py.
+#
+#   w_holding is a work-in-progress HOLDING cost, not the penalty for failure.
+#   In the submitted version it was the only charge an unfinished order ever
+#   attracted, which made abandoning an order 600x cheaper than serving it late
+#   (Reviewer 2, 1). Unserved orders are now charged w_breach through the
+#   censored outcome predicates in simulation/orders.py.
+objective:
+  w_breach: 3.0                 # missed the customer deadline
+  w_tardy: 0.2                  # per minute of lateness
+  w_spoil: 5.0                  # perishable passed its product deadline
+  w_holding: 0.005              # per queued order, WIP holding
+  use_priority_weights: true    # charge w_o per order, matching WSPT/ATC's ranking key
+
+# ---------------------------------------------------------------------------
+# Dispatching rules
 # ---------------------------------------------------------------------------
 heuristics:
-  pool: [FIFO, FEFO, WSPT, ATC]                       # CR dropped in Phase 2 — structurally dominated (see HANDOFF §2.C and gotcha #16)
-  atc_lookahead_k: 2.0                                # ATC scaling parameter
-  fefo_mask_threshold: 0.05                            # mask FEFO when pct_perishable < this
+  # Stage-1 screening candidates. `pool` is overwritten with the survivors by
+  # experiments/calibrate_rules.py; see simulation/heuristics.py for provenance.
+  pool: [FIFO, EDD, FEFO, WSPT, ATC, MS, MDD, COVERT]
+
+  # ATC look-ahead scale. CALIBRATED, not assumed (Reviewer 1, 4.c): WSPT is the
+  # k -> inf limit of ATC, so a fitted k cannot lose to WSPT. The submitted value
+  # was an uncalibrated 2.0. Both calibrations the reviewer asks for are run by
+  # experiments/calibrate_rules.py and the deployed value is written back here.
+  atc_lookahead_k: null           # null until Stage 1 writes the fitted value
+  covert_lookahead_k: null
+  calibration:
+    k_grid: [0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 20.0]
+    mode: standalone              # 'standalone' | 'portfolio'; both are reported
+
+  fefo_mask_threshold: 0.05       # mask FEFO when pct_perishable < this
 
 # ---------------------------------------------------------------------------
-# State extractor (Phase 1) — 25 features
+# Shift corpora
 # ---------------------------------------------------------------------------
-state:
-  feature_set: v1                  # version tag for the 25-feature canonical set
-  lag_intervals: [1, 2, 3]
-  recent_window_minutes: 60
+# Three disjoint seed blocks drawn from one SeedSequence: train, calibration,
+# test. The calibration block is new — the submitted version tuned ATC not at
+# all and selected the label temperature on the training corpus, so there was no
+# split on which rule hyperparameters could be fitted without touching train or
+# test (Reviewer 1, 4.c).
+shifts:
+  seed_seq_root: 42
+  n_train: 100
+  n_calib: 30
+  n_test: 50
 
 # ---------------------------------------------------------------------------
-# Pilot study (Phase 2) — critical gate
-# ---------------------------------------------------------------------------
-pilot:
-  n_shifts: 50
-  seeds: [42, 43, 44, 45, 46]
-  acceptance:
-    min_win_rate: 0.08
-    max_top_win_rate: 0.60
-
-# ---------------------------------------------------------------------------
-# Rollout labeling & data generation (Phase 3)
+# Rollout labelling
 # ---------------------------------------------------------------------------
 labeling:
-  n_train_shifts: 250
-  n_test_shifts: 50
-  seed_seq_root: 42
-  tau: 4                          # rollout horizon (intervals); sensitivity in {1,2,3,4}
-  observed_policy: round_robin    # mixed-policy state coverage during data gen
-  beta_grid: [0.1, 0.5, 1.0, 2.0] # multipliers of sigma_J for temperature search
+  tau: 4                          # rollout horizon in intervals; swept over {1,2,3,4}
+  n_rollout_samples: 20           # M — independent continuations per (state, rule)
+  observed_policy: round_robin    # behaviour policy for state coverage
+  beta_grid: [0.1, 0.25, 0.5, 1.0, 2.0]
   target_median_entropy: [0.3, 0.7]
   ambiguity_filter:
     theta_confidence: 0.55
+  # Report the rollout standard error alongside the mean cost (Reviewer 2, 3
+  # asks for the variance explicitly).
+  record_standard_error: true
 
 # ---------------------------------------------------------------------------
-# Regime discovery (Phase 4)
+# Regime discovery
 # ---------------------------------------------------------------------------
 regime:
-  k_grid: [3, 4, 5, 6]
+  # Grid widened so BIC can actually turn. On the submitted feature matrix BIC
+  # fell monotonically to K=6, the edge of {3,4,5,6}, because two degenerate
+  # features made the covariance singular; both are now removed
+  # (simulation/state_extractor.py).
+  k_grid: [2, 3, 4, 5, 6, 7, 8, 10, 12]
+  n_init: 5                       # was 1; single-start BIC confounds K with init luck
   ari_threshold: 0.85
   n_ari_refits: 10
 
 # ---------------------------------------------------------------------------
-# Heuristic ranker (Phase 4)
+# Ranker
 # ---------------------------------------------------------------------------
 ranker:
   objective: multi:softprob
-  num_class: 4                                       # CR dropped in Phase 2 (see HANDOFF §2.D and gotcha #16); was 5
   sample_weight: inverse_label_entropy
   cv:
     n_splits: 5
@@ -107,63 +146,95 @@ ranker:
     entropy_gate_ratio: 0.5
 
 # ---------------------------------------------------------------------------
-# Baselines (Phase 5)
+# Baselines
 # ---------------------------------------------------------------------------
 baselines:
+  # The distillation teacher, never evaluated in the submitted version
+  # (Reviewer 2, 6). Evaluates every rule over `tau` intervals averaged over
+  # `n_samples` branches, commits the best for one interval, replans.
+  rolling_horizon_mpc:
+    tau: 4
+    n_samples: 5                  # per-decision cost is |H| * tau * n_samples steps
+
   ppo_fair:
-    total_timesteps: 8000         # = 250 shifts * 32 steps (matched budget)
+    total_timesteps: 8000
   ppo_full:
-    total_timesteps: 500000       # Appendix B
+    total_timesteps: 500000
+  # Sensitivity grid demanded by Reviewer 1 (6.b). The submitted PPO used stock
+  # hyperparameters with no observation or reward normalisation, so the claim
+  # that its failure was "structural, not budgetary" was untested.
+  ppo_sensitivity:
+    gamma:             [0.90, 0.99, 1.0]
+    gae_lambda:        [0.90, 0.95, 0.99]
+    n_steps:           [32, 64, 256]
+    ent_coef:          [0.0, 0.01, 0.05]
+    normalize_obs:     [true, false]
+    normalize_reward:  [true, false]
+
   linucb:
     alpha: 1.0
-    feature_dim: 25
-  offline_ld:
-    enabled: false                # turn on only if first-pass results are weak
-  offline_fqi:                    # offline value-learning baseline — fitted Q-iteration + FEFO action masking (experiments/e9_offline_fqi.py)
-    gamma: 0.99                   # deployed discount (selected by the e9 HP search on held-out validation shifts)
-    n_iterations: 20              # fitted-Q-iteration sweeps
-    xgb:                          # deployed Q-approximator HPs (selected by the e9 HP search)
+    standardize_features: true    # was absent; raw features let the largest scale dominate
+
+  offline_fqi:
+    gamma: 0.99
+    n_iterations: 20
+    xgb:
       max_depth: 4
       n_estimators: 200
       learning_rate: 0.05
-    hp_grid:                      # e9 HP search space; winner selected on held-out validation shifts
+    hp_grid:
       gamma:         [0.90, 0.95, 0.99]
       max_depth:     [4, 6]
       n_estimators:  [200, 500]
       learning_rate: [0.05]
+    # Give FQI the same 6 regime posteriors the ranker sees, so the comparison
+    # isolates the training signal rather than the feature set.
+    use_regime_features: true
 
 # ---------------------------------------------------------------------------
-# Experiments (Phase 6)
+# Experiments
 # ---------------------------------------------------------------------------
 experiments:
   scenarios:
-    low_load:        { arrivals: { base_rate_per_minute: 1.0 }, order_attrs: { perishable_prob: 0.0 } }
-    balanced:        { arrivals: { base_rate_per_minute: 1.5 }, order_attrs: { perishable_prob: 0.2 } }
+    low_load:         { arrivals: { base_rate_per_minute: 1.0 }, order_attrs: { perishable_prob: 0.0 } }
+    balanced:         { arrivals: { base_rate_per_minute: 1.5 }, order_attrs: { perishable_prob: 0.2 } }
     high_load_perish: { arrivals: { base_rate_per_minute: 2.2 }, order_attrs: { perishable_prob: 0.4 } }
 
   e2:
-    n_replications: 50
-    data_efficiency_budgets: [25, 50, 100, 150, 250]
-    data_efficiency_reps: 5            # scoped 20->5 (Phase 7 roadmap): 20 x 5 budgets x ~42min ~= 70h
+    data_efficiency_budgets: [10, 25, 50, 100]
+    data_efficiency_reps: 5
 
   e3_ablations:
-    - no_regime
+    - no_regime                  # declared but never run in the submitted version
     - no_calibration
     - no_switching_controller
     - tau1_snapshot_only
     - hard_labels
     - random_ambiguity_filter
+    - top5_features              # Reviewer 3 (4): parsimonious state representation
+    - single_sample_rollout      # M=1, i.e. the submitted labelling scheme
 
   e4_sensitivity:
     tau:           [1, 2, 3, 4]
+    n_samples:     [1, 5, 10, 20]   # the variance arm of Proposition 1
     t_min:         [0, 1, 2, 3, 4]
     theta:         [0.40, 0.50, 0.55, 0.60, 0.70]
-    arrival_noise: [0.5, 1.0, 1.5, 2.0]
+
+  # Model misspecification: label under nominal parameters, evaluate under
+  # perturbed ones (Reviewer 2, 5). Proposition 1 bounds truncation error only.
+  e10_misspecification:
+    arrival_rate_scale:    [0.8, 0.9, 1.0, 1.1, 1.25]
+    processing_time_scale: [0.8, 0.9, 1.0, 1.1, 1.25]
+    sla_scale:             [0.8, 1.0, 1.25]
+    n_pickers_delta:       [-2, -1, 0, 1, 2]
 
   stats:
     bootstrap_resamples: 10000
     fdr_q: 0.05
     test: wilcoxon
+    primary_metric: composite_cost       # Reviewer 1 (6.c): the objective is primary
+    secondary_metrics: [service_failure_rate, sla_breach_rate_arrived, mean_tardiness,
+                        spoilage_rate, throughput, unserved, picker_utilization]
 
 # ---------------------------------------------------------------------------
 # Logging

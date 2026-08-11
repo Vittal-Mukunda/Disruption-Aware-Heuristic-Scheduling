@@ -43,11 +43,15 @@
   pages   = {405--428}
 }
 
+% Reviewer 1, 7.e: this entry was incomplete in the submitted reference list.
 @article{dokeroglu2024hyperheuristics,
   author  = {Dokeroglu, Tansel and Kucukyilmaz, Tayfun and Talbi, El-Ghazali},
   title   = {Hyper-heuristics: A survey and taxonomy},
   journal = {Computers \& Industrial Engineering},
-  year    = {2024}
+  volume  = {187},
+  pages   = {109815},
+  year    = {2024},
+  doi     = {10.1016/j.cie.2023.109815}
 }
 
 @article{durasevic2022dispatching,
@@ -237,4 +241,353 @@
   howpublished = {Kaggle},
   year         = {2018},
   note         = {https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce}
+}
+
+% ===========================================================================
+% ADDED IN REVISION - Reviewer 1
+% ===========================================================================
+
+% --- R1 2.b: classification-based approximate policy iteration -------------
+% The reviewer's central positioning point: training a classifier on
+% simulation-estimated action values at sampled states is Rollout Classification
+% Policy Iteration, and is not a new training paradigm.
+@inproceedings{lagoudakis2003rcpi,
+  author    = {Lagoudakis, Michail G. and Parr, Ronald},
+  title     = {Reinforcement Learning as Classification: Leveraging Modern
+               Classifiers},
+  booktitle = {Proceedings of the 20th International Conference on Machine
+               Learning (ICML)},
+  pages     = {424--431},
+  year      = {2003}
+}
+
+@article{fern2006api,
+  author  = {Fern, Alan and Yoon, Sungwook and Givan, Robert},
+  title   = {Approximate Policy Iteration with a Policy Language Bias: Solving
+             Relational {M}arkov Decision Processes},
+  journal = {Journal of Artificial Intelligence Research},
+  volume  = {25},
+  pages   = {75--118},
+  year    = {2006},
+  doi     = {10.1613/jair.1700}
+}
+
+@article{dimitrakakis2008rollout,
+  author  = {Dimitrakakis, Christos and Lagoudakis, Michail G.},
+  title   = {Rollout sampling approximate policy iteration},
+  journal = {Machine Learning},
+  volume  = {72},
+  number  = {3},
+  pages   = {157--171},
+  year    = {2008},
+  doi     = {10.1007/s10994-008-5069-3}
+}
+
+@article{farahmand2015capi,
+  author  = {Farahmand, Amir-massoud and Precup, Doina and Barreto, Andr{\'e} M. S.
+             and Ghavamzadeh, Mohammad},
+  title   = {Classification-Based Approximate Policy Iteration},
+  journal = {IEEE Transactions on Automatic Control},
+  volume  = {60},
+  number  = {11},
+  pages   = {2989--2993},
+  year    = {2015},
+  doi     = {10.1109/TAC.2015.2418411}
+}
+
+% --- R1 2.c: multi-pass simulation-based dispatching-rule selection --------
+@article{wu1988multipass,
+  author  = {Wu, S. David and Wysk, Richard A.},
+  title   = {Multi-pass expert control system --- a control/scheduling structure
+             for flexible manufacturing cells},
+  journal = {Journal of Manufacturing Systems},
+  volume  = {7},
+  number  = {2},
+  pages   = {107--120},
+  year    = {1988},
+  doi     = {10.1016/0278-6125(88)90018-0}
+}
+
+@article{mouelhi2010neural,
+  author  = {Mouelhi-Chibani, Wiem and Pierreval, Henri},
+  title   = {Training a neural network to select dispatching rules in real time},
+  journal = {Computers \& Industrial Engineering},
+  volume  = {58},
+  number  = {2},
+  pages   = {249--256},
+  year    = {2010},
+  doi     = {10.1016/j.cie.2009.03.008}
+}
+
+@article{shiue2020rl,
+  author  = {Shiue, Yeou-Ren and Lee, Ken-Chuan and Su, Chao-Ton},
+  title   = {A Reinforcement Learning Approach to Dynamic Scheduling in a
+             Product-Mix Flexibility Environment},
+  journal = {IEEE Access},
+  volume  = {8},
+  pages   = {106542--106553},
+  year    = {2020},
+  doi     = {10.1109/ACCESS.2020.3000781}
+}
+
+% --- R1 2.d: GP generates rules; selectors are trained by supervision ------
+@article{branke2016automated,
+  author  = {Branke, J{\"u}rgen and Nguyen, Su and Pickardt, Christoph W. and
+             Zhang, Mengjie},
+  title   = {Automated Design of Production Scheduling Heuristics: A Review},
+  journal = {IEEE Transactions on Evolutionary Computation},
+  volume  = {20},
+  number  = {1},
+  pages   = {110--124},
+  year    = {2016},
+  doi     = {10.1109/TEVC.2015.2429314}
+}
+
+@article{nguyen2017gpsurvey,
+  author  = {Nguyen, Su and Mei, Yi and Zhang, Mengjie},
+  title   = {Genetic programming for production scheduling: a survey with a
+             unified framework},
+  journal = {Complex \& Intelligent Systems},
+  volume  = {3},
+  number  = {1},
+  pages   = {41--66},
+  year    = {2017},
+  doi     = {10.1007/s40747-017-0036-x}
+}
+
+% --- R1 4.a: provenance of every rule in the pool --------------------------
+@techreport{jackson1955edd,
+  author      = {Jackson, James R.},
+  title       = {Scheduling a Production Line to Minimize Maximum Tardiness},
+  institution = {Management Sciences Research Project, University of California,
+                 Los Angeles},
+  number      = {Research Report 43},
+  year        = {1955}
+}
+
+@article{smith1956wspt,
+  author  = {Smith, Wayne E.},
+  title   = {Various optimizers for single-stage production},
+  journal = {Naval Research Logistics Quarterly},
+  volume  = {3},
+  number  = {1-2},
+  pages   = {59--66},
+  year    = {1956},
+  doi     = {10.1002/nav.3800030106}
+}
+
+@phdthesis{carroll1965covert,
+  author = {Carroll, Donald C.},
+  title  = {Heuristic Sequencing of Single and Multiple Component Jobs},
+  school = {Massachusetts Institute of Technology},
+  year   = {1965}
+}
+
+@book{conway1967theory,
+  author    = {Conway, Richard W. and Maxwell, William L. and Miller, Louis W.},
+  title     = {Theory of Scheduling},
+  publisher = {Addison-Wesley},
+  year      = {1967}
+}
+
+@article{baker1982mdd,
+  author  = {Baker, Kenneth R. and Bertrand, J. Will M.},
+  title   = {A dynamic priority rule for scheduling against due-dates},
+  journal = {Journal of Operations Management},
+  volume  = {3},
+  number  = {1},
+  pages   = {37--42},
+  year    = {1982},
+  doi     = {10.1016/0272-6963(82)90020-1}
+}
+
+@article{vepsalainen1987atc,
+  author  = {Veps{\"a}l{\"a}inen, Ari P. J. and Morton, Thomas E.},
+  title   = {Priority Rules for Job Shops with Weighted Tardiness Costs},
+  journal = {Management Science},
+  volume  = {33},
+  number  = {8},
+  pages   = {1035--1047},
+  year    = {1987},
+  doi     = {10.1287/mnsc.33.8.1035}
+}
+
+@book{pinedo2016scheduling,
+  author    = {Pinedo, Michael L.},
+  title     = {Scheduling: Theory, Algorithms, and Systems},
+  edition   = {5},
+  publisher = {Springer},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-26580-3}
+}
+
+% --- R1 1.a, 1.b: order picking and data-centric warehouse control ---------
+@article{vangils2018designing,
+  author  = {van Gils, Teun and Ramaekers, Katrien and Caris, An and
+             de Koster, Ren{\'e} B. M.},
+  title   = {Designing efficient order picking systems by combining planning
+             problems: State-of-the-art classification and review},
+  journal = {European Journal of Operational Research},
+  volume  = {267},
+  number  = {1},
+  pages   = {1--15},
+  year    = {2018},
+  doi     = {10.1016/j.ejor.2017.09.002}
+}
+
+@article{winkelhaus2020logistics4,
+  author  = {Winkelhaus, Sven and Grosse, Eric H.},
+  title   = {Logistics 4.0: a systematic review towards a new logistics system},
+  journal = {International Journal of Production Research},
+  volume  = {58},
+  number  = {1},
+  pages   = {18--43},
+  year    = {2020},
+  doi     = {10.1080/00207543.2019.1612964}
+}
+
+@book{tompkins2010facilities,
+  author    = {Tompkins, James A. and White, John A. and Bozer, Yavuz A. and
+               Tanchoco, J. M. A.},
+  title     = {Facilities Planning},
+  edition   = {4},
+  publisher = {John Wiley \& Sons},
+  year      = {2010}
+}
+
+% ===========================================================================
+% ADDED IN REVISION - Reviewer 5
+% ===========================================================================
+% NOTE TO AUTHORS: verify volume/page metadata against the publisher record
+% before submission. The works and venues are correct; the numeric details
+% should be confirmed.
+
+% --- R5: the sequential-decision modelling framework ----------------------
+@article{powell2019unified,
+  author  = {Powell, Warren B.},
+  title   = {A unified framework for stochastic optimization},
+  journal = {European Journal of Operational Research},
+  volume  = {275},
+  number  = {3},
+  pages   = {795--821},
+  year    = {2019},
+  doi     = {10.1016/j.ejor.2018.07.014}
+}
+
+@book{powell2022rlso,
+  author    = {Powell, Warren B.},
+  title     = {Reinforcement Learning and Stochastic Optimization: A Unified
+               Framework for Sequential Decisions},
+  publisher = {Wiley},
+  year      = {2022}
+}
+
+% --- R5: dynamic dispatching (Klapp) --------------------------------------
+@article{klapp2018dispatchwaves,
+  author  = {Klapp, Mathias A. and Erera, Alan L. and Toriello, Alejandro},
+  title   = {The Dynamic Dispatch Waves Problem for same-day delivery},
+  journal = {European Journal of Operational Research},
+  volume  = {271},
+  number  = {2},
+  pages   = {519--534},
+  year    = {2018},
+  doi     = {10.1016/j.ejor.2018.05.032}
+}
+
+@article{klapp2018onedim,
+  author  = {Klapp, Mathias A. and Erera, Alan L. and Toriello, Alejandro},
+  title   = {The One-Dimensional Dynamic Dispatch Waves Problem},
+  journal = {Transportation Science},
+  volume  = {52},
+  number  = {2},
+  pages   = {402--415},
+  year    = {2018},
+  doi     = {10.1287/trsc.2016.0682}
+}
+
+% --- R5: rollout and ADP for dynamic dispatching (Ulmer and colleagues) ----
+@article{ulmer2019offlineonline,
+  author  = {Ulmer, Marlin W. and Goodson, Justin C. and Mattfeld, Dirk C. and
+             Hennig, Marco},
+  title   = {Offline--Online Approximate Dynamic Programming for Dynamic Vehicle
+             Routing with Stochastic Requests},
+  journal = {Transportation Science},
+  volume  = {53},
+  number  = {1},
+  pages   = {185--202},
+  year    = {2019},
+  doi     = {10.1287/trsc.2017.0767}
+}
+
+@article{ulmer2018budgeting,
+  author  = {Ulmer, Marlin W. and Mattfeld, Dirk C. and K{\"o}ster, Felix},
+  title   = {Budgeting Time for Dynamic Vehicle Routing with Stochastic Customer
+             Requests},
+  journal = {Transportation Science},
+  volume  = {52},
+  number  = {1},
+  pages   = {20--37},
+  year    = {2018},
+  doi     = {10.1287/trsc.2016.0719}
+}
+
+@article{ulmer2020modeling,
+  author  = {Ulmer, Marlin W. and Goodson, Justin C. and Mattfeld, Dirk C. and
+             Thomas, Barrett W.},
+  title   = {On Modeling Stochastic Dynamic Vehicle Routing Problems},
+  journal = {EURO Journal on Transportation and Logistics},
+  volume  = {9},
+  number  = {2},
+  pages   = {100008},
+  year    = {2020},
+  doi     = {10.1016/j.ejtl.2020.100008}
+}
+
+@article{ulmer2019anticipation,
+  author  = {Ulmer, Marlin W.},
+  title   = {Anticipation versus reactive reoptimization for dynamic vehicle
+             routing with stochastic requests},
+  journal = {Networks},
+  volume  = {73},
+  number  = {3},
+  pages   = {277--291},
+  year    = {2019},
+  doi     = {10.1002/net.21861}
+}
+
+% --- R5: the rollout framework this method's truncation argument sits in ---
+@article{goodson2017rolloutframework,
+  author  = {Goodson, Justin C. and Thomas, Barrett W. and Ohlmann, Jeffrey W.},
+  title   = {A rollout algorithm framework for heuristic solutions to
+             finite-horizon stochastic dynamic programs},
+  journal = {European Journal of Operational Research},
+  volume  = {258},
+  number  = {1},
+  pages   = {216--229},
+  year    = {2017},
+  doi     = {10.1016/j.ejor.2016.09.040}
+}
+
+@article{goodson2016restocking,
+  author  = {Goodson, Justin C. and Thomas, Barrett W. and Ohlmann, Jeffrey W.},
+  title   = {Restocking-Based Rollout Policies for the Vehicle Routing Problem
+             with Stochastic Demand and Duration Limits},
+  journal = {Transportation Science},
+  volume  = {50},
+  number  = {2},
+  pages   = {591--607},
+  year    = {2016},
+  doi     = {10.1287/trsc.2015.0591}
+}
+
+% --- used in the code but uncited in the submitted version -----------------
+@inproceedings{li2010linucb,
+  author    = {Li, Lihong and Chu, Wei and Langford, John and Schapire, Robert E.},
+  title     = {A Contextual-Bandit Approach to Personalized News Article
+               Recommendation},
+  booktitle = {Proceedings of the 19th International Conference on World Wide
+               Web (WWW)},
+  pages     = {661--670},
+  year      = {2010},
+  doi       = {10.1145/1772690.1772758}
 }

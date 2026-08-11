@@ -27,14 +27,35 @@ def rng(seed: int) -> np.random.Generator:
     return np.random.default_rng(seed)
 
 
-def spawn_shift_seeds(n: int, root: int = SEED_SIM) -> list[int]:
-    """Spawn `n` independent integer seeds from a SeedSequence root.
+SEED_ROLLOUT: int = int(os.environ.get("SEED_ROLLOUT", 20260804))
 
-    Used to generate the 300 shift seeds (250 train + 50 test) deterministically.
-    """
+
+def spawn_shift_seeds(n: int, root: int = SEED_SIM) -> list[int]:
+    """Spawn `n` independent integer seeds from a SeedSequence root."""
     seq = np.random.SeedSequence(root)
     children = seq.spawn(n)
     return [int(c.generate_state(1, dtype=np.uint32)[0]) for c in children]
+
+
+def shift_corpora(cfg) -> dict[str, list[int]]:
+    """The three disjoint shift blocks: train, calibration, test.
+
+    The calibration block is new in revision. The submitted version had only
+    train and test, which left nowhere to fit rule hyperparameters — ATC's
+    look-ahead scale `k` in particular (Reviewer 1, 4.c) — without contaminating
+    one or the other. Blocks are contiguous slices of one SeedSequence spawn, so
+    they are disjoint by construction and stable under changes to any one block
+    size only if that block is last; changing `n_train` or `n_calib` therefore
+    re-draws the downstream blocks and every corpus must be regenerated together.
+    """
+    s = cfg.shifts
+    n_train, n_calib, n_test = int(s.n_train), int(s.n_calib), int(s.n_test)
+    seeds = spawn_shift_seeds(n_train + n_calib + n_test, root=int(s.seed_seq_root))
+    return {
+        "train": seeds[:n_train],
+        "calib": seeds[n_train : n_train + n_calib],
+        "test": seeds[n_train + n_calib :],
+    }
 
 
 def seed_all(seed: int) -> None:
