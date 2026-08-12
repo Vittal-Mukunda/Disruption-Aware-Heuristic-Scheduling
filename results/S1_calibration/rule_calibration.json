@@ -1,0 +1,31 @@
+{
+  "chosen": {
+    "ATC": {
+      "k_standalone": 1.5,
+      "k_portfolio": 3.0,
+      "k_deployed": 3.0,
+      "config_key": "atc_lookahead_k"
+    },
+    "COVERT": {
+      "k_standalone": 4.0,
+      "k_portfolio": 4.0,
+      "k_deployed": 4.0,
+      "config_key": "covert_lookahead_k"
+    }
+  },
+  "n_calibration_shifts": 30,
+  "k_grid": [
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+    3.0,
+    4.0,
+    6.0,
+    8.0,
+    12.0,
+    20.0
+  ],
+  "n_rollout_samples": 5,
+  "simulated_interval_steps": 2966400
+}

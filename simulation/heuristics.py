@@ -119,6 +119,30 @@ def mdd(queue: list[Order], ctx: dict) -> list[Order]:
 # ---------------------------------------------------------------------------
 
 
+def eedd(queue: list[Order], ctx: dict) -> list[Order]:
+    """Earliest EFFECTIVE due date: ascending `min(sla_due, expiry_time)`.
+
+    The only rule in the library that reads BOTH clocks. It exists because
+    without it the pool cannot answer Reviewer 1 (1.d) fairly.
+
+    `Order.effective_deadline()` was added in this revision and, until now, no
+    rule called it. The two expiry-relevant rules each ignored half the model:
+    EDD sorts on the customer deadline and never looks at expiry, while FEFO
+    sorts perishables by expiry and dumps every non-perishable behind them
+    regardless of how late they are. On a corpus that is ~80% non-perishable
+    FEFO is close to a strawman, so concluding "no expiry-aware rule earns a
+    slot in the pool" from FEFO's screening failure would not be a fair test of
+    whether the product clock matters.
+
+    EEDD is the rule a scheduler would actually write once told orders have two
+    deadlines: treat each order by whichever of its own clocks binds first. If
+    this rule also fails to earn a slot, the conclusion that expiry-awareness
+    buys nothing at this operating point is a real result rather than an
+    artefact of a badly-chosen candidate.
+    """
+    return sorted(queue, key=lambda o: o.effective_deadline())
+
+
 def fefo(queue: list[Order], ctx: dict) -> list[Order]:
     """First-expire-first-out — genuinely expiry-aware.
 
@@ -234,6 +258,7 @@ def spt(queue: list[Order], ctx: dict) -> list[Order]:
 HEURISTICS: dict[str, Callable[[list[Order], dict], list[Order]]] = {
     "FIFO": fifo,
     "EDD": edd,
+    "EEDD": eedd,
     "FEFO": fefo,
     "WSPT": wspt,
     "ATC": atc,
@@ -248,7 +273,7 @@ HEURISTICS: dict[str, Callable[[list[Order], dict], list[Order]]] = {
 # in the library but out of the screen by default: CR was already screened out
 # once, SPT exists as an unweighted throughput reference for the screening table.
 SCREENING_POOL: list[str] = [
-    "FIFO", "EDD", "FEFO", "WSPT", "ATC", "MS", "MDD", "COVERT",
+    "FIFO", "EDD", "EEDD", "FEFO", "WSPT", "ATC", "MS", "MDD", "COVERT",
 ]
 
 # The deployed pool. Stage 1 overwrites `cfg.heuristics.pool` with the survivors

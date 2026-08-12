@@ -1,0 +1,41 @@
+{
+  "summary": {
+    "expiry_pivotal_rate_all_orders": 0.013877636358884561,
+    "expiry_pivotal_rate_perishables": 0.07333367859547361,
+    "due_pivotal_rate_all_orders": 0.14297101638658757,
+    "epoch_any_expiry_pivotal": 0.3549731182795699,
+    "epoch_any_due_pivotal": 0.9506720430107527,
+    "expiry_binds_rate": 0.276186310955609,
+    "pivotal_value_share": 0.012794699901016827,
+    "mean_already_lost_per_epoch": 0.46478494623655914,
+    "mean_queue_len": 41.14301075268817,
+    "n_decision_epochs": 7440
+  },
+  "discrimination": {
+    "epochs_where_rule_changes_spoilage": 0.9104166666666667,
+    "mean_spoilage_spread_weighted": 3.6145833333333335,
+    "mean_spoilage_spread_when_discriminating": 3.9702517162471396,
+    "fefo_wins_spoilage_share": 0.7299771167048055,
+    "mean_cost_spread": 138.56157308284452
+  },
+  "verdict": {
+    "thresholds": {
+      "epoch_any_expiry_pivotal": 0.05,
+      "expiry_binds_rate": 0.1,
+      "epochs_where_rule_changes_spoilage": 0.1
+    },
+    "measured": {
+      "epoch_any_expiry_pivotal": 0.3549731182795699,
+      "expiry_binds_rate": 0.276186310955609,
+      "epochs_where_rule_changes_spoilage": 0.9104166666666667,
+      "fefo_wins_spoilage_share": 0.7299771167048055
+    },
+    "conditions_met": {
+      "orders_are_pivotal": true,
+      "expiry_binds_before_due": true,
+      "rule_choice_moves_spoilage": true
+    },
+    "perishability_claim_supported": true,
+    "recommendation": "Retain the 'perishability-constrained' framing and keep FEFO as a screening candidate. Report all three statistics in Section 3.5."
+  }
+}

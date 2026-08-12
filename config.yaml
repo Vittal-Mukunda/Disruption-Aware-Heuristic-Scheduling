@@ -75,8 +75,8 @@ heuristics:
   # k -> inf limit of ATC, so a fitted k cannot lose to WSPT. The submitted value
   # was an uncalibrated 2.0. Both calibrations the reviewer asks for are run by
   # experiments/calibrate_rules.py and the deployed value is written back here.
-  atc_lookahead_k: null           # null until Stage 1 writes the fitted value
-  covert_lookahead_k: null
+  atc_lookahead_k: 3.0   # FITTED by Stage 1 (portfolio); standalone k*=1.5, portfolio k*=3.0
+  covert_lookahead_k: 4.0   # FITTED by Stage 1 (portfolio); standalone k*=4.0, portfolio k*=4.0
   calibration:
     k_grid: [0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 20.0]
     # There is no `mode` switch. BOTH calibrations Reviewer 1 (4.c) asks for are

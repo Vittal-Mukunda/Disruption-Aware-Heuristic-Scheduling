@@ -29,12 +29,12 @@
     1.050117978548317
   ],
   "entropy_in_band": false,
-  "theta_confidence": 0.55,
+  "theta_confidence": 0.275,
   "n_train_shifts": 3,
   "n_test_shifts": 2,
   "n_train_rows": 96,
   "n_test_rows_prefilter": 64,
-  "n_test_rows": 4,
+  "n_test_rows": 23,
   "fefo_mask_threshold": 0.05,
   "atc_lookahead_k": 3.5,
   "covert_lookahead_k": 3.5,
@@ -52,8 +52,8 @@
   "simulated_interval_steps_test": 39104,
   "budget_interval_steps": 102560,
   "wall_clock_s": {
-    "train": 180.30440359999193,
-    "test": 164.87933440000052
+    "train": 224.99556680000387,
+    "test": 210.28657140000723
   },
   "objective_weights": {
     "w_breach": 3.0,
