@@ -55,7 +55,12 @@ from omegaconf import DictConfig, OmegaConf
 from labeling.ambiguity_filter import filter_ambiguous
 from labeling.provenance import write_label_meta
 from labeling.rollout_labeler import label_one_shift_counted, rollout_step_budget
-from labeling.soft_label_converter import costs_to_probs, fefo_mask, row_entropy
+from labeling.soft_label_converter import (
+    costs_to_probs,
+    entropy_band,
+    fefo_mask,
+    row_entropy,
+)
 from seed import shift_corpora
 from simulation.heuristics import resolve_pool, with_default_scales
 
@@ -201,7 +206,8 @@ def main() -> int:
     print(f"[stage2] corpus: {len(train_seeds)} train + {len(test_seeds)} test shifts")
     print(f"[stage2] a priori budget: {budget:,} interval-steps")
     print(f"[stage2] beta_grid={list(cfg.labeling.beta_grid)}  "
-          f"target_median_entropy={list(cfg.labeling.target_median_entropy)}")
+          f"target_median_entropy={[round(x, 4) for x in entropy_band(cfg.labeling, len(pool))]}"
+          f" nats (|H|={len(pool)})")
     print(f"[stage2] n_jobs={args.n_jobs}  cpu_count={os.cpu_count()}")
 
     train_df, t_train, steps_train = _label_block(
@@ -237,7 +243,7 @@ def main() -> int:
     test_df = _attach_probs(test_df, test_probs, pool)
 
     median_entropy = float(np.median(row_entropy(train_probs)))
-    target_lo, target_hi = (float(x) for x in cfg.labeling.target_median_entropy)
+    target_lo, target_hi = entropy_band(cfg.labeling, len(pool))
     in_band = bool(target_lo <= median_entropy <= target_hi)
     print(f"\n[stage2] beta = {beta:.6f}")
     print(f"  median train row entropy = {median_entropy:.4f} "

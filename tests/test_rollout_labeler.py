@@ -186,9 +186,17 @@ def test_label_one_shift_row_schema(cfg, pool):
     assert r["behaviour_rule"] in pool
     assert {"shift_id", "shift_seed", "interval_idx", "label_separation"} <= set(r)
 
-    # The terminal epoch has nothing left to roll out, so every rule ties there.
-    last = rows[-1]
-    assert len({round(last[f"cost_{h}"], 12) for h in pool}) == 1
+    # The LAST LABELLED epoch is t = n_intervals - 1, where one step still
+    # remains, so the rules do NOT tie there. The tie happens only at
+    # t = n_intervals, which the labelling loop never reaches — assert it
+    # against `costs_at_epoch` directly rather than against the last row.
+    env_end = WarehouseEnv(5, cfg)
+    env_end.run_with_policy("FIFO")
+    terminal = costs_at_epoch(
+        env_end, 5, env_end.n_intervals, pool, tau=2, n_samples=2, base_seed=1,
+    )
+    assert set(terminal.mean.values()) == {0.0}
+    assert set(terminal.stderr.values()) == {0.0}
 
 
 def test_rollout_step_budget_matches_the_closed_form():

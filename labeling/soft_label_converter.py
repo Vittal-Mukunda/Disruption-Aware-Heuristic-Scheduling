@@ -53,6 +53,30 @@ def row_entropy(probs: np.ndarray) -> np.ndarray:
     return -np.sum(np.where(probs > 0.0, probs * np.log(safe), 0.0), axis=1)
 
 
+def entropy_band(cfg_labeling: "DictConfig", n_rules: int) -> tuple[float, float]:
+    """The target median-entropy band, in nats, for a pool of `n_rules`.
+
+    THE BAND HAS TO SCALE WITH log|H|. The submitted config carried an absolute
+    band of [0.3, 0.7] nats chosen for a four-rule pool, where max entropy is
+    log 4 = 1.386 — so it targeted 22-51% of maximum. Reviewer 1 (4.d) doubled
+    the pool to eight, where log 8 = 2.079, and the same absolute band silently
+    becomes 14-34% of maximum. The temperature search would then drive the
+    labels markedly sharper than intended, weakening exactly the soft-label
+    signal the method rests on, purely as a side effect of adding rules.
+
+    So the band is stored as a FRACTION of log|H| and converted here. The
+    default reproduces the submitted band's meaning at whatever K is deployed.
+    """
+    if "target_median_entropy_ratio" in cfg_labeling:
+        lo, hi = (float(x) for x in cfg_labeling.target_median_entropy_ratio)
+    else:
+        # Pre-revision config: absolute nats calibrated for |H| = 4.
+        abs_lo, abs_hi = (float(x) for x in cfg_labeling.target_median_entropy)
+        lo, hi = abs_lo / np.log(4.0), abs_hi / np.log(4.0)
+    max_entropy = float(np.log(max(int(n_rules), 2)))
+    return lo * max_entropy, hi * max_entropy
+
+
 def costs_to_probs(
     cost_matrix: np.ndarray,
     cfg_labeling: "DictConfig",
@@ -75,7 +99,7 @@ def costs_to_probs(
     if beta is not None:
         return _softmax_neg_costs(cost_matrix, float(beta)), float(beta)
 
-    lo, hi = (float(x) for x in cfg_labeling.target_median_entropy)
+    lo, hi = entropy_band(cfg_labeling, cost_matrix.shape[1])
     mid = 0.5 * (lo + hi)
 
     best_beta: float | None = None

@@ -92,9 +92,13 @@ def test_build_ldl_training_arrays_weights_track_prob():
         [0.1, 0.1, 0.7, 0.1],
     ])
     _, y_aug, w_aug = build_ldl_training_arrays(X, P)
+    # Stride by P's OWN width. Slicing by the module-level K silently misaligned
+    # the blocks once the pool grew past the four columns this fixture builds.
+    k = P.shape[1]
     for row in range(n):
-        block = w_aug[row * K : (row + 1) * K]
+        block = w_aug[row * k : (row + 1) * k]
         assert int(np.argmax(block)) == int(np.argmax(P[row]))
+        assert list(y_aug[row * k : (row + 1) * k]) == list(range(k))
 
 
 def test_cross_validate_ranker_predicts_valid_distribution(cfg_ranker_small):

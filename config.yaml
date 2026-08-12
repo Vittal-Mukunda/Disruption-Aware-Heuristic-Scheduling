@@ -120,9 +120,23 @@ shifts:
 labeling:
   tau: 4                          # rollout horizon in intervals; swept over {1,2,3,4}
   n_rollout_samples: 20           # M — independent continuations per (state, rule)
-  observed_policy: round_robin    # behaviour policy for state coverage
+  # Behaviour policy generating the state-visitation corpus. MUST NOT be
+  # 'round_robin': `interval_index_in_shift` is an observed feature, so
+  # `a = i % |H|` makes the action a deterministic function of the state and
+  # every shift logs the identical sequence. Conditional coverage is then
+  # degenerate and fitted Q-iteration is asked to extrapolate to actions never
+  # taken near the state — the pathology Section 6.10 claimed did not arise
+  # (Reviewer 1, 6.b). 'round_robin' is retained in the code only so
+  # `rl_sensitivity coverage` can measure the two head to head.
+  observed_policy: random
   beta_grid: [0.1, 0.25, 0.5, 1.0, 2.0]
-  target_median_entropy: [0.3, 0.7]
+  # Target median label entropy, as a FRACTION of log|H| rather than in nats.
+  # The submitted value was an absolute [0.3, 0.7] chosen when |H| = 4, i.e.
+  # 22-51% of the log 4 maximum. Doubling the pool to eight (Reviewer 1, 4.d)
+  # would have left the same absolute band meaning 14-34% of log 8, sharpening
+  # every label as a side effect of adding rules. These fractions reproduce the
+  # submitted band's intent at whatever pool Stage 1 settles on.
+  target_median_entropy_ratio: [0.216, 0.505]
   ambiguity_filter:
     theta_confidence: 0.55
   # NOTE. There is no `record_standard_error` switch: the per-cell standard

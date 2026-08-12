@@ -35,6 +35,32 @@ PHASE4_TAU1_DIR = REPO_ROOT / "runs" / "phase4_tau1"
 PPO_DIR = REPO_ROOT / "runs" / "ppo_fair"
 
 
+def _usable_ranker(run_dir: Path) -> bool:
+    """True only for a run trained by the CURRENT Stage 3.
+
+    A pre-revision run directory is present but unusable: its `ranker_meta`
+    carries no `classes`, so `load_ours` refuses it rather than guessing the
+    class order. That refusal is the guard working, not a test failure — skip
+    instead, and let `make clean-stale` be the fix.
+    """
+    import joblib
+
+    if not (run_dir / "calibrator.joblib").exists():
+        return False
+    meta_path = run_dir / "ranker_meta.joblib"
+    if not meta_path.exists():
+        return False
+    try:
+        return bool(joblib.load(meta_path).get("classes"))
+    except Exception:
+        return False
+
+
+def _usable_ppo(run_dir: Path) -> bool:
+    """Pre-revision PPO runs have no `ppo_meta.json` recording the action set."""
+    return (run_dir / "ppo_fair.zip").exists() and (run_dir / "ppo_meta.json").exists()
+
+
 @pytest.fixture(scope="module")
 def cfg():
     """Config with provisional ATC/COVERT scales filled in.
@@ -115,8 +141,8 @@ def test_make_static_policy_rejects_unknown_rule():
 
 
 @pytest.mark.skipif(
-    not (PHASE4_DIR / "calibrator.joblib").exists(),
-    reason="Phase 4 artifacts not present at runs/phase4/",
+    not _usable_ranker(PHASE4_DIR),
+    reason="no current-revision ranker at runs/phase4/ (run make clean-stale + the pipeline)",
 )
 def test_ours_one_shift(cfg, one_test_seed, tmp_path):
     from baselines.ours import load_ours
@@ -132,8 +158,8 @@ def test_ours_one_shift(cfg, one_test_seed, tmp_path):
 
 
 @pytest.mark.skipif(
-    not (PHASE4_DIR / "calibrator.joblib").exists(),
-    reason="Phase 4 artifacts not present at runs/phase4/",
+    not _usable_ranker(PHASE4_DIR),
+    reason="no current-revision ranker at runs/phase4/ (run make clean-stale + the pipeline)",
 )
 def test_ours_reset_clears_dwell(cfg):
     from baselines.ours import load_ours
@@ -180,8 +206,8 @@ def test_linucb_one_shift(cfg, one_test_seed, tmp_path):
 
 
 @pytest.mark.skipif(
-    not (PHASE4_TAU1_DIR / "calibrator.joblib").exists(),
-    reason="snapshot_xgb (phase4_tau1) artifacts not present at runs/phase4_tau1/",
+    not _usable_ranker(PHASE4_TAU1_DIR),
+    reason="no current-revision ranker at runs/phase4_tau1/ (run make tau1)",
 )
 def test_snapshot_xgb_one_shift(cfg, one_test_seed, tmp_path):
     """snapshot_xgb (tau=1 ablation of OURS): smoke + parquet round-trip."""
@@ -198,8 +224,8 @@ def test_snapshot_xgb_one_shift(cfg, one_test_seed, tmp_path):
 
 
 @pytest.mark.skipif(
-    not (PPO_DIR / "ppo_fair.zip").exists(),
-    reason="PPO-fair model not present at runs/ppo_fair/",
+    not _usable_ppo(PPO_DIR),
+    reason="no current-revision PPO at runs/ppo_fair/ (missing ppo_meta.json)",
 )
 def test_ppo_fair_one_shift(cfg, one_test_seed, tmp_path):
     """PPO-fair deterministic eval: smoke + parquet round-trip."""

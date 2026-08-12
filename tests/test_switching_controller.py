@@ -53,6 +53,19 @@ def _zero_state(pct_perishable: float = 0.5) -> np.ndarray:
     return feats
 
 
+def _peaked(idx: int, peak: float) -> np.ndarray:
+    """A K-wide distribution with `peak` mass on `idx`, the rest spread evenly.
+
+    Built at the pool's actual width. These fixtures were hard-coded to four
+    columns, so they silently indexed the wrong rule once the pool grew to
+    eight — and the mask's width check turned that into an error rather than a
+    wrong answer, which is how it surfaced.
+    """
+    p = np.full(K, (1.0 - peak) / (K - 1), dtype=np.float64)
+    p[idx] = peak
+    return p / p.sum()
+
+
 def test_fefo_mask_zeros_p_fefo(cfg_switching):
     probs = np.full(K, 1.0 / K)
     ranker = _ConstantRanker(probs)
@@ -77,8 +90,11 @@ def test_dwell_keeps_heuristic_for_t_min(cfg_switching):
     fifo_idx = HEURISTIC_NAMES.index("FIFO")
     fefo_idx = HEURISTIC_NAMES.index("FEFO")
 
-    confident_fifo = np.full(K, 0.05); confident_fifo[fifo_idx] = 0.85
-    flat_fefo_lean = np.array([0.20, 0.30, 0.25, 0.25])  # max prob 0.30 -> H ~ log 4 - small
+    confident_fifo = _peaked(fifo_idx, 0.85)
+    # Nearly flat, leaning to FEFO: entropy stays above the gate so the dwell,
+    # not the gate, decides. Built at width K rather than hard-coded to four.
+    flat_fefo_lean = np.full(K, 1.0 / K)
+    flat_fefo_lean[fefo_idx] += 0.04
     flat_fefo_lean = flat_fefo_lean / flat_fefo_lean.sum()
     assert int(np.argmax(flat_fefo_lean)) == fefo_idx
 
@@ -121,8 +137,8 @@ def test_entropy_gate_overrides_dwell_when_confident(cfg_switching):
 
 
 def test_select_sequence_resets_state(cfg_switching):
-    probs1 = np.array([0.7, 0.1, 0.1, 0.1])  # FIFO
-    probs2 = np.array([0.1, 0.7, 0.1, 0.1])  # FEFO
+    probs1 = _peaked(HEURISTIC_NAMES.index("FIFO"), 0.7)
+    probs2 = _peaked(HEURISTIC_NAMES.index("FEFO"), 0.7)
     ranker = _SequenceRanker([probs1, probs2, probs1, probs2])
     cfg = OmegaConf.create({"t_min_intervals": 2, "entropy_gate_ratio": 0.5})
     ctrl = SwitchingController(

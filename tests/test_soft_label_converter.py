@@ -9,9 +9,10 @@ import pytest
 from omegaconf import OmegaConf
 
 from labeling.soft_label_converter import (
-    row_entropy,
     costs_to_probs,
+    entropy_band,
     fefo_mask,
+    row_entropy,
 )
 from simulation.heuristics import HEURISTIC_NAMES
 
@@ -48,10 +49,22 @@ def test_beta_search_hits_target_band_on_realistic_costs(cfg_labeling):
     costs = rng.uniform(0, 6, size=(2000, K))
     probs, beta = costs_to_probs(costs, cfg_labeling)
     median = float(np.median(row_entropy(probs)))
-    lo, hi = (float(x) for x in cfg_labeling.target_median_entropy)
+    # The band scales with log|H|; reading it in absolute nats made this test
+    # pass at |H|=4 and fail at |H|=8 for no reason but the pool size.
+    lo, hi = entropy_band(cfg_labeling, K)
     # The search returns either an in-band beta or the closest-to-midpoint one;
     # on realistic costs there should always be an in-band candidate in beta_grid.
     assert lo <= median <= hi, f"median entropy {median} not in [{lo}, {hi}]; beta={beta}"
+
+
+def test_entropy_band_scales_with_pool_size(cfg_labeling):
+    """Doubling the pool must not silently sharpen the labels (Reviewer 1, 4.d)."""
+    lo4, hi4 = entropy_band(cfg_labeling, 4)
+    lo8, hi8 = entropy_band(cfg_labeling, 8)
+    # Same fraction of maximum entropy at either width.
+    assert lo4 / np.log(4) == pytest.approx(lo8 / np.log(8))
+    assert hi4 / np.log(4) == pytest.approx(hi8 / np.log(8))
+    assert hi8 > hi4
 
 
 def test_locked_beta_path(cfg_labeling):

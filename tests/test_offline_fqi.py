@@ -84,9 +84,16 @@ def test_log_transitions_shapes(transitions, pool):
     # exactly one terminal transition per shift
     assert int(transitions["dones"].sum()) == N_SMOKE_SHIFTS
     assert np.isfinite(transitions["rewards"]).all()
-    # Reward is the negated increment of a non-decreasing cost potential, so it
-    # is non-positive. This is the property that makes "do nothing" unrewarding.
-    assert (transitions["rewards"] <= 1e-9).all()
+    # The reward is NOT sign-constrained, and the earlier assertion that it was
+    # non-positive was simply wrong. Phi carries a holding term w_hold * |queue|,
+    # so draining the queue lowers the potential and yields a small POSITIVE
+    # reward — which is the intended incentive. What must hold is that cost
+    # accrues over a shift, so the total is negative and the positive excursions
+    # are bounded by the holding term.
+    assert transitions["rewards"].sum() < 0.0
+    pos = transitions["rewards"][transitions["rewards"] > 0]
+    if pos.size:
+        assert pos.max() < abs(transitions["rewards"].min())
     assert set(np.unique(transitions["actions"])).issubset(set(range(len(pool))))
 
 
@@ -181,9 +188,29 @@ def test_save_load_roundtrip(cfg, fqi_model, transitions, pool, tmp_path):
         assert loaded(state) == ref(state)
 
 
+def _usable_fqi(run_dir: Path) -> bool:
+    """True only for a model trained by the CURRENT pipeline.
+
+    A pre-revision qmodel expects 25 features + 4 action columns = 29 inputs;
+    the current state is 26 + 8 = 34, so loading one raises a shape mismatch.
+    `arms` is written only by the revised trainer, which makes it the marker.
+    """
+    import joblib
+
+    if not (run_dir / "qmodel.joblib").exists():
+        return False
+    meta = run_dir / "meta.joblib"
+    if not meta.exists():
+        return False
+    try:
+        return bool(joblib.load(meta).get("arms"))
+    except Exception:
+        return False
+
+
 @pytest.mark.skipif(
-    not (REPO_ROOT / "runs" / "offline_fqi" / "qmodel.joblib").exists(),
-    reason="offline_fqi model not present at runs/offline_fqi/",
+    not _usable_fqi(REPO_ROOT / "runs" / "offline_fqi"),
+    reason="no current-revision FQI model at runs/offline_fqi/ (make stage4-fqi)",
 )
 def test_offline_fqi_via_evaluate_harness(cfg, tmp_path):
     """The trained baseline plugs into the evaluation harness for one shift."""

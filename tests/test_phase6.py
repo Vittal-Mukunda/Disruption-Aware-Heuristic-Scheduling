@@ -24,6 +24,35 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / "results"
 
 
+def _usable_ranker(run_dir: Path) -> bool:
+    """True only for a run trained by the CURRENT Stage 3 (carries `classes`)."""
+    import joblib
+
+    meta = run_dir / "ranker_meta.joblib"
+    if not (run_dir / "calibrator.joblib").exists() or not meta.exists():
+        return False
+    try:
+        return bool(joblib.load(meta).get("classes"))
+    except Exception:
+        return False
+
+
+def _current_schema(path: Path) -> bool:
+    """True when a result parquet uses the revised KPI schema.
+
+    Pre-revision parquets carry `sla_breach_rate` / `mean_cost`, which were
+    replaced because the first hid unserved orders from its own denominator
+    (Reviewer 2, 1). Comparing across the two is meaningless, so skip rather
+    than fail — `make clean-stale` is the fix.
+    """
+    if not path.exists():
+        return False
+    try:
+        return "composite_cost" in pd.read_parquet(path).columns
+    except Exception:
+        return False
+
+
 def test_bootstrap_mean_ci_covers_truth():
     rng = np.random.default_rng(42)
     vals = rng.normal(loc=1.0, scale=0.2, size=80)
@@ -74,8 +103,8 @@ def test_compare_methods_runs_on_phase5_parquets():
     df_long_parts = []
     for m in ("fifo", "ours"):
         path = RESULTS_DIR / f"{m}.parquet"
-        if not path.exists():
-            pytest.skip(f"missing {path}")
+        if not _current_schema(path):
+            pytest.skip(f"{path} missing or pre-revision schema; make clean-stale")
         df_long_parts.append(pd.read_parquet(path).assign(method=m))
     df_long = pd.concat(df_long_parts, ignore_index=True)
     out = compare_methods(
@@ -109,8 +138,8 @@ def test_diversity_grid_runs_on_stage1_costs():
 
 
 def test_e2_stats_runs_on_existing_parquets():
-    if not (RESULTS_DIR / "ours.parquet").exists():
-        pytest.skip("results/ours.parquet missing")
+    if not _current_schema(RESULTS_DIR / "ours.parquet"):
+        pytest.skip("results/ours.parquet missing or pre-revision schema")
     cmd = [
         sys.executable, "-m", "experiments.e2_main", "stats",
         "--scenario", "default",
@@ -140,8 +169,8 @@ def test_e3_no_calibration_policy_returns_valid_heuristic():
     from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
     from simulation.warehouse_env import WarehouseEnv
     run_dir = _ROOT / "runs" / "phase4"
-    if not run_dir.exists():
-        pytest.skip("runs/phase4 not present")
+    if not _usable_ranker(run_dir):
+        pytest.skip("no current-revision ranker at runs/phase4")
     policy = load_no_calibration(run_dir)
     cfg = with_default_scales(OmegaConf.load(REPO_ROOT / "config.yaml"))
     env = WarehouseEnv(42, cfg)
@@ -155,8 +184,8 @@ def test_e3_no_switching_policy_argmax_equivalent():
     from simulation.heuristics import HEURISTIC_NAMES, with_default_scales
     from simulation.warehouse_env import WarehouseEnv
     run_dir = REPO_ROOT / "runs" / "phase4"
-    if not run_dir.exists():
-        pytest.skip("runs/phase4 not present")
+    if not _usable_ranker(run_dir):
+        pytest.skip("no current-revision ranker at runs/phase4")
     policy = load_no_switching(run_dir)
     cfg = with_default_scales(OmegaConf.load(REPO_ROOT / "config.yaml"))
     env = WarehouseEnv(42, cfg)
@@ -165,8 +194,8 @@ def test_e3_no_switching_policy_argmax_equivalent():
 
 
 def test_e4_t_min_one_value(tmp_path):
-    if not (REPO_ROOT / "runs" / "phase4").exists():
-        pytest.skip("runs/phase4 not present")
+    if not _usable_ranker(REPO_ROOT / "runs" / "phase4"):
+        pytest.skip("no current-revision ranker at runs/phase4")
     cmd = [
         sys.executable, "-m", "experiments.e4_sensitivity",
         "t_min", "--values", "0", "--n-test", "2",
