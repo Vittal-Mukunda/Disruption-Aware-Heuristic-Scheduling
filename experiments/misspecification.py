@@ -156,7 +156,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 df = runner(
                     f"{method}", policy, seeds, eval_cfg,
                     results_dir=RESULTS_DIR / cell.replace("=", "_"),
-                    save=True,
+                    save=True, n_jobs=args.n_jobs,
                 )
                 ci = bootstrap_mean_ci(df["composite_cost"].to_numpy(np.float64))
                 rows.append({
@@ -243,6 +243,10 @@ def main() -> int:
 
     pr = sub.add_parser("run", help="Evaluate frozen methods under perturbed dynamics.")
     pr.add_argument("--axis", type=str, default=None)
+    pr.add_argument("--n-jobs", type=int, default=-1,
+                    help="Shifts evaluated in parallel. This sweep is dominated "
+                         "by the online lookahead baseline — ~14 h serial, under "
+                         "an hour across 16 cores.")
     pr.add_argument("--methods", nargs="*", default=None)
     pr.add_argument("--n-test", type=int, default=None)
     pr.set_defaults(func=cmd_run)

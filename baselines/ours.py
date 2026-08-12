@@ -33,7 +33,7 @@ was fitted with — not from `cfg.heuristics.pool`, which Stage 1 rewrites.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import joblib
@@ -56,6 +56,13 @@ class OursPolicy:
     Use `OursPolicy.reset()` between shifts. The harness in `experiments.evaluate`
     does this automatically when a `reset` attribute is present.
     """
+
+    # The controller accumulates a decision trace across shifts, which
+    # `experiments/saturation_analysis.py` consumes to answer Reviewer 3 (3).
+    # Parallel evaluation would scatter that trace across worker processes and
+    # lose it. Costs nothing to forbid: this policy is a forward pass, so a
+    # 50-shift evaluation is ~1600 interval-steps either way.
+    parallel_safe: bool = field(default=False, init=False, repr=False)
 
     controller: SwitchingController
     regime_gmm: GaussianMixture | None

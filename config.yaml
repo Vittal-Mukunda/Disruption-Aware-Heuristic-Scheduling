@@ -138,7 +138,13 @@ labeling:
   # submitted band's intent at whatever pool Stage 1 settles on.
   target_median_entropy_ratio: [0.216, 0.505]
   ambiguity_filter:
-    theta_confidence: 0.55
+    # Top-1 confidence threshold, as a MULTIPLE OF UNIFORM (1/|H|) rather than
+    # an absolute probability. The submitted 0.55 was set when |H| = 4, where
+    # uniform is 0.25 — so it meant 2.2x chance and kept 865/1600 test states.
+    # With the pool doubled (Reviewer 1, 4.d) the same 0.55 means 4.4x chance:
+    # a smoke run kept 6% of states. The test corpus would have collapsed as a
+    # side effect of adding rules. 2.2 reproduces the submitted filter at any K.
+    theta_confidence_uniform_multiple: 2.2
   # NOTE. There is no `record_standard_error` switch: the per-cell standard
   # error is ALWAYS recorded (`se_<rule>` columns) and always summarised into
   # `label_meta.json`. Reviewer 2 (3) asks for the variance to be reported, and

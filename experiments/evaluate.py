@@ -42,6 +42,7 @@ from typing import Protocol
 
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
 
 from seed import shift_corpora
@@ -143,19 +144,49 @@ def _evaluate(
     results_dir: Path | None,
     save: bool,
     verbose: bool,
+    n_jobs: int = 1,
 ) -> pd.DataFrame:
-    rows: list[dict[str, float]] = []
-    for i, seed in enumerate(test_seeds):
-        row = runner(int(seed), cfg, policy)
-        rows.append(row)
-        if verbose:
-            print(
-                f"  [{i + 1:>3d}/{len(test_seeds)}] seed={int(seed):<10d} "
-                f"cost={row['composite_cost']:8.2f} "
-                f"fail={row['service_failure_rate']:.4f} "
-                f"served={row['throughput']:.0f} unserved={row['unserved']:.0f} "
-                f"wall={row['wall_clock_s']:.2f}s"
+    """Evaluate `policy` on every test shift.
+
+    SERIAL BY DEFAULT, AND THAT IS LOAD-BEARING. Most policies are Markov and
+    shifts are independent, but LinUCB is an *online learner* whose weights
+    persist across shifts by design — its `reset()` is a documented no-op and
+    the 50 test shifts form one bandit trajectory of ~1600 interactions.
+    Evaluating it in parallel would silently turn it into 50 independent
+    cold-start bandits and understate the baseline, which is exactly the kind of
+    under-powered comparison Reviewer 1 (6.b) objects to.
+
+    So parallelism is opt-in per call AND per policy: a policy that carries
+    state across shifts sets `parallel_safe = False` and is always run serially,
+    whatever the caller asks for. This matters because the online lookahead
+    baselines dominate the campaign — on measured throughput the misspecification
+    sweep alone is ~14 hours serial and under an hour across 16 cores.
+    """
+    parallel_ok = bool(getattr(policy, "parallel_safe", True))
+    if n_jobs != 1 and not parallel_ok:
+        print(f"  [eval] {name}: policy retains state across shifts; "
+              f"ignoring n_jobs={n_jobs} and running serially.")
+        n_jobs = 1
+
+    if n_jobs == 1:
+        rows: list[dict[str, float]] = []
+        for i, seed in enumerate(test_seeds):
+            row = runner(int(seed), cfg, policy)
+            rows.append(row)
+            if verbose:
+                print(
+                    f"  [{i + 1:>3d}/{len(test_seeds)}] seed={int(seed):<10d} "
+                    f"cost={row['composite_cost']:8.2f} "
+                    f"fail={row['service_failure_rate']:.4f} "
+                    f"served={row['throughput']:.0f} unserved={row['unserved']:.0f} "
+                    f"wall={row['wall_clock_s']:.2f}s"
+                )
+    else:
+        rows = list(
+            Parallel(n_jobs=n_jobs, verbose=5 if verbose else 0)(
+                delayed(runner)(int(seed), cfg, policy) for seed in test_seeds
             )
+        )
 
     df = pd.DataFrame(rows)
     extra = [c for c in df.columns if c not in KPI_COLUMNS]
@@ -179,10 +210,12 @@ def evaluate_policy(
     results_dir: Path | None = None,
     save: bool = True,
     verbose: bool = False,
+    n_jobs: int = 1,
 ) -> pd.DataFrame:
     """Run `policy_fn` on each test shift; return the per-shift KPI table."""
     return _evaluate(
-        name, run_shift, policy_fn, test_seeds, cfg, results_dir, save, verbose
+        name, run_shift, policy_fn, test_seeds, cfg, results_dir, save, verbose,
+        n_jobs=n_jobs,
     )
 
 
@@ -194,11 +227,12 @@ def evaluate_policy_env_aware(
     results_dir: Path | None = None,
     save: bool = True,
     verbose: bool = False,
+    n_jobs: int = 1,
 ) -> pd.DataFrame:
     """Env-aware sibling of `evaluate_policy`."""
     return _evaluate(
         name, run_shift_env_aware, policy_fn_env, test_seeds, cfg,
-        results_dir, save, verbose,
+        results_dir, save, verbose, n_jobs=n_jobs,
     )
 
 

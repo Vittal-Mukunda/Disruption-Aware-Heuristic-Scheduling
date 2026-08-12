@@ -124,6 +124,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
                 df = eval_fn(
                     method, policy, seeds, cfg,
                     results_dir=cell_results_dir, save=True, verbose=False,
+                    n_jobs=args.n_jobs,
                 )
 
                 # Summarize this cell × method with bootstrap CI
@@ -242,6 +243,9 @@ def main() -> int:
     sub = parser.add_subparsers(dest="mode", required=True)
 
     p_eval = sub.add_parser("eval", help="Run eval on all grid cells.")
+    p_eval.add_argument("--n-jobs", type=int, default=-1,
+                        help="Shifts evaluated in parallel. Policies that carry "
+                             "state across shifts (LinUCB) ignore this.")
     p_eval.add_argument("--n-test", type=int, default=None,
                         help="Cap on test shifts (for smoke testing).")
     p_eval.add_argument("--run-dir", type=Path, default=None,

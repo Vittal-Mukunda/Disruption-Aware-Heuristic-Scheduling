@@ -52,7 +52,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
 
-from labeling.ambiguity_filter import filter_ambiguous
+from labeling.ambiguity_filter import filter_ambiguous, resolve_theta
 from labeling.provenance import write_label_meta
 from labeling.rollout_labeler import label_one_shift_counted, rollout_step_budget
 from labeling.soft_label_converter import (
@@ -146,7 +146,8 @@ def main() -> int:
                         help="Override cfg.labeling.n_rollout_samples (M).")
     parser.add_argument("--theta", type=float, default=None,
                         help="Override the test ambiguity threshold "
-                             "(cfg.labeling.ambiguity_filter.theta_confidence). "
+                             "(absolute top-1 probability; normally derived "
+                             "from theta_confidence_uniform_multiple). "
                              "Used by the E4 theta sweep.")
     parser.add_argument("--train-out", type=Path, default=None)
     parser.add_argument("--test-out", type=Path, default=None)
@@ -252,7 +253,7 @@ def main() -> int:
 
     theta = (
         float(args.theta) if args.theta is not None
-        else float(cfg.labeling.ambiguity_filter.theta_confidence)
+        else resolve_theta(cfg.labeling.ambiguity_filter, len(pool))
     )
     keep_mask = filter_ambiguous(test_probs, theta=theta)
     n_kept = int(keep_mask.sum())

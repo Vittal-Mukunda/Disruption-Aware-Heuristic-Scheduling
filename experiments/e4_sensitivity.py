@@ -300,6 +300,7 @@ def cmd_weights(args: argparse.Namespace) -> int:
                 df = runner(
                     f"{axis}_{v}_{m}", policy, seeds, cfg,
                     results_dir=out_dir, save=True, verbose=False,
+                    n_jobs=args.n_jobs,
                 )
                 rows.append({
                     "axis": axis,
@@ -349,6 +350,9 @@ def main() -> int:
                      default=["ours", "rolling_mpc", "edd", "fifo"])
     p_w.add_argument("--run-dir", type=Path, default=None)
     p_w.add_argument("--n-test", type=int, default=None)
+    p_w.add_argument("--n-jobs", type=int, default=-1,
+                     help="Shifts evaluated in parallel; the lookahead baseline "
+                          "dominates this sweep (~8.5 h serial).")
     p_w.set_defaults(func=cmd_weights)
 
     p_t = sub.add_parser("t_min", help="Dwell length sweep.")

@@ -94,7 +94,16 @@ class RunningStandardiser:
 
 @dataclass
 class LinUCBPolicy:
-    """Env-aware contextual LinUCB policy with per-arm ridge regression."""
+    """Env-aware contextual LinUCB policy with per-arm ridge regression.
+
+    NEVER evaluate this in parallel. The weights persist across shifts by
+    design — that is what makes it an online learner — so the test shifts are
+    one trajectory, not independent replicates. Running them concurrently would
+    turn it into N independent cold-start bandits and understate the baseline.
+    `experiments.evaluate` honours this flag over any caller's n_jobs.
+    """
+
+    parallel_safe: bool = field(default=False, init=False, repr=False)
 
     alpha: float
     feature_dim: int
