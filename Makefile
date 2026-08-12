@@ -24,8 +24,8 @@ RUN_ID ?= dev
 .PHONY: help install gate test clean clean-stale \
         stage1 stage1-calibrate stage1-screen stage1-diversity \
         stage1-perishability stage1-budget \
-        stage2 stage2-smoke \
-        stage3 stage3-smoke \
+        stage2 stage2-smoke stage2-tau1 \
+        stage3 stage3-smoke stage3-tau1 tau1 \
         stage4-static stage4-teacher stage4-fqi stage4-rl-sensitivity \
         stage5-scenarios stage5-robustness stage5-misspecification \
         stage5-sensitivity stage5-weights \
@@ -47,6 +47,7 @@ help:
 	@echo "  stage2-smoke             3 train + 2 test shifts, end-to-end check"
 	@echo "  stage3                   Regime + ranker + calibrator"
 	@echo "  stage3-smoke             1 HP combo, fast end-to-end check"
+	@echo "  tau1                     tau=1 arm = snapshot_xgb  [REQUIRED before stage 5]"
 	@echo ""
 	@echo "  stage4-static            Evaluate every deployed rule standalone"
 	@echo "  stage4-teacher           Rolling-horizon MPC, the distillation teacher (R2 6)"
@@ -101,6 +102,24 @@ stage3:
 
 stage3-smoke:
 	$(PY) -m experiments.train_ranker --smoke --skip-cv-cal
+
+# --- The tau=1 arm ---------------------------------------------------------
+# `snapshot_xgb` IS this model. It is in the method list of e2, e8 and a2, and
+# it is a reference line in the data-efficiency figure — but nothing built it,
+# so the campaign failed at Stage 5 with a missing runs/phase4_tau1 after
+# several hours of work. It needs its OWN labelling pass: tau changes the
+# estimator, so no transform of the tau=4 parquet produces it.
+# Cost: ~1.55M interval-steps, about a quarter of the tau=4 pass.
+stage2-tau1:
+	$(PY) -m experiments.generate_labels --tau 1 \
+	  --train-out data/tau1/train.parquet --test-out data/tau1/test.parquet
+
+stage3-tau1:
+	$(PY) -m experiments.train_ranker --run-id phase4_tau1 \
+	  --train-path data/tau1/train.parquet \
+	  --test-path data/tau1/test.parquet --skip-cv-cal
+
+tau1: stage2-tau1 stage3-tau1
 
 # --- Stage 4: baselines ----------------------------------------------------
 stage4-static:
@@ -170,7 +189,7 @@ clean-stale:
 [os.remove(p) for p in glob.glob('data/*.parquet')]; \
 [os.remove(p) for p in glob.glob('data/*.npz')]; \
 [os.remove(p) for p in glob.glob('data/label_meta.json')]; \
-[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*')]; \
+[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*')]; \
 [shutil.rmtree(d, ignore_errors=True) or os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \
 print('removed pre-revision labels, models and results')"
 
