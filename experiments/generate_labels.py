@@ -57,7 +57,7 @@ from labeling.provenance import write_label_meta
 from labeling.rollout_labeler import label_one_shift_counted, rollout_step_budget
 from labeling.soft_label_converter import costs_to_probs, fefo_mask, row_entropy
 from seed import shift_corpora
-from simulation.heuristics import resolve_pool
+from simulation.heuristics import resolve_pool, with_default_scales
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -145,9 +145,16 @@ def main() -> int:
                              "Used by the E4 theta sweep.")
     parser.add_argument("--train-out", type=Path, default=None)
     parser.add_argument("--test-out", type=Path, default=None)
+    parser.add_argument("--allow-provisional-scales", action="store_true",
+                        help="Substitute the calibration-grid midpoint for any "
+                             "unfitted ATC/COVERT scale. SMOKE TESTING ONLY — "
+                             "labels produced this way are not deployable and "
+                             "are stamped as provisional.")
     args = parser.parse_args()
 
     cfg = OmegaConf.load(CONFIG_PATH)
+    if args.allow_provisional_scales:
+        cfg = with_default_scales(cfg)
     pool = resolve_pool(cfg)
     tau = int(args.tau) if args.tau is not None else int(cfg.labeling.tau)
     n_samples = (
@@ -296,6 +303,9 @@ def main() -> int:
         "fefo_mask_threshold": fefo_threshold,
         "atc_lookahead_k": cfg.heuristics.get("atc_lookahead_k"),
         "covert_lookahead_k": cfg.heuristics.get("covert_lookahead_k"),
+        # Marks a smoke-test corpus so a provisional run can never be mistaken
+        # for a deployable one downstream.
+        "provisional_scales": bool(args.allow_provisional_scales),
         "rollout_precision_train": train_se,
         # Reviewer 3 (1): the offline simulation cost, measured.
         "simulated_interval_steps": int(steps_total),

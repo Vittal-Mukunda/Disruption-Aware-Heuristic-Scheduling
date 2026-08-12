@@ -93,8 +93,12 @@ stage1: stage1-budget stage1-calibrate stage1-screen stage1-diversity stage1-per
 stage2:
 	$(PY) -m experiments.generate_labels --run-id $(RUN_ID)
 
+# Standalone: runs on a freshly cleaned repo, BEFORE Stage 1 has fitted the
+# ATC/COVERT scales. Its labels are provisional and stamped as such; the point
+# is to prove the five stages are connected, not to produce anything reportable.
 stage2-smoke:
-	$(PY) -m experiments.generate_labels --n-train 3 --n-test 2 --run-id smoke
+	$(PY) -m experiments.generate_labels --n-train 3 --n-test 2 --run-id smoke \
+	  --allow-provisional-scales
 
 # --- Stage 3: model --------------------------------------------------------
 stage3:
