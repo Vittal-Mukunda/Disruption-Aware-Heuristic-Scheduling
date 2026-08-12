@@ -21,7 +21,7 @@
 PY ?= python
 RUN_ID ?= dev
 
-.PHONY: help install gate test clean clean-stale \
+.PHONY: help install gate test clean clean-stale preflight smoke \
         stage1 stage1-calibrate stage1-screen stage1-diversity \
         stage1-perishability stage1-budget \
         stage2 stage2-smoke stage2-tau1 \
@@ -35,6 +35,8 @@ help:
 	@echo "DAHS pipeline (run stages in order):"
 	@echo "  install                  Install package + dev deps (editable)"
 	@echo "  gate                     Import smoke test"
+	@echo "  preflight                Compile + import every module (~2s)  [DO THIS FIRST]"
+	@echo "  smoke                    preflight + tests + tiny label/train run"
 	@echo ""
 	@echo "  stage1-calibrate         Fit ATC/COVERT look-ahead scales (R1 4.c)"
 	@echo "  stage1-screen            Score + screen the candidate pool (R1 4.a/b/d)"
@@ -68,6 +70,20 @@ install:
 	$(PY) -m pip install --upgrade pip
 	$(PY) -m pip install -e ".[dev]"
 
+# --- Preflight + smoke: run this BEFORE committing to the campaign ----------
+# Ordered cheapest-first, so a break costs seconds rather than hours:
+#   preflight  compiles and imports every module        (~2 s)
+#   test       the unit suite                           (~1 min)
+#   stage2     3 train + 2 test shifts, provisional     (~1 min)
+#   stage3     1 HP combo on that tiny corpus           (~1 min)
+preflight:
+	$(PY) scripts/preflight.py
+
+smoke: preflight test stage2-smoke stage3-smoke
+	@echo ""
+	@echo "SMOKE PASSED — preflight, unit tests, labelling and training all ran."
+	@echo "Next: python -m experiments.compute_budget measure --n-shifts 3"
+
 gate:
 	$(PY) -c "import xgboost, sklearn, shap, stable_baselines3, omegaconf, joblib; print('ok')"
 
@@ -96,16 +112,19 @@ stage2:
 # Standalone: runs on a freshly cleaned repo, BEFORE Stage 1 has fitted the
 # ATC/COVERT scales. Its labels are provisional and stamped as such; the point
 # is to prove the five stages are connected, not to produce anything reportable.
+# Writes to data/smoke/ so it cannot clobber the real corpus.
 stage2-smoke:
 	$(PY) -m experiments.generate_labels --n-train 3 --n-test 2 --run-id smoke \
-	  --allow-provisional-scales
+	  --allow-provisional-scales \
+	  --train-out data/smoke/train.parquet --test-out data/smoke/test.parquet
 
 # --- Stage 3: model --------------------------------------------------------
 stage3:
 	$(PY) -m experiments.train_ranker --run-id phase4
 
 stage3-smoke:
-	$(PY) -m experiments.train_ranker --smoke --skip-cv-cal
+	$(PY) -m experiments.train_ranker --smoke --skip-cv-cal --run-id smoke \
+	  --train-path data/smoke/train.parquet --test-path data/smoke/test.parquet
 
 # --- The tau=1 arm ---------------------------------------------------------
 # `snapshot_xgb` IS this model. It is in the method list of e2, e8 and a2, and
@@ -193,7 +212,7 @@ clean-stale:
 [os.remove(p) for p in glob.glob('data/*.parquet')]; \
 [os.remove(p) for p in glob.glob('data/*.npz')]; \
 [os.remove(p) for p in glob.glob('data/label_meta.json')]; \
-[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*')]; \
+[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*') + glob.glob('data/smoke')]; \
 [shutil.rmtree(d, ignore_errors=True) or os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \
 print('removed pre-revision labels, models and results')"
 
