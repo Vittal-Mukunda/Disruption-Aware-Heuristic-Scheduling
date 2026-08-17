@@ -1,7 +1,15 @@
 ---
 title: "Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation for Dynamic Warehouse Order Dispatching"
 author:
-  - Vittal Mukunda
+  - name: Vittal Mukunda
+    email: vittalmukunda.im24@rvce.edu.in
+    affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
+  - name: Atharva Somani
+    email: atharvasomani.im24@rvce.edu.in
+    affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
+  - name: Pranjal Malaiya
+    email: pranjalmalaiya.im24@rvce.edu.in
+    affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
 date: 2026
 bibliography: references.bib
 ---

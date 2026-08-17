@@ -4,7 +4,9 @@
 
 ### Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation for Dynamic Warehouse Order Dispatching
 
-**Vittal Mukunda** &nbsp;·&nbsp; 2026
+**Vittal Mukunda** &nbsp;·&nbsp; **Atharva Somani** &nbsp;·&nbsp; **Pranjal Malaiya**
+
+<sub>Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India &nbsp;·&nbsp; 2026</sub>
 
 <br/>
 
