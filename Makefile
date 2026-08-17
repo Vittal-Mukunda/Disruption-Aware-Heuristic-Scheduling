@@ -76,6 +76,9 @@ install:
 #   test       the unit suite                           (~1 min)
 #   stage2     3 train + 2 test shifts, provisional     (~1 min)
 #   stage3     1 HP combo on that tiny corpus           (~1 min)
+campaign-preflight:
+	$(PY) scripts/campaign_preflight.py
+
 preflight:
 	$(PY) scripts/preflight.py
 

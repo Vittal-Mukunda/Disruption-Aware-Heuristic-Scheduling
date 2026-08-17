@@ -57,6 +57,22 @@ from them and Section 6.1 of the manuscript reports them. After running it,
 confirm they are still there. If they are gone, restore with
 `git checkout -- results/S1_calibration results/S1_perishability config.yaml`.
 
+LAST GATE BEFORE THE EXPENSIVE STAGES — run this AFTER clean-stale
+      .venv/bin/python scripts/campaign_preflight.py
+It checks everything knowable in advance: interpreter version, that the installed
+packages match the lockfile, that Stage 1's results exist and agree with the
+config that is about to be labelled, that no pre-revision artifact is sitting
+where a driver will read it, that every command in RUN_CAMPAIGN.md resolves and
+every manuscript figure has a producer, disk space, and whether the Olist dataset
+is present. It prints the per-stage budget last.
+
+Exit 0 means start. Exit 1 means something WILL fail later, and later is
+expensive. Do not start on a non-zero exit; report what it said.
+
+If it warns that the Olist dataset is missing, decide before starting: without it
+Figures 5-6 and all of Reviewer 1's comment 5.b are simply not produced, and
+that is a gap in the resubmission, not a nuisance.
+
 DO NOT RE-RUN STAGE 1. It is complete. Verify before starting Stage 2:
       .venv/bin/python -c "from omegaconf import OmegaConf; c=OmegaConf.load('config.yaml'); print(list(c.heuristics.pool), c.heuristics.atc_lookahead_k, c.heuristics.covert_lookahead_k)"
 Must print exactly:
