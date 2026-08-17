@@ -39,9 +39,9 @@ GATE — do not skip, do not proceed past a failure
       .venv/bin/python scripts/preflight.py            # ~2s, imports every module
       .venv/bin/python -m pytest -q                    # must exit 0
       .venv/bin/python scripts/audit_reviewer_items.py # must print ALL CHECKS PASS
-Expect ~85 passed and ~11 skipped. Every skip should name a campaign artifact that
+Expect 142 passed and 11 skipped. Every skip should name a campaign artifact that
 does not exist yet, or say "FEFO is not in the deployed pool". Any OTHER skip, or
-any failure, means stop and report.
+any failure, means stop and report. The suite takes ~6 minutes.
 
 WIPE THE PRE-REVISION ARTIFACTS
       make clean-stale
