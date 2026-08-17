@@ -11,7 +11,7 @@ format it.
 ## 0. Before you start the campaign
 
 - [x] `scripts/preflight.py` passes
-- [x] `pytest` green (87 passed, 11 skipped — every skip names a missing campaign
+- [x] `pytest` green (92 passed, 11 skipped — every skip names a missing campaign
       artifact or the FEFO-not-in-pool no-op)
 - [x] `scripts/audit_reviewer_items.py` prints ALL CHECKS PASS (40/40)
 - [x] `config.yaml` carries the Stage-1 pool `[EEDD, COVERT, MS, ATC, MDD, EDD]`
@@ -44,9 +44,11 @@ restructuring rather than rewriting. Check them first, in this order.
       meaningfully, the "selection beats any single rule" framing does not survive
       and §6.2, §7 and the abstract need rebuilding around sample efficiency and
       amortisation instead.
-- [ ] **`frac_separation_below_1se` in `data/label_meta.json`.** 76.8% on the
-      smoke corpus. If it stays high, the soft labels are largely noise — report it,
-      and make the $M$ sweep the headline of §6.4 rather than a supplementary result.
+- [ ] **`frac_separation_below_1se` in `data/label_meta.json`.** 50.4% on a
+      4-shift smoke corpus with the deployed six-rule pool (76.8% on the nine-rule
+      candidate set). If it stays near half at full scale, the rollout does not
+      resolve half the decisions — report it, and make the $M$ sweep the headline
+      of §6.4 rather than a supplementary result.
 - [ ] **`gap_closed_fraction` for PPO, and the FQI coverage fix.** §6.9 and §6.10
       are written conditionally. If either gap closes materially, withdraw the
       structural claim and adopt the tuned configuration as the baseline throughout.

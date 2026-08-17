@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.isotonic import IsotonicRegression
 from sklearn.frozen import FrozenEstimator
 from sklearn.model_selection import GroupShuffleSplit
 
@@ -108,25 +109,84 @@ class CalibratedRanker:
     def __init__(self, base_model, feature_cols: list[str]):
         self.base_model = base_model
         self.feature_cols = list(feature_cols)
-        self._calibrator: CalibratedClassifierCV | None = None
+        self._calibrator: object | None = None
+        self._iso: list = []
+        self._uncalibrated: list[int] = []
 
     def fit(self, df_cal: pd.DataFrame) -> "CalibratedRanker":
+        """Fit one-vs-rest isotonic regression per rule, on the held-out split.
+
+        WHY THIS IS NOT `CalibratedClassifierCV`. That is what it used to be, and
+        it fails whenever a rule never wins in the calibration split: it infers
+        the class set from `argmax` labels, gets fewer classes than the ranker has
+        outputs, and indexes off the end of `predict_proba`.
+
+        That is not a corner case here, it is the expected case. Stage-1 screening
+        (Section 6.1) retained rules with win rates from 65% down to 1.1%, so on a
+        calibration split of a few hundred epochs the tail rules appear a handful
+        of times and sometimes not at all — and `CalibratedClassifierCV` runs an
+        internal cross-validation over that split, so a rule need only be absent
+        from ONE fold. It crashed on the smoke corpus where EDD won nothing, and
+        it would have crashed at full scale after the labelling stage had already
+        run.
+
+        Multiclass isotonic calibration IS one-vs-rest isotonic per class followed
+        by renormalisation, so fitting it directly is the same method rather than a
+        substitute for it — with the estimator already prefit, the internal
+        cross-validation was doing nothing for us either way. A rule absent from
+        the split keeps its uncalibrated probability, which is the right default:
+        there is no evidence on which to correct it.
+        """
         X_cal = df_cal[self.feature_cols].to_numpy(dtype=np.float64)
         P_cal = df_cal[prob_columns(df_cal)].to_numpy(dtype=np.float64)
         y_cal = np.argmax(P_cal, axis=1).astype(np.int64)
 
-        # sklearn >=1.6 deprecated `cv='prefit'`; wrap the fit model in
-        # FrozenEstimator so CalibratedClassifierCV treats it as already trained.
-        self._calibrator = CalibratedClassifierCV(
-            estimator=FrozenEstimator(self.base_model), method="isotonic"
-        )
-        self._calibrator.fit(X_cal, y_cal)
+        raw = self.base_model.predict_proba(X_cal)
+        n_class = raw.shape[1]
+        if P_cal.shape[1] != n_class:
+            raise ValueError(
+                f"calibration frame has {P_cal.shape[1]} label columns but the "
+                f"ranker emits {n_class}; the pool and the labels have drifted."
+            )
+
+        self._iso = [None] * n_class
+        self._uncalibrated: list[int] = []
+        for k in range(n_class):
+            target = (y_cal == k).astype(np.float64)
+            # A class needs both outcomes present for isotonic to be identified.
+            if target.min() == target.max():
+                self._uncalibrated.append(k)
+                continue
+            iso = IsotonicRegression(out_of_bounds="clip", y_min=0.0, y_max=1.0)
+            iso.fit(raw[:, k], target)
+            self._iso[k] = iso
+
+        if self._uncalibrated:
+            print(
+                f"[calibration] {len(self._uncalibrated)} of {n_class} rules never "
+                f"win in the calibration split (indices {self._uncalibrated}); "
+                f"their probabilities are passed through uncalibrated."
+            )
+        self._calibrator = self  # marks 'fitted' for predict_proba
         return self
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        raw = self.base_model.predict_proba(X)
         if self._calibrator is None:
-            return self.base_model.predict_proba(X)
-        return self._calibrator.predict_proba(X)
+            return raw
+        out = np.empty_like(raw)
+        for k in range(raw.shape[1]):
+            iso = self._iso[k]
+            out[:, k] = raw[:, k] if iso is None else iso.predict(raw[:, k])
+        # Per-class isotonic does not preserve the simplex; renormalise. A row
+        # driven to all-zero by clipping falls back to its uncalibrated form
+        # rather than to NaN.
+        total = out.sum(axis=1, keepdims=True)
+        degenerate = total.squeeze(-1) < 1e-12
+        if np.any(degenerate):
+            out[degenerate] = raw[degenerate]
+            total = out.sum(axis=1, keepdims=True)
+        return out / total
 
 
 def evaluate_calibration(

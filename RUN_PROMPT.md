@@ -99,10 +99,12 @@ you find yourself changing a parameter to make one of them go away, stop.
    Report it either way.
 2. frac_separation_below_1se in data/label_meta.json — the share of decision
    epochs whose best and second-best rules are separated by less than one pooled
-   standard error. On the smoke corpus this was 76.8%. If it stays that high at
-   full scale, the soft labels are largely noise; that is a real result about the
-   method and it must be reported, not smoothed. It also makes the M sweep
-   (E4 n_samples) the important experiment rather than a supplementary one.
+   standard error. On a 4-shift smoke corpus with the deployed six-rule pool this
+   is 50.4% (it was 76.8% on the nine-rule candidate set, so screening helped).
+   If it stays near 50% at full scale, half the labels are not resolved by the
+   rollout; that is a real result about the method and must be reported, not
+   smoothed. It also makes the M sweep (E4 n_samples) the important experiment
+   rather than a supplementary one.
 3. The margin over EEDD-alone. EEDD wins 65% of decisions and owns 15 of the 16
    state-space grid cells; the per-cell oracle gap is only 7.29 points. Watch
    DAHS's COMPOSITE COST margin over the eedd row in Stage 4. If it is not

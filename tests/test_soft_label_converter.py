@@ -226,3 +226,47 @@ def test_unknown_beta_mode_is_rejected(cfg_labeling):
     bad = OmegaConf.merge(cfg_labeling, {"beta_mode": "sqrt"})
     with pytest.raises(ValueError, match="beta_mode"):
         costs_to_probs(_heteroscedastic_costs(n_rows=32), bad)
+
+
+def test_beta_search_resolves_a_step_like_entropy_curve(cfg_labeling):
+    """A grid cannot resolve this; bisection must.
+
+    Under per-row tempering the median-entropy curve is close to a step: on the
+    six-rule smoke corpus it ran 0.077 at beta=0.20 to 0.889 at beta=0.60, so the
+    entire target band is crossed between two adjacent grid points. A grid that
+    straddles the band on one corpus can miss it on another, and the search would
+    then return an out-of-band temperature and mis-scale every label.
+    """
+    rng = np.random.default_rng(5)
+    # Well-separated costs -> a sharp transition from one-hot to uniform.
+    costs = rng.standard_normal((400, K)) * 40.0
+    probs, beta = costs_to_probs(costs, cfg_labeling)
+    lo, hi = entropy_band(cfg_labeling, K)
+    median = float(np.median(row_entropy(probs)))
+    assert lo <= median <= hi, (
+        f"beta={beta:.4f} gave median entropy {median:.4f}, outside [{lo}, {hi}]"
+    )
+    # And it should land near the middle, not scrape an edge.
+    mid = 0.5 * (lo + hi)
+    assert abs(median - mid) < 0.25 * (hi - lo), (
+        f"median entropy {median:.4f} sits at the edge of [{lo}, {hi}], not near {mid:.4f}"
+    )
+
+
+def test_beta_search_extends_beyond_the_grid_when_it_must(cfg_labeling):
+    """The grid brackets the search; it must not cap it.
+
+    At full scale the optimum may sit outside a grid tuned on a smaller corpus.
+    Returning an endpoint silently would mis-scale every label, so the bracket
+    is widened instead.
+    """
+    narrow = OmegaConf.merge(cfg_labeling, {"beta_grid": [0.9, 1.0]})
+    rng = np.random.default_rng(6)
+    costs = rng.standard_normal((300, K)) * 60.0
+    probs, beta = costs_to_probs(costs, narrow)
+    lo, hi = entropy_band(narrow, K)
+    median = float(np.median(row_entropy(probs)))
+    assert lo <= median <= hi, (
+        f"search capped at the grid: beta={beta:.4f}, entropy {median:.4f} "
+        f"outside [{lo}, {hi}]"
+    )

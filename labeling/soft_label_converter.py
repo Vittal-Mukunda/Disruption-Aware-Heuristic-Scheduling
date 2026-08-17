@@ -7,8 +7,9 @@ distribution over rules,
 
 with the temperature scale chosen once so the median row entropy of the training
 labels lands in `cfg.labeling.target_median_entropy`. Beta is searched over
-`cfg.labeling.beta_grid` as a dimensionless multiplier, so the grid is scale-free
-with respect to the objective's units.
+a dimensionless multiplier. `cfg.labeling.beta_grid` brackets the search; the
+multiplier itself is found by bisection, since median entropy is monotone in it
+and the curve is too steep for a grid to resolve reliably.
 
 Three changes from the submitted version.
 
@@ -167,32 +168,63 @@ def costs_to_probs(
     lo, hi = entropy_band(cfg_labeling, cost_matrix.shape[1])
     mid = 0.5 * (lo + hi)
 
-    # Pick the candidate whose median entropy sits closest to the middle of the
-    # band, not the first one that happens to fall inside it. The band is wide
-    # enough that several multipliers qualify, and taking the first leaves the
-    # choice to grid order — which put the submitted search at the very edge of
-    # the band whenever it did land inside.
-    best_beta: float | None = None
-    best_distance = float("inf")
-    in_band = False
-    for mult in cfg_labeling.beta_grid:
-        candidate = float(mult)
-        temp = _temperature(cost_matrix, candidate, mode, sigma_J)
-        probs = _softmax_neg_costs(cost_matrix, temp)
-        median_entropy = float(np.median(row_entropy(probs)))
-        candidate_in_band = lo <= median_entropy <= hi
-        distance = abs(median_entropy - mid)
-        # An in-band candidate always beats an out-of-band one, however close
-        # the latter is to the midpoint.
-        better = (candidate_in_band and not in_band) or (
-            candidate_in_band == in_band and distance < best_distance
-        )
-        if better:
-            best_distance, best_beta, in_band = distance, candidate, candidate_in_band
+    def median_entropy(b: float) -> float:
+        temp = _temperature(cost_matrix, b, mode, sigma_J)
+        return float(np.median(row_entropy(_softmax_neg_costs(cost_matrix, temp))))
 
-    assert best_beta is not None
-    temp = _temperature(cost_matrix, best_beta, mode, sigma_J)
-    return _softmax_neg_costs(cost_matrix, temp), best_beta
+    # A GRID IS NOT ENOUGH, AND THE SMOKE CORPUS SHOWS WHY. Median label entropy
+    # is monotone increasing in beta, but under per-row tempering the curve is
+    # close to a step: on the six-rule smoke corpus it runs 0.077 at beta = 0.20
+    # to 0.889 at beta = 0.60, so the whole target band is crossed between two
+    # adjacent grid points and only two candidates land inside it at all. A grid
+    # that happens to straddle the band on one corpus can miss it entirely on
+    # another — different pool size, different cost distribution — and the search
+    # would then return an out-of-band temperature and mis-scale every label.
+    #
+    # Monotonicity is what makes this easy to do properly: bisect on log beta,
+    # which is the natural scale for a multiplier spanning two orders of
+    # magnitude. The grid is retained solely to bracket the root.
+    grid = sorted(float(m) for m in cfg_labeling.beta_grid)
+    lo_b, hi_b = grid[0], grid[-1]
+    e_lo, e_hi = median_entropy(lo_b), median_entropy(hi_b)
+
+    # Extend the bracket rather than silently returning an endpoint: at full
+    # scale the optimum may sit outside a grid tuned on a smaller corpus.
+    for _ in range(12):
+        if e_lo <= hi:
+            break
+        lo_b /= 4.0
+        e_lo = median_entropy(lo_b)
+    for _ in range(12):
+        if e_hi >= lo:
+            break
+        hi_b *= 4.0
+        e_hi = median_entropy(hi_b)
+
+    if e_lo > hi or e_hi < lo:
+        # The band is genuinely unreachable — every rule ties everywhere, or the
+        # costs are so separated that no temperature softens them into the band.
+        # Return the closer endpoint; the caller reports the achieved entropy and
+        # `entropy_in_band: false` rather than this passing unnoticed.
+        best = lo_b if abs(e_lo - mid) <= abs(e_hi - mid) else hi_b
+        return _softmax_neg_costs(
+            cost_matrix, _temperature(cost_matrix, best, mode, sigma_J)
+        ), best
+
+    beta_star = hi_b
+    for _ in range(60):
+        beta_star = float(np.sqrt(lo_b * hi_b))      # geometric midpoint
+        e = median_entropy(beta_star)
+        if lo <= e <= hi and abs(e - mid) <= 0.02 * (hi - lo):
+            break
+        if e < mid:
+            lo_b = beta_star
+        else:
+            hi_b = beta_star
+
+    return _softmax_neg_costs(
+        cost_matrix, _temperature(cost_matrix, beta_star, mode, sigma_J)
+    ), beta_star
 
 
 def fefo_mask(

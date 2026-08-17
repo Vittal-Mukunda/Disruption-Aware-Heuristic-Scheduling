@@ -123,3 +123,87 @@ def test_evaluate_calibration_returns_report(cfg_ranker_small):
     assert 0.0 <= report.ece_post <= 1.0
     assert report.brier_post >= 0.0
     assert report.soft_xent_post >= 0.0
+
+
+# --- Rules absent from the calibration split (revision) ----------------------
+#
+# Stage-1 screening retained rules winning from 65% of decisions down to 1.1%,
+# so on a calibration split of a few hundred epochs the tail rules appear a
+# handful of times and sometimes not at all. The previous implementation used
+# CalibratedClassifierCV, which infers its class set from argmax labels: with a
+# rule absent it saw fewer classes than the ranker emits and indexed off the end
+# of predict_proba. It crashed on the smoke corpus where EDD won nothing, and
+# would have crashed at full scale AFTER the labelling stage had already run.
+
+
+class _FixedRanker:
+    """A stand-in ranker emitting a fixed K-column distribution."""
+
+    def __init__(self, probs):
+        self._p = np.asarray(probs, dtype=float)
+
+    def predict_proba(self, X):
+        n = len(X)
+        out = np.resize(self._p, (n, self._p.shape[-1]))
+        return out / out.sum(axis=1, keepdims=True)
+
+
+def _cal_frame(n_rows: int, k: int, winners, feature_cols):
+    """A calibration frame whose argmax labels cover only `winners`."""
+    rng = np.random.default_rng(0)
+    P = rng.uniform(0.01, 0.05, size=(n_rows, k))
+    for i in range(n_rows):
+        P[i, winners[i % len(winners)]] = 0.9
+    P /= P.sum(axis=1, keepdims=True)
+    df = pd.DataFrame(rng.standard_normal((n_rows, len(feature_cols))),
+                      columns=feature_cols)
+    for j in range(k):
+        df[f"p_rule{j}"] = P[:, j]
+    return df
+
+
+def test_calibrator_survives_a_rule_that_never_wins():
+    """The exact failure that killed Stage 3 on the smoke corpus."""
+    from models.calibration import CalibratedRanker
+
+    k, feats = 6, ["f0", "f1", "f2"]
+    # Only classes 0..3 ever win; 4 and 5 never do.
+    df = _cal_frame(120, k, winners=[0, 1, 2, 3], feature_cols=feats)
+    ranker = _FixedRanker(np.full(k, 1.0 / k))
+
+    cal = CalibratedRanker(ranker, feats).fit(df)
+    out = cal.predict_proba(df[feats].to_numpy())
+
+    assert out.shape == (len(df), k), "calibrated output lost a class column"
+    assert np.isfinite(out).all(), "calibration produced non-finite probabilities"
+    assert np.allclose(out.sum(axis=1), 1.0), "calibrated rows are not a distribution"
+
+
+def test_calibrator_passes_absent_rules_through_uncalibrated():
+    """An absent rule has no evidence to correct it, so it must be untouched."""
+    from models.calibration import CalibratedRanker
+
+    k, feats = 4, ["f0", "f1"]
+    df = _cal_frame(80, k, winners=[0, 1], feature_cols=feats)
+    base = np.array([0.4, 0.3, 0.2, 0.1])
+    cal = CalibratedRanker(_FixedRanker(base), feats).fit(df)
+
+    assert set(cal._uncalibrated) == {2, 3}, (
+        f"expected classes 2 and 3 to be uncalibrated, got {cal._uncalibrated}"
+    )
+    # Their RELATIVE proportion is preserved (renormalisation scales both alike).
+    out = cal.predict_proba(df[feats].to_numpy())
+    assert np.allclose(out[:, 2] / out[:, 3], base[2] / base[3]), (
+        "absent classes were altered relative to one another"
+    )
+
+
+def test_calibrator_still_calibrates_when_every_rule_wins():
+    """Guard: the robustness path must not disable calibration outright."""
+    from models.calibration import CalibratedRanker
+
+    k, feats = 4, ["f0", "f1"]
+    df = _cal_frame(200, k, winners=[0, 1, 2, 3], feature_cols=feats)
+    cal = CalibratedRanker(_FixedRanker(np.full(k, 1.0 / k)), feats).fit(df)
+    assert cal._uncalibrated == [], "a class was skipped despite winning"
+    assert sum(i is not None for i in cal._iso) == k, "not every class was fitted"

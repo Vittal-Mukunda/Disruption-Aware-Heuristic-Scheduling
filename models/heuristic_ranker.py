@@ -237,7 +237,34 @@ def cross_validate_ranker(
     X = df[feature_cols].to_numpy(dtype=np.float64)
     P = df[prob_cols].to_numpy(dtype=np.float64)
     groups = df[str(cfg_ranker.cv.group_col)].to_numpy()
+    n_groups = int(len(np.unique(groups)))
     n_splits = int(cfg_ranker.cv.n_splits)
+
+    # CLAMP TO THE NUMBER OF SHIFTS. Folds are grouped on `shift_id` so a corpus
+    # of n shifts admits at most n folds, and `GroupKFold` raises rather than
+    # degrading when asked for more. `--smoke` shrinks the hyperparameter grid
+    # but not `cv.n_splits`, so the documented smoke gate — the thing the
+    # campaign runs BEFORE committing to the expensive stages — died here on a
+    # 3-shift corpus with `n_splits=5 > n_groups=3`. The data-efficiency sweep
+    # retrains at budgets as small as 10 shifts and would hit the same edge if
+    # the smallest budget were ever lowered.
+    #
+    # Clamping is right rather than merely convenient: k-fold with k = n_groups
+    # is leave-one-shift-out, which is the strictest grouped validation the
+    # corpus supports. The count is recorded so a run cannot silently claim
+    # 5-fold when it did something else.
+    if n_groups < 2:
+        raise ValueError(
+            f"grouped cross-validation needs at least 2 distinct "
+            f"'{cfg_ranker.cv.group_col}' values, found {n_groups}. A single "
+            f"shift cannot be split into training and validation folds."
+        )
+    if n_splits > n_groups:
+        print(
+            f"[ranker] cv.n_splits={n_splits} exceeds the {n_groups} shifts in "
+            f"this corpus; using {n_groups}-fold (leave-one-shift-out)."
+        )
+        n_splits = n_groups
 
     grid = _param_grid(cfg_ranker.hyperparams)
     splitter = GroupKFold(n_splits=n_splits)
