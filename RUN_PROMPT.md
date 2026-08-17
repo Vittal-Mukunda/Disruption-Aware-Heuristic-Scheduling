@@ -127,6 +127,15 @@ DO NOT
 - Do not fill in any TBD-rerun passage in paper/manuscript.md yourself. Collect the
   numbers; the authors write the prose.
 
+AFTER THE RUN — do not attempt these, they are the authors' work
+- paper/RESPONSE_TO_REVIEWERS.md has a PENDING marker per reviewer item, each
+  naming the artifact its number comes from. Do NOT fill them; just make sure the
+  named artifact exists and say so in your report if one does not.
+- SUBMISSION_CHECKLIST.md section 2 lists four checks that decide whether the
+  paper needs restructuring rather than rewriting. Report the four numbers.
+- `python scripts/build_submission.py --check` is the readiness gate. Run it at
+  the end and paste its output verbatim into your report.
+
 FINAL REPORT
 Produce a markdown file CAMPAIGN_REPORT.md at the repo root containing:
 - Machine: CPU model, core count, RAM, OS, Python version. Total wall-clock per

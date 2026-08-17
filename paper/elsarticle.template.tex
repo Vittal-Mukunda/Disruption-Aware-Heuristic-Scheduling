@@ -1,0 +1,73 @@
+$-- Pandoc template -> Elsevier elsarticle, for CAOR-D-26-01812.
+$-- Driven by scripts/build_submission.py. Requires the `elsarticle` class,
+$-- which ships with TeX Live and MiKTeX.
+$--
+$-- The `review` option gives the double-spaced single-column layout Elsevier
+$-- asks for at submission. Swap to `final,5p,times,twocolumn` for a preprint
+$-- that looks like the published article.
+\documentclass[review,3p,times]{elsarticle}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+
+$-- Pandoc emits these for pipe tables and fenced blocks.
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+
+$-- Propositions 1 and 2 are stated as numbered results in Section 4.
+\newtheorem{proposition}{Proposition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+\journal{Computers \& Operations Research}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{$title$}
+
+$-- The markdown frontmatter carries name / email / affiliation per author.
+$-- All three share one affiliation, so it is declared once and referenced.
+$for(author)$
+\author[rvce]{$author.name$$if(author.email)$\corref{$if(author.corresponding)$cor1$endif$}$endif$}
+$if(author.email)$\ead{$author.email$}$endif$
+$endfor$
+
+\affiliation[rvce]{organization={Department of Industrial Engineering and Management, R. V. College of Engineering},
+                   city={Bengaluru},
+                   country={India}}
+
+$if(corresponding)$
+\cortext[cor1]{Corresponding author.}
+$endif$
+
+\begin{abstract}
+$abstract$
+\end{abstract}
+
+$if(keywords)$
+\begin{keyword}
+$for(keywords)$$keywords$$sep$ \sep $endfor$
+\end{keyword}
+$endif$
+
+\end{frontmatter}
+
+$body$
+
+\end{document}
