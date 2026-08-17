@@ -769,52 +769,88 @@ two straddle its product deadline,
 $$ t + p_o \;\le\; x_o \;<\; t + L + p_o , $$
 
 so that one interval of delay is the difference between saleable goods and waste,
-and **due-pivotal** when the same holds for $d_o$. We report the share of
-decisions with at least one expiry-pivotal order in the queue, the share of queued
-perishables that are expiry-pivotal, the share of perishables whose product clock
-binds strictly before their customer clock, and the share of total economic weight
-sitting on expiry-pivotal orders. The threshold for the claim to stand was fixed
-at 5% of decisions before the diagnostic was run. Section 6.4 reports the outcome.
-Had it fallen below the threshold, the correct response would have been to drop
-the perishability framing and remove FEFO from the pool, and we would have
-reported that instead.
+and **due-pivotal** when the same holds for $d_o$.
+
+Three conditions were fixed *before* the diagnostic was run, and all three had to
+hold for the framing to stand: at least 5% of decisions carrying an expiry-pivotal
+order; at least 10% of perishables having their product clock bind before their
+customer clock; and the choice of rule moving the spoilage count at at least 10% of
+epochs. Had any failed, the correct response was to drop the perishability framing
+and the expiry-aware rules, and to report that instead.
+
+**Table 0**. Perishability decision-relevance, 30 calibration shifts, 7,440
+decision epochs.
+
+| Quantity | Measured | Threshold |
+|---|---:|---:|
+| Decisions with an expiry-pivotal order in queue | **35.5%** | ≥ 5% |
+| Perishables whose expiry binds before their due date | **27.6%** | ≥ 10% |
+| Epochs where the rule choice changes the spoilage count | **91.0%** | ≥ 10% |
+| Queued perishables that are expiry-pivotal | 7.3% | — |
+| All orders that are expiry-pivotal | 1.4% | — |
+| Share of economic weight on expiry-pivotal orders | 1.3% | — |
+| Mean spoilage spread across rules, when discriminating | 3.97 orders | — |
+
+All three pre-registered conditions are met, so the constraint is real at this
+horizon and the framing stands. Two qualifications belong with that conclusion
+rather than after it. The *marginal* rate is small — only 1.4% of individual orders
+are expiry-pivotal at any given epoch, carrying 1.3% of economic weight — so
+perishability is not the dominant cost driver; the customer clock is, with 95.1% of
+epochs carrying a due-pivotal order against 35.5% carrying an expiry-pivotal one.
+What makes it decision-relevant is concentration and frequency: the pivotal orders
+cluster, so a third of all decisions have at least one in the queue, and at 91.0% of
+epochs the choice of rule moves realised spoilage — by about four orders where it
+moves it at all. A constraint that changes the outcome at nine epochs in ten is
+binding on the controller whatever share of orders it touches.
 
 ## 3.6 The rule pool
 
-The pool is not a convenience sample. It spans the four information sources a
-dispatcher can key on, so that "no single rule dominates" is a structural property
-of the design space rather than an empirical accident:
+The pool is not a convenience sample. Candidates span the four information
+sources a dispatcher can key on, so that "no single rule dominates" is a
+structural property of the design space rather than an empirical accident. Nine
+candidates are screened (Section 6.1); the six that survive are marked.
 
-| Rule | Keys on | Source |
-|---|---|---|
-| FIFO | arrival only | zero-information control |
-| EDD | customer deadline | @jackson1955edd |
-| MS | customer deadline slack | @conway1967theory |
-| MDD | customer deadline, degrading to SPT when past due | @baker1982mdd |
-| **FEFO** | **product deadline** | the only expiry-aware rule |
-| WSPT | weight and processing time | @smith1956wspt |
-| ATC | slack × processing, exponential discount | @vepsalainen1987atc |
-| COVERT | slack × processing, linear truncation | @carroll1965covert |
+| Rule | Keys on | Source | Retained |
+|---|---|---|:--:|
+| FIFO | arrival only | zero-information control | — |
+| EDD | customer deadline | @jackson1955edd | ✓ |
+| **EEDD** | **both deadlines**: $\min(d_o, x_o)$ | this paper (see below) | ✓ |
+| MS | customer deadline slack | @conway1967theory | ✓ |
+| MDD | customer deadline, degrading to SPT when past due | @baker1982mdd | ✓ |
+| FEFO | product deadline only | classical lot-issuing rule | — |
+| WSPT | weight and processing time | @smith1956wspt | — |
+| ATC | slack × processing, exponential discount | @vepsalainen1987atc | ✓ |
+| COVERT | slack × processing, linear truncation | @carroll1965covert | ✓ |
 
-Three points the submitted version left open.
+Four points the submitted version left open.
 
-**FEFO is not a due-date rule**. In the submitted paper we described FEFO as
-"deadline-aware" and implemented it as a sort on $d_o$. That is EDD. FEFO sorts on
-the product deadline $x_o$ and is now implemented that way; EDD appears in the
-pool under its own name. The rule that produced the submitted FEFO results is EDD,
-and results are reported accordingly.
+**FEFO is not a due-date rule, and neither rule alone is right**. The submitted
+paper described FEFO as "deadline-aware" and implemented it as a sort on $d_o$.
+That is EDD, and both now appear under their correct names. But separating them
+exposed something the submitted model could not have shown: with two deadlines,
+*neither* single-clock rule is the sensible one. EDD ignores expiry entirely.
+FEFO ranks on $x_o$, which is $\infty$ for the 80% of orders that are not
+perishable, so it dumps every non-perishable order behind every perishable one —
+on this order mix that is close to a strawman, and it is why the FEFO mask
+(Section 4.3) had to exist at all.
+
+The rule a scheduler would actually write, told that orders carry two deadlines,
+sorts ascending on the **effective deadline** $\min(d_o, x_o)$ — whichever clock
+binds first. We call it **EEDD**, and it is in the pool because leaving it out
+would have made "expiry-awareness buys nothing" an artefact of testing only a
+degenerate expiry rule. Section 6.1 reports what it earns.
 
 **ATC is calibrated, not assumed**. WSPT is exactly the $k \to \infty$ limit of
 ATC: as the look-ahead scale grows, $\exp(-\text{slack}/(k\bar p)) \to 1$, leaving
 the WSPT index $w_o/p_o$. A correctly calibrated ATC therefore cannot be beaten by
 WSPT, and the submitted result — WSPT winning 32% of decisions against ATC's 10% —
-was a symptom of an unfitted $k$, which was fixed at 2.0 with no search performed.
-We now calibrate $k$ twice, on a calibration corpus disjoint from both training
-and test shifts: once for **standalone** use, because ATC is itself a reported
-benchmark and benchmarking an uncalibrated rule understates it; and once for
-**portfolio contribution**, which is the quantity that matters when the rule sits
-inside a selector. Both values, and the deployed one, are reported in Section 6.1.
-COVERT's scale is calibrated the same way.
+was a symptom of an unfitted $k$, fixed at 2.0 with no search performed. We
+calibrate $k$ twice, on a calibration corpus disjoint from both training and test
+shifts: once for **standalone** use, because ATC is itself a reported benchmark
+and benchmarking an uncalibrated rule understates it; and once for **portfolio
+contribution**, which is the quantity that matters when the rule sits inside a
+selector. COVERT's scale is calibrated the same way. Section 6.1 reports both
+values and the deployed one.
 
 **Screening is by marginal contribution, not win rate**. A rule earns its slot by
 covering states the others handle badly. We therefore report, per rule, both its
@@ -823,11 +859,8 @@ with a bootstrap interval on the latter. A rule with a high win rate and zero
 marginal contribution is redundant; a rule with a low win rate and positive
 marginal contribution is a specialist worth keeping. Win rate alone, which is what
 the submitted Section 6.1 reported, cannot distinguish the two. This is also how
-we answer the question of what **FIFO** contributes in a due-date-driven setting:
-it is retained as the zero-information control, and the screen reports whether it
-earns its place. If it does not, we drop it and say so — in the submitted
-labelling FIFO was the cost-minimising rule at none of the 865 filtered test
-states, which is itself a finding rather than an embarrassment.
+we answer what **FIFO** contributes in a due-date-driven setting: it enters as the
+zero-information control and the screen reports whether it earns its place.
 
 ---
 
@@ -941,7 +974,8 @@ the median training-label entropy falls in a target band expressed as a fraction
 of $\log|\mathcal{H}|$ rather than in absolute nats — sharp enough to be
 informative, soft enough to retain the cost margin. The submitted band was an
 absolute $[0.3, 0.7]$ chosen when the pool held four rules; carried unchanged to a
-larger pool it would have sharpened every label as a side effect of adding rules.
+pool of a different size it would have re-sharpened every label as a side effect of
+changing the pool.
 The same $\beta$ is applied to the test and calibration corpora, which would
 otherwise not be on the ranker's scale.
 ⟨TBD-rerun: report the selected $\beta$ and the achieved median entropy against
@@ -949,10 +983,21 @@ the band.⟩
 
 Two corrections are applied consistently in both labelling and deployment: when
 the perishable fraction is below 0.05 the FEFO mass is zeroed and the distribution
-renormalised (FEFO cannot act on a queue with no product deadlines); and, *for the
-test corpus only*, states whose maximum label probability falls below
+renormalised, because FEFO cannot rank a queue with no product deadlines; and,
+*for the test corpus only*, states whose maximum label probability falls below
 $\theta = 2.2/|\mathcal{H}|$ are filtered out as genuinely ambiguous decisions.
 The threshold scales with the pool for the same reason the entropy band does.
+
+**The mask is inert in the deployed model, and we leave it in place rather than
+delete it.** Screening dropped FEFO (Section 6.1), so there is no expiry-only rule
+left for the mask to suppress and it is a no-op on the deployed pool. It is
+retained because it is a property of the *labelling and deployment contract*, not
+of one pool: any pool containing a rule that ranks on $x_o$ alone needs it, and
+removing the code would silently reintroduce the defect if FEFO ever returned. It
+should not, however, be counted as a working component of the method as deployed —
+the submitted version described it as one, and on the screened pool it is not.
+EEDD, which ranks on $\min(d_o, x_o)$, needs no mask: on a queue with no
+perishables it degrades continuously to EDD rather than becoming undefined.
 
 **Where the corpora come from**. Shift seeds are drawn once from a single
 `SeedSequence` and partitioned into three contiguous, disjoint blocks: training,
@@ -1125,7 +1170,8 @@ clears.
 At deployment the calibrated ranker emits, each interval, a distribution over the
 retained pool $\mathcal{H}$. A thin *switching controller* maps that distribution
 to an action. It
-(i) applies the same FEFO mask used at labelling time; (ii) enforces a minimum
+(i) applies the same expiry-rule mask used at labelling time, which is a no-op on
+the screened pool (Section 4.3); (ii) enforces a minimum
 dwell of $T_{\min} = 2$ intervals after a switch, to prevent operationally
 disruptive rule thrashing; and (iii) overrides the dwell and switches immediately
 when the ranker is highly confident (entropy below half the maximum). We
@@ -1236,31 +1282,104 @@ it is not requires three things the submitted version did not provide: calibrate
 rules, a screen that distinguishes redundant rules from specialists, and evidence
 of complementarity across the **state space** rather than across instances.
 
-**Calibration (Section 3.6)**. ATC's look-ahead scale is fitted on the calibration
-corpus, once for standalone use and once for portfolio contribution, and COVERT's
-the same way. ⟨TBD-rerun: report $k^\star_{\text{standalone}}$,
-$k^\star_{\text{portfolio}}$, the deployed value for each rule, and the cost curve
-over the grid. The submitted paper reported WSPT winning 32% of decisions against
-ATC's 10%, which cannot hold for a fitted ATC since WSPT is its $k\to\infty$
-limit; state whether calibration resolves the inversion.⟩
+This section is complete: it runs on the 30-shift calibration block, which is
+disjoint from both training and test, and it does not depend on the trained
+selector. Its results therefore stand ahead of the rest of Section 6.
 
-**Screening**. Each candidate is scored by win rate *and* by marginal
-contribution — the increase in achievable cost when it is removed from the pool —
-with a bootstrap interval on the latter. ⟨TBD-rerun: report the screening table
-and the retained pool. A rule is retained when its marginal-contribution interval
-excludes zero. State explicitly which candidates are dropped and why, including
-whether FIFO earns its slot as the zero-information control.⟩
+### Calibration
 
-**Complementarity**. The submitted Figure 1 reported win rate per shift and per
-interval. That varies the *instance*, not the state, and so cannot establish that
-the rules cover different operating regions —
-which is what "complementary" has to mean for a state-conditioned selector.
-Figure 1 is replaced by win rate over a grid of the two state dimensions that
-govern the decision: queue length and deadline pressure (mean slack), in quantile
-bins. A pool is complementary when different rules own different cells of that
-grid. ⟨TBD-rerun: report the grid, the number of cells each retained rule owns,
-and the gap between the best single rule and the per-cell oracle — the latter is
-the ceiling any selector could reach.⟩
+**Table 4**. Look-ahead scale calibration, 30 calibration shifts, $M = 5$
+continuations under common random numbers. Standalone cost is the composite
+objective with the rule used alone; portfolio marginal is the cost increase when
+the rule is removed from the pool at that $k$.
+
+| Rule | $k^\star_\text{standalone}$ | cost at $k^\star$ | $k^\star_\text{portfolio}$ | marginal at $k^\star$ | deployed |
+|---|---:|---:|---:|---:|---:|
+| ATC | 1.5 | 459.2 | 3.0 | 0.92 | **3.0** |
+| COVERT | 4.0 | 404.3 | 4.0 | 3.21 | **4.0** |
+
+The portfolio value is deployed, because the pool is what ships; both are reported
+because ATC is also a standalone benchmark and benchmarking an uncalibrated rule
+understates it.
+
+**This settles the WSPT/ATC inversion.** ATC's standalone cost is U-shaped in $k$
+with a minimum of 459.2 at $k^\star = 1.5$, and rises monotonically thereafter to
+1004.2 at $k = 20$ — a factor of 2.19. Since WSPT is exactly the $k \to \infty$
+limit (Section 3.6), that curve *is* the ATC-to-WSPT interpolation, and it says
+a fitted ATC beats WSPT by more than two-fold on this problem. The submitted
+finding that WSPT won 32% of decisions against ATC's 10% was therefore an artefact
+of the unfitted $k = 2.0$, not a property of the rules. The two values also differ
+by a factor of two ($k^\star_\text{standalone} = 1.5$ against
+$k^\star_\text{portfolio} = 3.0$), which is the concrete case for calibrating both:
+the scale that makes ATC best *alone* is not the scale that makes it most useful
+*inside a pool*, where its job is to cover states the other rules handle badly.
+
+### Screening
+
+**Table 5**. Pool screening on the same corpus. Marginal contribution is the
+increase in achievable cost when the rule is removed, with a percentile bootstrap
+interval; a rule is retained when that interval excludes zero.
+
+| Rule | win rate | marginal contribution | 95% CI | retained |
+|---|---:|---:|---|:--:|
+| **EEDD** | 0.650 | 5.403 | [4.840, 5.991] | ✓ |
+| COVERT | 0.145 | 2.047 | [1.613, 2.527] | ✓ |
+| MS | 0.070 | 0.248 | [0.119, 0.412] | ✓ |
+| ATC | 0.055 | 0.086 | [0.032, 0.155] | ✓ |
+| MDD | 0.011 | 0.039 | [0.014, 0.070] | ✓ |
+| EDD | 0.068 | 0.007 | [0.000, 0.021] | ✓ |
+| FIFO | 0.001 | 0.000 | [0.000, 0.000] | — |
+| WSPT | 0.000 | 0.000 | [0.000, 0.000] | — |
+| FEFO | 0.000 | 0.000 | [0.000, 0.000] | — |
+
+Four findings, three of them answering questions put to the submitted version.
+
+**FIFO earns nothing.** It is the cost-minimising rule at 0.1% of decisions and
+its marginal contribution is identically zero. As the zero-information control in
+a due-date-driven setting that is the expected result, and it is the direct answer
+to the question of what FIFO was doing in the pool: nothing, and it is dropped.
+Note that FIFO's flattering position in the submitted Table 1 is separately
+explained by the admission defect of Section 6.2, which penalised every
+arrival-agnostic rule and never penalised FIFO.
+
+**WSPT earns nothing either, and that is consistent rather than surprising.** A
+calibrated ATC dominates it by construction, so once ATC is fitted, WSPT is a
+strictly worse member of the same family and contributes nothing at the margin.
+
+**FEFO's failure is not evidence against expiry-awareness.** FEFO ranks on $x_o$,
+which is infinite for the 80% of orders that are not perishable, so it sorts every
+non-perishable order behind every perishable one. It contributes nothing because it
+is a bad rule on this order mix, not because the product clock is uninformative —
+and reading its zero as "expiry-awareness buys nothing" would have been the wrong
+inference. EEDD, which reads $\min(d_o, x_o)$, settles it: it wins 65% of decisions
+with a marginal contribution of 5.403, two and a half times COVERT's and by far the
+largest in the pool. Expiry-awareness matters a great deal on this problem; the
+screen was rejecting a poor implementation of it.
+
+**One rule exceeds the pre-registered concentration ceiling.** EEDD's 0.650 win
+rate is above the 0.60 ceiling fixed in advance as the point beyond which a pool is
+too concentrated for selection to be worthwhile. We report it rather than drop the
+rule to get under the gate, and we read it as a genuine caution about the headline:
+a pool with one rule winning two-thirds of decisions leaves a selector less room
+than the submitted four-rule pool appeared to. Whether that room is enough is what
+Section 6.2 measures, and the per-cell oracle gap below bounds it.
+
+### Complementarity
+
+The submitted Figure 1 reported win rate per shift and per interval. That varies
+the *instance*, not the state, and so cannot establish that the rules cover
+different operating regions — which is what "complementary" has to mean for a
+state-conditioned selector. Figure 1 is replaced by win rate over a grid of the two
+state dimensions that govern the decision: queue length and deadline pressure (mean
+slack), in quantile bins. A pool is complementary when different rules own
+different cells.
+
+⟨TBD-rerun: report the number of grid cells each retained rule owns and the gap
+between the best single rule and the per-cell oracle — the latter is the ceiling
+any selector over this pool could reach, and given EEDD's concentration it is the
+number that says whether selection is worth doing here at all. If the oracle gap is
+small, say so: it bounds every result in Section 6.2 and it is better stated here
+than inferred later.⟩
 
 ![Figure 1. Rule complementarity over the state space: win rate of each retained
 rule across a grid of queue length (quantile bins) against deadline pressure (mean
@@ -1477,8 +1596,9 @@ The magnitude is a different matter and is regenerated. Under the submitted
 objective the curve was essentially flat from 25 to 250 shifts, which put roughly
 90% of the training corpus in the redundant column. Two changes in this revision
 push in opposite directions and we cannot say a priori which wins: the pool
-doubled from four rules to eight before screening (Section 3.6), which is a harder
-classification problem needing more data; and the labels became $M$-sample means
+changed from the submitted four rules to six screened from nine candidates
+(Section 6.1), a different classification problem; and the labels became
+$M$-sample means
 rather than single-path realisations (Section 4.3), which makes each training
 state more informative. The saturation budget is therefore a measurement, not a
 carried-forward figure.
@@ -1749,7 +1869,7 @@ submitted model these two ablations pointed in opposite directions. Dropping
 isotonic post-processing degraded both KPIs substantially, which is coherent: the
 switching controller's entropy gate acts on the predicted probabilities, so an
 uncalibrated ranker mis-times its switches. Disabling the dwell and the entropy
-gate — following the ranker's arg-max directly, with the FEFO mask still applied —
+gate — following the ranker's arg-max directly —
 *improved* both KPIs slightly, at conventional significance.
 
 We retain the controller deliberately and record that price rather than defend it.
@@ -2034,15 +2154,15 @@ eliminated in round one loses nothing it would have contributed. The rules whose
 label mass is materially non-zero are exactly the ones the allocation keeps
 sampling. ⟨TBD-rerun: report arg-max agreement and label KL against uniform
 allocation, and the step saving, from `compute_budget.py scaling`. If agreement is
-high and the saving material, recommend it as the default for pools beyond roughly
-eight rules; if not, report the mitigation as unsuccessful here.⟩
+high and the saving material, recommend it as the default for pools materially
+larger than the six deployed here; if not, report the mitigation as unsuccessful.⟩
 
 **Hierarchical selection.** The rules partition naturally by information source
 (Section 3.6): arrival-driven, customer-deadline-driven, product-deadline-driven,
 and processing-composite. A two-stage selector could choose a family and then a
 member, reducing the effective branching factor from $|\mathcal{H}|$ to
 $\sqrt{|\mathcal{H}|}$-ish at each stage and allowing rollouts to be spent per
-family rather than per rule. We do not implement this — with eight screened rules
+family rather than per rule. We do not implement this — with six screened rules
 the flat selector is not the bottleneck — but it is the natural next step for a
 pool of twenty, and we record it in Section 9.
 
@@ -2380,7 +2500,7 @@ state (Section 3.2).
 | 2 | `mean_queue_age` | queue | Waiting-time proxy; distinguishes fresh from stale backlog. |
 | 3 | `max_queue_age` | queue | Tail of the waiting-time distribution — starvation detector. |
 | 4 | `pct_critical` | queue | Share of queue within 30 min of its due time. |
-| 5 | `pct_perishable` | queue | Gates the FEFO mask; required for the expiry-aware rule. |
+| 5 | `pct_perishable` | queue | Gates the expiry-rule mask; tells the selector when the product clock is live at all. |
 | 6 | `n_arrivals_last_interval` | queue | Short-run demand shock; wave arrivals, Boysen et al. (2019). |
 | 7 | `labor_utilization` | resources | Classical queueing load indicator rho. |
 | 8 | `n_pickers_busy` | resources | Absolute capacity remaining this epoch. |
@@ -2499,7 +2619,8 @@ is searched over $\{0.01, \dots, 1.0\}$ so that the median training-label entrop
 falls within $[0.216, 0.505] \times \log|\mathcal{H}|$. The submitted scheme used a
 single global temperature; under the corrected objective the per-row cost spread
 varies by two orders of magnitude within a shift, so no one temperature keeps the
-labels in band. FEFO mask threshold 0.05 on the perishable fraction. Test-corpus
+labels in band. Expiry-rule mask threshold 0.05 on the perishable fraction (a
+no-op on the screened pool, which contains no expiry-only rule). Test-corpus
 ambiguity filter at $\theta = 2.2/|\mathcal{H}|$, never applied to the training
 corpus. The hard-label ablation of Section 6.8 replaces the tempered softmax with
 the one-hot arg-max of the same cost vector and is otherwise identical.

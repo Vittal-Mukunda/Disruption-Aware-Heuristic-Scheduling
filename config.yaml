@@ -69,7 +69,7 @@ objective:
 heuristics:
   # Stage-1 screening candidates. `pool` is overwritten with the survivors by
   # experiments/calibrate_rules.py; see simulation/heuristics.py for provenance.
-  pool: [FIFO, EDD, FEFO, WSPT, ATC, MS, MDD, COVERT]
+  pool: [EEDD, COVERT, MS, ATC, MDD, EDD]   # RETAINED by Stage 1 from ['FIFO', 'EDD', 'EEDD', 'FEFO', 'WSPT', 'ATC', 'MS', 'MDD', 'COVERT']
 
   # ATC look-ahead scale. CALIBRATED, not assumed (Reviewer 1, 4.c): WSPT is the
   # k -> inf limit of ATC, so a fitted k cannot lose to WSPT. The submitted value
