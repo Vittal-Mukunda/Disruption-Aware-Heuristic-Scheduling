@@ -62,6 +62,18 @@ def _train_seeds(cfg: DictConfig) -> list[int]:
     return shift_corpora(cfg)["train"]
 
 
+def _regime_gmm_or_none(cfg: DictConfig):
+    """The fitted regime mixture, when the baseline is configured to use it.
+
+    `use_regime_features` is the switch that decides whether the offline-RL
+    baseline sees the same state as DAHS. Whatever it says, the LOGGER and the
+    DEPLOYED POLICY must agree, so both go through this.
+    """
+    from baselines.offline_fqi import _load_regime_gmm
+
+    return _load_regime_gmm(cfg)
+
+
 def _cache_stamp(cfg: DictConfig) -> np.ndarray:
     """Identity of the corpus a transition log was built from.
 
@@ -72,9 +84,14 @@ def _cache_stamp(cfg: DictConfig) -> np.ndarray:
     from simulation.state_extractor import N_FEATURES
 
     obj = cfg.objective
+    gmm = _regime_gmm_or_none(cfg)
+    n_regime = int(getattr(gmm, "n_components", 0) or 0)
     return np.asarray([
         ",".join(resolve_pool(cfg)),
-        str(N_FEATURES),
+        # Raw width AND regime width: K* is selected by BIC and can move between
+        # campaigns without any config key changing, which would silently alter
+        # the state the transitions describe.
+        f"{N_FEATURES}+{n_regime}",
         str(cfg.labeling.observed_policy),
         f"{obj.w_breach},{obj.w_tardy},{obj.w_spoil},{obj.w_holding},"
         f"{obj.use_priority_weights}",
@@ -119,7 +136,14 @@ def _load_or_build_transitions(cfg: DictConfig) -> dict[str, np.ndarray]:
     print(f"[e9] logging transitions for {len(train_seeds)} shifts under "
           f"behaviour policy '{cfg.labeling.observed_policy}'...")
     t0 = time.perf_counter()
-    transitions = log_transitions(train_seeds, cfg, resolve_pool(cfg))
+    # WITH the regime model. Without it this corpus holds raw observations
+    # while `OfflineFQIPolicy.__call__` augments every state before predicting,
+    # so fitted Q trains on one width and is asked to predict on another — and
+    # Section 6.10's claim that the comparison isolates the training signal
+    # requires both methods to see the same state in the first place.
+    transitions = log_transitions(
+        train_seeds, cfg, resolve_pool(cfg), _regime_gmm_or_none(cfg)
+    )
     TRANSITIONS_CACHE.parent.mkdir(parents=True, exist_ok=True)
     np.savez(TRANSITIONS_CACHE, cache_stamp=stamp, **transitions)
     print(
@@ -521,6 +545,15 @@ def _plot_data_efficiency(de: pd.DataFrame) -> None:
     ).reset_index()
     fig, ax = plt.subplots(figsize=(7, 5))
     dahs = _load_dahs_data_efficiency()
+    if dahs is not None and "service_failure_rate_mean" not in dahs.columns:
+        # Pre-revision curve: same file name, old metric keys. Skip the overlay
+        # rather than dying inside a plot call, and say which command rebuilds it.
+        print(
+            "[e9 summary] DAHS data-efficiency curve is pre-revision "
+            f"(has {sorted(dahs.columns)}); omitting it from the figure. "
+            "Re-run `python -m experiments.e2_main data_efficiency`."
+        )
+        dahs = None
     if dahs is not None:
         d = dahs.groupby("budget")["service_failure_rate_mean"].agg(
             ["mean", "std"]).reset_index()
@@ -535,7 +568,7 @@ def _plot_data_efficiency(de: pd.DataFrame) -> None:
         label="offline_fqi -- fitted Q-iteration",
     )
     ax.set_xlabel("Training shifts")
-    ax.set_ylabel("SLA-breach rate (50 test shifts)")
+    ax.set_ylabel("Service-failure rate (held-out shifts)")
     ax.set_title("Sample efficiency: DAHS vs offline value-learning baseline")
     ax.grid(True, alpha=0.3)
     ax.legend()

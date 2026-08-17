@@ -125,10 +125,19 @@ done
 .venv/bin/python -m experiments.evaluate --method linucb
 .venv/bin/python -m experiments.e9_offline_fqi hpsearch
 .venv/bin/python -m experiments.e9_offline_fqi eval
+.venv/bin/python -m experiments.e9_offline_fqi robustness_grid
 .venv/bin/python -m baselines.ppo_fair
 .venv/bin/python -m experiments.evaluate --method ppo_fair
 .venv/bin/python -m experiments.rl_sensitivity ppo
 .venv/bin/python -m experiments.rl_sensitivity coverage
+
+# --- Stage 4b: the sample-efficiency curves (~1.5 h) ----------------------
+# THE CENTRAL FIGURE. Both retrain the model at every budget, so they cannot
+# be recovered from the Stage-3 run afterwards.
+.venv/bin/python -m experiments.e2_main data_efficiency
+.venv/bin/python -m experiments.e9_offline_fqi data_efficiency
+.venv/bin/python -m experiments.e9_offline_fqi summary
+.venv/bin/python -m experiments.fig_data_efficiency
 
 # --- Stage 5: scenarios, robustness, sensitivity (~2 h) -------------------
 .venv/bin/python -m experiments.e2_main stats --scenario default --baseline ours
@@ -141,6 +150,11 @@ done
 .venv/bin/python -m experiments.e4_sensitivity weights --n-jobs -1
 .venv/bin/python -m experiments.e4_sensitivity t_min
 .venv/bin/python -m experiments.e4_sensitivity arrival_noise
+.venv/bin/python -m experiments.e4_sensitivity theta
+# The tau sweep needs a LABELLING pass per tau, not just a retrain, because
+# tau changes the estimator. Both of these PRINT A RECIPE rather than running
+# it -- follow the printed commands. tau=1 is already built by `make tau1`.
+.venv/bin/python -m experiments.e4_sensitivity tau
 .venv/bin/python -m experiments.e5_calibration reliability
 .venv/bin/python -m experiments.e5_calibration shap
 .venv/bin/python -m experiments.feature_analysis
@@ -160,7 +174,10 @@ done
 # things that cannot run, and that must be reported rather than skipped silently.
 .venv/bin/python -m experiments.fit_input_distributions
 .venv/bin/python -m experiments.a_realdata_validation
-.venv/bin/python -m experiments.a2_olist_arrivals
+# a2 takes a SUBCOMMAND. Called bare it exits on argument parsing and Figure 8
+# is never produced -- which is how it was written here until it was run once.
+.venv/bin/python -m experiments.a2_olist_arrivals eval
+.venv/bin/python -m experiments.a2_olist_arrivals summary
 
 # --- Ablations (~2 h; independent of the headline, can run last) ----------
 .venv/bin/python -m experiments.e3_ablations inference

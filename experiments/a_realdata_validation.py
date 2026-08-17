@@ -74,6 +74,25 @@ def load_sim_draws() -> dict[str, np.ndarray | float]:
 
 def load_olist_draws() -> dict[str, np.ndarray | float]:
     """Extract the analogous quantities from the Olist trace."""
+    # The dataset is not vendored (licence, and ~50 MB), so absence is the
+    # normal first-run state rather than an error condition.
+    # `fit_input_distributions` already says so usefully; a bare
+    # FileNotFoundError at the tail of a 16-hour campaign does not.
+    missing = [
+        f.name for f in (
+            OLIST / "olist_orders_dataset.csv",
+            OLIST / "olist_order_items_dataset.csv",
+            OLIST / "olist_products_dataset.csv",
+        ) if not f.exists()
+    ]
+    if missing:
+        raise SystemExit(
+            f"Olist file(s) {missing} not found under '{OLIST}'.\n"
+            f"Download 'Brazilian E-Commerce Public Dataset by Olist' from "
+            f"Kaggle and unzip it there. Figures 7-8 and the input-distribution "
+            f"fits (Reviewer 1, 5.b) depend on it; everything else runs "
+            f"without it."
+        )
     orders = pd.read_csv(
         OLIST / "olist_orders_dataset.csv",
         parse_dates=[

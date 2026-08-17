@@ -32,8 +32,29 @@ DE_JSON = ROOT / "results" / "data_efficiency" / "data_efficiency_summary.json"
 FIG_DIR = ROOT / "figures" / "data_efficiency"
 
 
+REQUIRED = ("service_failure_rate_mean", "composite_cost_mean")
+
+
 def main() -> int:
+    if not DE_JSON.exists():
+        raise SystemExit(
+            f"{DE_JSON} not found. This figure is built from the DAHS "
+            f"data-efficiency sweep; run "
+            f"`python -m experiments.e2_main data_efficiency` first."
+        )
     de = pd.DataFrame(json.loads(DE_JSON.read_text()))
+    missing = [c for c in REQUIRED if c not in de.columns]
+    if missing:
+        # A pre-revision summary has the same filename and the OLD metric keys,
+        # so it loads cleanly and fails inside groupby.agg with a bare KeyError
+        # naming neither the file nor the cause. This is the figure Section 6.3
+        # calls the central one, so it is worth failing legibly.
+        raise SystemExit(
+            f"{DE_JSON} is missing {missing} — it holds {sorted(de.columns)}, "
+            f"which is the pre-revision schema. Re-run "
+            f"`python -m experiments.e2_main data_efficiency` to rebuild it "
+            f"against the corrected objective."
+        )
     grp = de.groupby("budget").agg(
         sla_mean=("service_failure_rate_mean", "mean"),
         sla_std=("service_failure_rate_mean", "std"),
