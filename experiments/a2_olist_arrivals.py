@@ -52,7 +52,9 @@ RESULTS_DIR = REPO_ROOT / "results" / "A2"
 FIG_DIR = REPO_ROOT / "figures" / "A2"
 
 ARRIVAL_MODES = ["poisson", "olist"]
-METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "fefo"]
+# See the note in e8_robustness_grid: EEDD is the screened pool's strongest
+# static rule, FEFO was dropped for zero marginal contribution.
+METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "eedd"]
 METRICS = ["service_failure_rate", "composite_cost", "mean_tardiness"]
 SUMMARY_PATH = RESULTS_DIR / "olist_arrivals_summary.parquet"
 

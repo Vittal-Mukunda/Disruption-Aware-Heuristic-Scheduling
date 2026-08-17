@@ -347,7 +347,7 @@ def main() -> int:
     p_w.add_argument("--axes", nargs="*", default=None,
                      help=f"Subset of {list(WEIGHT_AXES)}.")
     p_w.add_argument("--methods", nargs="*",
-                     default=["ours", "rolling_mpc", "edd", "fifo"])
+                     default=["ours", "rolling_mpc", "eedd", "edd"])
     p_w.add_argument("--run-dir", type=Path, default=None)
     p_w.add_argument("--n-test", type=int, default=None)
     p_w.add_argument("--n-jobs", type=int, default=-1,

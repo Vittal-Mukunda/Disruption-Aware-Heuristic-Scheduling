@@ -55,8 +55,16 @@ FIG_ROOT = REPO_ROOT / "figures" / "E2"
 # EDD row a reader cannot map the old Table 1 onto the new one, and the genuinely
 # expiry-aware FEFO would silently inherit the old rule's reputation.
 DEFAULT_METHODS: list[str] = [
-    "fifo", "edd", "fefo", "wspt", "atc", "linucb",
-    "rolling_mpc", "greedy_mpc", "snapshot_xgb", "ppo_fair", "offline_fqi", "ours",
+    # Retained pool (Section 6.1), strongest first.
+    "eedd", "covert", "ms", "atc", "mdd", "edd",
+    # Screened OUT, kept as standalone benchmarks: Table 1 has to show what
+    # the selector beats, including the rules the screen rejected. FIFO and
+    # WSPT are also the two the submitted table reported anomalously
+    # (Section 6.2), so their corrected rows are the evidence for that fix.
+    "fifo", "wspt", "fefo",
+    # Learned and lookahead comparators.
+    "linucb", "rolling_mpc", "greedy_mpc", "snapshot_xgb",
+    "ppo_fair", "offline_fqi", "ours",
 ]
 DEFAULT_METRICS: list[str] = ["service_failure_rate", "mean_tardiness",
                               "composite_cost", "throughput", "picker_utilization"]
