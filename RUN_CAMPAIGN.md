@@ -1,7 +1,23 @@
 # Running the CAOR-D-26-01812 revision campaign
 
 Everything needed to take this repository from a fresh clone to the numbers that
-go into the revised manuscript. Roughly **7 hours** on 16 cores.
+go into the revised manuscript.
+
+**Budget ~16 h of wall-clock, and 20-25 h on a laptop.** Run
+`python scripts/campaign_budget.py` for the per-stage table on your machine; it
+computes the step counts from `config.yaml` and divides by a measured throughput.
+The earlier "~7 hours on 16 cores" figure was wrong in two ways: it assumed 16
+*physical* cores, and it predated the four stages added below (the data-efficiency
+curves, the tau sweep, the e9 grid, and the real-data figures), which together are
+about a third of the total.
+
+Two sweeps are 45% of the cost on their own — `misspecification` (~4.4 h) and the
+objective-weight sweep (~2.7 h) — and in both cases it is the `rolling_mpc`
+teacher that dominates, at |H| x M x tau = 480 simulated interval-steps *per
+decision*. If you need to cut the campaign down, drop `rolling_mpc` from those two
+sweeps first: it is load-bearing in Section 6.11 (where the online controller's
+degradation is the comparison) but not in the weight sweep, which is about whether
+the *ranking* survives reweighting.
 
 Read `REVISION_PLAN.md` §7 for what each stage answers and which reviewer
 comment it serves.
@@ -126,6 +142,14 @@ done
 .venv/bin/python -m experiments.observability_analysis
 .venv/bin/python -m experiments.saturation_analysis dwell --scenario high_load_perish
 
+# --- Stage 5b: real-data grounding (~20 min) ------------------------------
+# Figures 7 and 8, and the whole of R1.5b. Needs the Olist dataset unzipped into
+# `Olist Dataset/` at the repo root; if it is absent these three are the ONLY
+# things that cannot run, and that must be reported rather than skipped silently.
+.venv/bin/python -m experiments.fit_input_distributions
+.venv/bin/python -m experiments.a_realdata_validation
+.venv/bin/python -m experiments.a2_olist_arrivals
+
 # --- Ablations (~2 h; independent of the headline, can run last) ----------
 .venv/bin/python -m experiments.e3_ablations inference
 for a in no_regime hard_labels random_ambiguity_filter top5_features; do
@@ -157,7 +181,10 @@ Commit and push after each stage.
 | `results/E8/robustness_grid_summary.parquet` | untuned-cell robustness |
 | `results/E10_misspecification/misspecification.parquet` | R2.5 |
 | `results/E11_rl_sensitivity/ppo_sensitivity.json` | R1.6b — does tuning close the PPO gap? |
-| `results/E9/` | offline-FQI comparison |
+| `results/E9/` | offline-FQI comparison, incl. its sample-efficiency curve |
+| `runs/data_efficiency/`, `figures/data_efficiency/` | Figure 4 — THE central figure (Section 6.3) |
+| `results/E4/tau_summary.parquet` | Table 3, Figure 5 — the rollout-horizon sweep |
+| `results/A/`, `results/A2/` | Figures 7-8, and the fitted input distributions (R1.5b) |
 
 ---
 

@@ -4,8 +4,11 @@ Paste everything between the `=====` lines into the agent on the machine that
 will run the campaign, after cloning the repo and `git pull`-ing to at least the
 commit that added this file.
 
-Budget roughly **6 hours on 16 cores**. Stage 1 is already done and must not be
-re-run; see `RUN_CAMPAIGN.md`.
+Budget **~16 h of wall-clock on a machine like this laptop** (AMD Ryzen 9 7940HS,
+8 physical / 16 logical cores), and **20-25 h** once sustained-load throttling is
+allowed for. Run `python scripts/campaign_budget.py` on the target machine for a
+per-stage table. Stage 1 is already done and must not be re-run; see
+`RUN_CAMPAIGN.md`.
 
 ---
 
@@ -70,8 +73,23 @@ OF BAND, stop and report the number — do not proceed and do not adjust the
 temperature to force it in.
 
 THE CAMPAIGN — run the stages in RUN_CAMPAIGN.md section 2, in order. Commit and
-push after each stage so a crash at hour four does not cost hours one to three.
+push after each stage so a crash at hour ten does not cost hours one to nine.
 Stage 2 must precede Stage 3, and `make tau1` must complete before Stage 5.
+
+Run `python scripts/campaign_budget.py` FIRST and report its total. It derives the
+step counts from config.yaml and divides by a measured throughput, so it is the
+honest per-machine estimate. If the total is materially above 25 h, say so before
+starting rather than after — the two sweeps to cut are `misspecification` and the
+objective-weight sweep, which are 45% of the cost between them, and in both cases
+it is the rolling_mpc teacher that dominates at 480 simulated interval-steps per
+decision. Dropping rolling_mpc from the WEIGHT sweep is safe (that sweep asks
+whether the ranking survives reweighting). Dropping it from misspecification is
+NOT: Section 6.11 is built on comparing the amortised controller's degradation
+against the online one's.
+
+If the machine is a laptop, plug it in, set the power profile to performance, and
+do not run it on battery. Sustained all-core load for this long will thermally
+throttle a thin chassis by 20-35%, which is already in the estimate above.
 
 WHAT TO WATCH, AND REPORT RATHER THAN FIX
 These are known risks. Each is a finding to report, not a bug to work around. If

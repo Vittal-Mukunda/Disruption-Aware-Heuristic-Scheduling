@@ -2,7 +2,15 @@
 import pathlib
 import re
 
-MS = pathlib.Path("paper/manuscript.md").read_text(encoding="utf-8")
+_RAW = pathlib.Path("paper/manuscript.md").read_text(encoding="utf-8")
+# Strip YAML frontmatter before any citation scan: author emails contain
+# '@', and an affiliation domain is not a bibliography key.
+MS = _RAW
+MS_BODY = _RAW
+if _RAW.startswith("---"):
+    _marker = chr(10) + "---"
+    _end = _RAW.index(_marker, 3) + len(_marker)
+    MS_BODY = _RAW[_end:]
 BIB = pathlib.Path("paper/references.bib").read_text(encoding="utf-8")
 
 
@@ -135,11 +143,22 @@ for item, paper_anchors, code_paths, code_anchors in CHECKS:
 if re.search(r"\*\*[^*\n]*\.\.\*\*", MS):
     fails.append("R1.7c: a bold paragraph title still ends in '..'")
 
-# R1.7d: reviewer-addressing outside editorial blocks
-for m in re.finditer(r"[Rr]eviewer", MS):
-    line = MS[MS.rfind("\n", 0, m.start()) + 1: MS.find("\n", m.start())]
-    if not (line.lstrip().startswith(">") or "TBD-rerun" in line):
-        fails.append(f"R1.7d: reviewer-addressing in body: {line.strip()[:70]}")
+# R1.7d: the ARTICLE must not address reviewers. Editorial scaffolding may:
+# HTML comment blocks (draft notes), blockquote revision notes, and TBD-rerun
+# spans are all removed before submission, so they are exempt. What is left is
+# prose a referee would actually read.
+_prose = re.sub(r"<!--.*?-->", "", MS_BODY, flags=re.S)
+_prose = re.sub(r"⟨TBD-rerun.*?⟩", "", _prose, flags=re.S)
+_prose = chr(10).join(
+    ln for ln in _prose.splitlines() if not ln.lstrip().startswith(">")
+)
+for m in re.finditer(r"[Rr]eviewer", _prose):
+    _s = _prose.rfind(chr(10), 0, m.start()) + 1
+    _e = _prose.find(chr(10), m.start())
+    fails.append(
+        "R1.7d: reviewer-addressing in article prose: "
+        + _prose[_s:_e].strip()[:70]
+    )
 
 # R1.7b: the duplicated contributions paragraph
 if MS.count("tempered-softmax label, ablation") > 0:
@@ -147,7 +166,7 @@ if MS.count("tempered-softmax label, ablation") > 0:
 
 # Bibliography closure
 keys = set(re.findall(r"@\w+\{([^,]+),", BIB))
-used = {k.rstrip(".,;:") for k in re.findall(r"@([A-Za-z][A-Za-z0-9_:.+-]*)", MS)}
+used = {k.rstrip(".,;:") for k in re.findall(r"@([A-Za-z][A-Za-z0-9_:.+-]*)", MS_BODY)}
 if used - keys:
     fails.append(f"BIB: cited but missing: {sorted(used - keys)}")
 if keys - used:
