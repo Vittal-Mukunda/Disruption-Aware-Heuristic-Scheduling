@@ -62,23 +62,66 @@ def _train_seeds(cfg: DictConfig) -> list[int]:
     return shift_corpora(cfg)["train"]
 
 
+def _cache_stamp(cfg: DictConfig) -> np.ndarray:
+    """Identity of the corpus a transition log was built from.
+
+    Anything that changes what a transition MEANS goes in here: the action set
+    and its order (action indices are positional), the observation width, the
+    behaviour policy, and the objective weights that produced the rewards.
+    """
+    from simulation.state_extractor import N_FEATURES
+
+    obj = cfg.objective
+    return np.asarray([
+        ",".join(resolve_pool(cfg)),
+        str(N_FEATURES),
+        str(cfg.labeling.observed_policy),
+        f"{obj.w_breach},{obj.w_tardy},{obj.w_spoil},{obj.w_holding},"
+        f"{obj.use_priority_weights}",
+    ], dtype=object)
+
+
 def _load_or_build_transitions(cfg: DictConfig) -> dict[str, np.ndarray]:
     """Transition log over the training block, cached to disk.
 
-    The behaviour policy is `cfg.labeling.observed_policy`, the same one that
-    generated the DAHS state-visitation corpus. Delete the cache after changing
-    it, the pool, or the objective — the file has no schema stamp.
+    THE CACHE IS STAMPED, because the alternative is a silent wrong answer. The
+    behaviour policy is `cfg.labeling.observed_policy`, the same one that
+    generated the DAHS state-visitation corpus — but the file used to carry no
+    record of which pool, feature set or objective produced it, and was loaded
+    blindly whenever it existed. Its own docstring said "delete the cache after
+    changing it, the pool, or the objective", which makes correctness depend on
+    someone remembering.
+
+    That is not hypothetical. The committed cache holds 25-dimensional states and
+    six-rule-era action indices from the pre-revision pool; loading it against the
+    current 26-feature observation and the screened pool crashed in `train_fqi`
+    with a bare `KeyError: 'n_actions'` — and a crash is the lucky outcome. Had
+    the widths happened to agree, fitted Q-iteration would have trained happily on
+    actions that meant different rules and the baseline would have been quietly
+    wrong, which is the exact failure Stage 3 already guards against by refusing
+    to train without a `label_meta.json`.
+
+    A stale stamp rebuilds rather than raising: rebuilding is deterministic and
+    bounded, and a baseline that silently skips itself is worse than one that
+    costs a few minutes.
     """
+    stamp = _cache_stamp(cfg)
     if TRANSITIONS_CACHE.exists():
-        data = np.load(TRANSITIONS_CACHE)
-        return {k: data[k] for k in data.files}
+        data = np.load(TRANSITIONS_CACHE, allow_pickle=True)
+        cached = data["cache_stamp"] if "cache_stamp" in data.files else None
+        if cached is not None and list(cached) == list(stamp):
+            return {k: data[k] for k in data.files if k != "cache_stamp"}
+        why = "no stamp (pre-revision cache)" if cached is None else (
+            f"stamp mismatch\n     cached: {list(cached)}\n     current: {list(stamp)}"
+        )
+        print(f"[e9] discarding {TRANSITIONS_CACHE.name}: {why}")
     train_seeds = _train_seeds(cfg)
     print(f"[e9] logging transitions for {len(train_seeds)} shifts under "
           f"behaviour policy '{cfg.labeling.observed_policy}'...")
     t0 = time.perf_counter()
     transitions = log_transitions(train_seeds, cfg, resolve_pool(cfg))
     TRANSITIONS_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(TRANSITIONS_CACHE, **transitions)
+    np.savez(TRANSITIONS_CACHE, cache_stamp=stamp, **transitions)
     print(
         f"[e9] {transitions['states'].shape[0]} transitions "
         f"({time.perf_counter() - t0:.1f}s) -> {TRANSITIONS_CACHE.name}"

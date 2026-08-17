@@ -38,9 +38,11 @@ add("3  tau=1 ranker", 0, "--skip-cv-cal", train_min=4)
 
 # ---- Stage 4 ----
 s4 = eval_static(13) + eval_mpc(TAU) + eval_mpc(1)
-s4 += 8_000 + 20 * 8_000          # ppo_fair + ~20-config PPO sensitivity
-add("4  baselines + RL sensitivity", s4, "incl. rolling_mpc + greedy_mpc",
-    train_min=35)   # PPO x21 runs + FQI 12-config hpsearch
+s4 += 8_000 + 12 * 8_000          # ppo_fair + the 12-config PPO sensitivity
+                                  # (measured: ~36 s/config, ~7 min total)
+add("4  baselines + RL sensitivity", s4,
+    "rolling_mpc measured at ~32 s/shift; run it with --n-jobs -1",
+    train_min=25)   # PPO x21 runs + FQI 12-config hpsearch
 
 # ---- Stage 4b: sample-efficiency curves ----
 n_de = len(e2.data_efficiency_budgets) * int(e2.data_efficiency_reps)   # 20

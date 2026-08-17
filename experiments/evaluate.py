@@ -305,6 +305,17 @@ def main() -> int:
     parser.add_argument("--results-dir", type=Path, default=None)
     parser.add_argument("--no-save", action="store_true")
     parser.add_argument("--verbose", action="store_true")
+    # The plumbing for this already existed in `_evaluate`; the CLI never exposed
+    # it, so `--method rolling_mpc` ran single-threaded. That is the single most
+    # expensive evaluation in the campaign — the tau-step teacher costs
+    # |H| * M * tau = 480 simulated interval-steps per decision, measured at
+    # ~32 s per shift, so 50 shifts is ~26 minutes serial on a 16-thread machine.
+    # Policies that carry state across shifts (LinUCB, and `ours` via its
+    # switching controller) set `parallel_safe = False` and are forced serial by
+    # the harness regardless of this flag, so raising it cannot corrupt them.
+    parser.add_argument("--n-jobs", type=int, default=1,
+                        help="Shift-level parallelism. -1 uses every core. "
+                             "Ignored for policies that are not parallel-safe.")
     args = parser.parse_args()
 
     cfg = OmegaConf.load(CONFIG_PATH)
@@ -318,6 +329,7 @@ def main() -> int:
     df = runner(
         args.method.lower(), policy, seeds, cfg,
         results_dir=args.results_dir, save=(not args.no_save), verbose=args.verbose,
+        n_jobs=args.n_jobs,
     )
 
     print(f"\n[eval] {args.method} over {len(df)} shifts:")

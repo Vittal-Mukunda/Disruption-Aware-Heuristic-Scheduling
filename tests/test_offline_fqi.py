@@ -222,3 +222,85 @@ def test_offline_fqi_via_evaluate_harness(cfg, tmp_path):
     assert len(df) == 1
     assert 0.0 <= df.iloc[0]["service_failure_rate"] <= 1.0
     assert (tmp_path / "offline_fqi.parquet").exists()
+
+
+# --- Transition-cache staleness (revision) -----------------------------------
+#
+# `data/offline_fqi_transitions.npz` caches the logged transition corpus. It
+# used to carry no record of which pool, feature set or objective produced it and
+# was loaded blindly whenever the file existed; its own docstring said "delete
+# the cache after changing it, the pool, or the objective", which makes
+# correctness depend on someone remembering.
+#
+# The committed pre-revision cache holds 25-dimensional states and pre-screening
+# action indices. Loading it against the current 26-feature observation and the
+# six-rule pool crashed with a bare KeyError — and the crash was the lucky
+# outcome. Action indices are POSITIONAL, so had the widths happened to agree,
+# fitted Q-iteration would have trained on actions meaning different rules and
+# the baseline would have been quietly wrong.
+
+
+def test_cache_stamp_changes_with_pool_features_policy_and_objective():
+    from omegaconf import OmegaConf, open_dict
+
+    from experiments.e9_offline_fqi import _cache_stamp
+
+    cfg = OmegaConf.load(REPO_ROOT / "config.yaml")
+    base = list(_cache_stamp(cfg))
+
+    def perturbed(mutate):
+        c = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+        with open_dict(c):
+            mutate(c)
+        return list(_cache_stamp(c))
+
+    # Reordering the pool must change the stamp: action indices are positional,
+    # so the same rules in a different order are a different action set.
+    def reorder(c):
+        c.heuristics.pool = list(reversed(list(c.heuristics.pool)))
+
+    variants = {
+        "pool order": reorder,
+        "pool membership": lambda c: c.heuristics.pool.pop(),
+        "behaviour policy": lambda c: c.labeling.__setitem__(
+            "observed_policy", "round_robin"),
+        "objective weight": lambda c: c.objective.__setitem__("w_spoil", 99.0),
+        "priority weighting": lambda c: c.objective.__setitem__(
+            "use_priority_weights", False),
+    }
+    for name, mutate in variants.items():
+        assert perturbed(mutate) != base, (
+            f"cache stamp is blind to a change in {name}; a stale transition log "
+            f"would be reused and the offline-RL baseline would be wrong"
+        )
+
+
+def test_pre_revision_cache_is_rejected(tmp_path, monkeypatch):
+    """An unstamped cache must be discarded, not loaded."""
+    import numpy as np
+    from omegaconf import OmegaConf
+
+    import experiments.e9_offline_fqi as e9
+
+    cache = tmp_path / "transitions.npz"
+    # Exactly the committed pre-revision schema: no stamp, 25-D states.
+    np.savez(
+        cache,
+        states=np.zeros((10, 25)), actions=np.zeros(10, dtype=np.int64),
+        rewards=np.zeros(10), next_states=np.zeros((10, 25)),
+        dones=np.zeros(10, dtype=bool), shift_id=np.zeros(10, dtype=np.int64),
+    )
+    monkeypatch.setattr(e9, "TRANSITIONS_CACHE", cache)
+
+    built = {}
+
+    def _fake_log(*_a, **_k):
+        built["rebuilt"] = True
+        return {"states": np.zeros((1, 26)), "actions": np.zeros(1, dtype=np.int64)}
+
+    monkeypatch.setattr(e9, "log_transitions", _fake_log)
+    monkeypatch.setattr(e9, "_train_seeds", lambda cfg: [0])
+
+    cfg = OmegaConf.load(REPO_ROOT / "config.yaml")
+    e9._load_or_build_transitions(cfg)
+    assert built.get("rebuilt"), "the unstamped pre-revision cache was reused"

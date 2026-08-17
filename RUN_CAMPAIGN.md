@@ -109,14 +109,19 @@ make tau1
 
 # --- Stage 4: baselines (~2 h) --------------------------------------------
 for m in eedd covert ms atc mdd edd fifo wspt fefo; do
-  .venv/bin/python -m experiments.evaluate --method $m
+  .venv/bin/python -m experiments.evaluate --method $m --n-jobs -1
 done
 # The last three are screened OUT of the pool but are still reported as
 # standalone benchmarks: Table 1 has to show what the selector is beating,
 # including the rules the screen rejected.
 .venv/bin/python -m experiments.evaluate --method ours --verbose
-.venv/bin/python -m experiments.evaluate --method rolling_mpc --verbose
-.venv/bin/python -m experiments.evaluate --method greedy_mpc
+# The two lookahead controllers are the expensive evaluations: the tau-step
+# teacher costs |H|*M*tau = 480 simulated interval-steps PER DECISION, measured
+# at ~32 s/shift. Serial that is ~26 min for 50 shifts; -1 cuts it to a few.
+# `ours` and `linucb` carry state across shifts and are forced serial by the
+# harness whatever this says, so it is safe to pass everywhere.
+.venv/bin/python -m experiments.evaluate --method rolling_mpc --verbose --n-jobs -1
+.venv/bin/python -m experiments.evaluate --method greedy_mpc --n-jobs -1
 .venv/bin/python -m experiments.evaluate --method linucb
 .venv/bin/python -m experiments.e9_offline_fqi hpsearch
 .venv/bin/python -m experiments.e9_offline_fqi eval

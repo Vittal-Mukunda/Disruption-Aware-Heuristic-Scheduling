@@ -11,7 +11,7 @@ format it.
 ## 0. Before you start the campaign
 
 - [x] `scripts/preflight.py` passes
-- [x] `pytest` green (92 passed, 11 skipped — every skip names a missing campaign
+- [x] `pytest` green (94 passed, 11 skipped — every skip names a missing campaign
       artifact or the FEFO-not-in-pool no-op)
 - [x] `scripts/audit_reviewer_items.py` prints ALL CHECKS PASS (40/40)
 - [x] `config.yaml` carries the Stage-1 pool `[EEDD, COVERT, MS, ATC, MDD, EDD]`
