@@ -1162,6 +1162,38 @@ part (ii) — they transfer to any label derived from it, including the hard arg
 of Section 6.8, via $\mathrm{KL}(p^\infty \| p^\tau) \le 2(\Delta_\tau +
 \Gamma^\varepsilon_\tau)/\beta$.
 
+**What these bounds are, and are not.** Both are worst-case and both are loose,
+and we would rather say so than let a reader discover it. $\bar{C}$ is an upper
+bound on the cost of *any* single interval, so it is attained only when every
+order in a full queue breaches and spoils at the highest priority weight: with a
+capacity of 200, $w_o \le 4$, $W_b = 3$ and $W_s = 5$, that is
+$\bar{C} \ge 6.4 \times 10^{3}$, and hence $\Delta_\tau \approx 1.8 \times
+10^{5}$ at $\tau = 4$ — against realised shift costs three orders of magnitude
+smaller. Taken as numerical guarantees the propositions are vacuous. Their content
+is the *direction and rate* of each term in $\tau$: truncation falls linearly,
+model error grows quadratically, and the estimator term falls as $M^{-1/2}$. That
+is what makes the optimum interior, and it is a statement about shape rather than
+size. We use them for nothing else.
+
+**What the deployed horizon implies.** We cannot measure $\varepsilon$ for a real
+warehouse, so $\tau^\star \approx 1/\varepsilon$ cannot be evaluated forward. It
+can be read backwards, and that is the more useful direction for a practitioner:
+choosing $\tau$ is equivalent to asserting a belief about model quality. The
+deployed $\tau = 4$ corresponds to $\varepsilon \approx 0.29$ per step in total
+variation — a frankly poor model, and a deliberately conservative choice. An
+operator who trusts their simulator to $\varepsilon \approx 0.10$ should be
+rolling out to $\tau \approx 10$, and the same objective would then reward a
+longer horizon than anything we test here.
+
+That inversion also bounds what Section 6.11 can detect. The horizon sweep runs
+over $\tau \in \{1,2,3,4\}$, and $\tau^\star$ enters that range only once
+$\varepsilon \gtrsim 0.29$. Under mild perturbation the predicted optimum lies
+*beyond* the grid, so the sweep would show cost falling monotonically in $\tau$ —
+which is consistent with the prediction but does not test it. Only the more
+strongly perturbed cells can exhibit $\tau^\star$ actually moving inward. We
+report the sweep with that detection floor stated, rather than reading a monotone
+curve as either confirmation or refutation.
+
 ## 4.5 Regime discovery
 
 Warehouse shifts pass through qualitatively distinct operating regimes — a quiet
@@ -2144,9 +2176,12 @@ model-based methods should be read against that baseline, not against zero.
 unit of relative model error — for DAHS, the rolling-horizon controller, the
 offline-RL baseline, and the static reference, on each axis. Then report the
 horizon sweep: does the realised-cost-minimising $\tau$ shorten as the perturbation
-grows, as Proposition 2 predicts? If it does not, say so; the proposition bounds
-the error but the bound may be loose enough that other effects dominate at these
-perturbation sizes. Also report whether the amortised controller or the online one
+grows, as Proposition 2 predicts? Read it against the detection floor derived in
+Section 4.4 — $\tau^\star$ enters the swept range $\{1,2,3,4\}$ only once
+$\varepsilon \gtrsim 0.29$, so a monotone curve in the mildly perturbed cells is
+uninformative rather than contrary, and only the strongly perturbed cells can show
+the optimum moving inward. If it fails to move even there, say so; the bound is
+loose enough that other effects may dominate at these perturbation sizes. Also report whether the amortised controller or the online one
 degrades faster, which is not obvious a priori: the online controller re-plans
 every epoch but re-plans with a wrong model, while the amortised one cannot
 re-plan at all but was fitted across many states and may generalise more
