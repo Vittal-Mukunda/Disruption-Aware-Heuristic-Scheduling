@@ -207,14 +207,15 @@ test:
 # Comparing new numbers against those files is not conservative, it is wrong —
 # and a paired test across them would be silently misaligned rather than empty.
 # Run this once before the campaign.
+# Removes every PRE-revision artifact. Stage-1 outputs are current-revision
+# results, not stale ones: they were produced under the corrected objective and
+# dispatcher, config.yaml's fitted k and screened pool are derived from them, and
+# Section 6.1 of the manuscript reports them. Removing results/ wholesale would
+# delete them and silently revert the campaign to an unscreened pool.
+KEEP := results/S1_calibration results/S1_perishability figures/S1_calibration
+
 clean-stale:
-	@$(PY) -c "import shutil, glob, os; \
-[os.remove(p) for p in glob.glob('data/*.parquet')]; \
-[os.remove(p) for p in glob.glob('data/*.npz')]; \
-[os.remove(p) for p in glob.glob('data/label_meta.json')]; \
-[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*') + glob.glob('data/smoke')]; \
-[shutil.rmtree(d, ignore_errors=True) or os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \
-print('removed pre-revision labels, models and results')"
+	@$(PY) -c "import shutil, glob, os; \nkeep = set('$(KEEP)'.split()); \n[os.remove(p) for p in glob.glob('data/*.parquet')]; \n[os.remove(p) for p in glob.glob('data/*.npz')]; \n[os.remove(p) for p in glob.glob('data/label_meta.json')]; \n[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*') + glob.glob('data/smoke')]; \nshutil.rmtree('runs', ignore_errors=True); \n[shutil.rmtree(d, ignore_errors=True) for top in ('results','figures') for d in glob.glob(top+'/*') if os.path.isdir(d) and d.replace(os.sep,'/') not in keep]; \n[os.remove(f) for top in ('results','figures') for f in glob.glob(top+'/*') if os.path.isfile(f)]; \n[os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \nprint('removed pre-revision labels, models and results; kept ' + ', '.join(sorted(keep)))"
 
 clean:
 	@$(PY) -c "import shutil, os; \

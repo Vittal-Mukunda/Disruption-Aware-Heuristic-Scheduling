@@ -34,22 +34,54 @@ silently misaligned rather than obviously empty.
 make clean-stale
 ```
 
+**Check what `clean-stale` removes before running it.** `results/S1_calibration/`
+and `results/S1_perishability/` are current-revision Stage-1 outputs and must
+survive; if the target would delete them, restore them from git afterwards:
+
+```bash
+git checkout -- results/S1_calibration results/S1_perishability config.yaml
+```
+
 ## 2. The campaign, in order
 
 Stage 1 **must** precede Stage 2: labelling hard-fails if ATC/COVERT have no
 fitted look-ahead scale. `apply_stage1.py` writes the fitted values back into
 `config.yaml`, so there is no manual editing step.
 
+### Stage 1 is DONE — do not re-run it
+
+Calibration, screening, the state-space diversity grid and the perishability
+diagnostic have all been run on the 30-shift calibration block under the corrected
+objective and dispatcher, and their artifacts are committed:
+
+| Artifact | Result |
+|---|---|
+| `results/S1_calibration/rule_calibration.json` | ATC k*=1.5 standalone / 3.0 portfolio; COVERT 4.0 / 4.0 |
+| `results/S1_calibration/pool_screening.json` | retained `[EEDD, COVERT, MS, ATC, MDD, EDD]`; FIFO, WSPT, FEFO dropped |
+| `results/S1_calibration/diversity_state_grid.parquet` | EEDD owns 15 of 16 cells; oracle gap 7.29 pp |
+| `results/S1_perishability/pivotality_summary.json` | all three pre-registered conditions met |
+
+`config.yaml` now carries both the fitted scales and the retained pool, so Stage 2
+picks them up automatically. Stage 1 does not import `soft_label_converter`, and
+`simulation/`, `regime/`, `models/`, `calibrate_rules.py` and
+`perishability_diagnostic.py` are unchanged since it ran — so its results are
+still valid and re-running would cost ~35 min (2.97M interval-steps, mostly the
+k-sweep) for identical numbers.
+
+**If you want it re-run anyway** for single-code-state provenance, this is the
+sequence; `apply_stage1.py` must be run TWICE, once after each fitting step, and
+the campaign was previously launched with only the first of those done:
+
 ```bash
-# --- Stage 1: calibrate + screen (~35 min) --------------------------------
 .venv/bin/python -m experiments.calibrate_rules calibrate --n-jobs -1
 .venv/bin/python scripts/apply_stage1.py            # writes fitted k
 .venv/bin/python -m experiments.calibrate_rules screen --n-jobs -1
-.venv/bin/python scripts/apply_stage1.py            # writes retained pool
+.venv/bin/python scripts/apply_stage1.py            # writes retained pool  <-- was missed
 .venv/bin/python -m experiments.calibrate_rules diversity
 .venv/bin/python -m experiments.perishability_diagnostic --n-jobs -1
-git add -A && git commit -m "Stage 1: fitted scales and screened pool"
+```
 
+```bash
 # --- Stage 2: label the corpus (~45 min) ----------------------------------
 .venv/bin/python -m experiments.generate_labels --run-id phase4 --n-jobs -1
 
@@ -60,9 +92,12 @@ git add -A && git commit -m "Stage 1: fitted scales and screened pool"
 make tau1
 
 # --- Stage 4: baselines (~2 h) --------------------------------------------
-for m in eedd covert ms atc mdd edd; do
+for m in eedd covert ms atc mdd edd fifo wspt fefo; do
   .venv/bin/python -m experiments.evaluate --method $m
 done
+# The last three are screened OUT of the pool but are still reported as
+# standalone benchmarks: Table 1 has to show what the selector is beating,
+# including the rules the screen rejected.
 .venv/bin/python -m experiments.evaluate --method ours --verbose
 .venv/bin/python -m experiments.evaluate --method rolling_mpc --verbose
 .venv/bin/python -m experiments.evaluate --method greedy_mpc
@@ -133,10 +168,21 @@ Commit and push after each stage.
 own committed run logs. That is the correct number. Section 6, Table 1 and the
 abstract must be written around it.
 
-**One rule may break the diversity gate.** On the calibration corpus EEDD — the
-rule that sorts on `min(sla_due, expiry_time)` — wins ~65% of decisions, above
-the project's own pre-registered 60% ceiling. `screen` prints the warning. Report
-the top win rate; do not drop the rule to get under the gate.
+**The diversity gate is broken, and the grid is worse than the gate.** EEDD —
+the rule that sorts on `min(sla_due, expiry_time)` — wins 65.0% of decisions on
+the calibration corpus, above the project's own pre-registered 60% ceiling. Worse,
+the state-space grid shows it owns **15 of 16 cells**: the best single rule wins
+65.00% and the per-cell oracle only 72.29%, a gap of 7.29 points.
+
+This is reported in Section 6.1 and it is the biggest risk to the headline. A
+selector has little room over "always EEDD" at that resolution. Two things could
+still rescue it — the grid oracle is a floor rather than a ceiling, since DAHS
+reads 26 features and not two binned ones; and win rate is not cost, so a rule
+that wins rarely on expensive states can still pay. **Watch the composite-cost
+margin over EEDD-alone in Stage 4.** If DAHS does not clear EEDD by a
+statistically meaningful margin on composite cost, say so and rest the paper on
+the sample-efficiency and amortisation results rather than on "selection beats any
+single rule".
 
 **The label entropy band — fixed, but still check it.** This was a live risk and
 it has been closed. The corrected objective makes the per-row cost spread vary by

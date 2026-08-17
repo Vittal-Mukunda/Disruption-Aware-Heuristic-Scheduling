@@ -1374,12 +1374,50 @@ state dimensions that govern the decision: queue length and deadline pressure (m
 slack), in quantile bins. A pool is complementary when different rules own
 different cells.
 
-⟨TBD-rerun: report the number of grid cells each retained rule owns and the gap
-between the best single rule and the per-cell oracle — the latter is the ceiling
-any selector over this pool could reach, and given EEDD's concentration it is the
-number that says whether selection is worth doing here at all. If the oracle gap is
-small, say so: it bounds every result in Section 6.2 and it is better stated here
-than inferred later.⟩
+**Table 6**. Cell ownership and the oracle gap over the 4x4 grid (960 decision
+epochs from the calibration corpus).
+
+| Quantity | Value |
+|---|---:|
+| Grid cells | 16 |
+| Cells owned by EEDD | 15 |
+| Cells owned by COVERT | 1 |
+| Decisions won by the best single rule (always EEDD) | 65.00% |
+| Decisions won by the per-cell oracle | 72.29% |
+| **Oracle gap over the best single rule** | **7.29 pp** |
+
+**We report this against ourselves.** One rule owns fifteen of sixteen cells. At
+this resolution the pool is not complementary in the way the submitted Figure 1
+was taken to show, and a selector that reads only queue length and deadline
+pressure could beat "always EEDD" on at most 7.29 percentage points of win rate.
+That is a much smaller opening than the submitted four-rule pool appeared to
+offer, and it is the correct place to say so — before Section 6.2 rather than
+after it.
+
+Two qualifications matter for reading it, and neither rescues the number so much
+as bound it in the other direction.
+
+*The grid oracle is a floor on the available headroom, not a ceiling on DAHS.*
+72.29% is what a selector restricted to a coarse 4x4 partition of two state
+dimensions could achieve. DAHS reads 26 features (Section 4.2), so a finer
+partition of the state space can only raise the oracle. The gap is therefore a
+lower bound on the room available to a richer selector, and the honest statement
+is that *this projection* of the state space does not by itself justify selection.
+
+*Win rate is not the objective.* A rule can win rarely and still be worth its slot
+if the states it wins are expensive ones, which is exactly why Table 5 screens on
+marginal contribution rather than on win rate — and the two orderings differ:
+COVERT wins 14.5% of decisions but carries a marginal contribution of 2.047,
+while EDD wins 6.8% and carries 0.007. The quantity that decides whether selection
+pays is composite cost, and Section 6.2 measures it.
+
+⟨TBD-rerun: report the oracle gap in *composite cost* rather than win rate, on the
+same grid, and report DAHS's realised share of it. If DAHS captures little of an
+already-small gap, the paper's empirical claim reduces to the sample-efficiency and
+amortisation results and should be written that way; the training-signal comparison
+of Section 6.10 is a relative result and survives either outcome, but the
+"selection beats any single rule" framing does not survive a small gap poorly
+captured.⟩
 
 ![Figure 1. Rule complementarity over the state space: win rate of each retained
 rule across a grid of queue length (quantile bins) against deadline pressure (mean
