@@ -1,4 +1,16 @@
 """Campaign cost estimate for THIS laptop, from measured throughput."""
+
+# Windows stdout defaults to cp1252 with errors='strict', so a non-ASCII
+# progress line raises UnicodeEncodeError and kills the script. See the note
+# in experiments/__init__.py.
+import sys as _sys
+for _s in (_sys.stdout, _sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
 from omegaconf import OmegaConf
 
 c = OmegaConf.load("config.yaml")

@@ -145,6 +145,13 @@ done
 .venv/bin/python -m experiments.e5_calibration shap
 .venv/bin/python -m experiments.feature_analysis
 .venv/bin/python -m experiments.observability_analysis
+# Section 6.2's boundary-conditions analysis (R3.3) needs BOTH halves. `trace`
+# gives the selection entropy, the switch rate and the blocked-switch rate across
+# every scenario — the statistics that distinguish "the selector collapsed" from
+# "the dwell guardrail bound". `dwell` is the causal follow-up inside the one
+# scenario DAHS lost. Only `dwell` was in the campaign, so R3.3 would have been
+# half-answered.
+.venv/bin/python -m experiments.saturation_analysis trace
 .venv/bin/python -m experiments.saturation_analysis dwell --scenario high_load_perish
 
 # --- Stage 5b: real-data grounding (~20 min) ------------------------------

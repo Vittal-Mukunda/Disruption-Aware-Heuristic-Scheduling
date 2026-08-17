@@ -945,8 +945,11 @@ honest response is to report the trade explicitly and consider a load-dependent
 dwell rather than defend a fixed default.
 
 ⟨PENDING: both statistics across all four scenarios, plus the switch rate,
-entropy-gate firing rate, and the within-scenario $T_{\min}$ sweep.
-`results/E13_saturation/`, `results/E4/t_min_summary.parquet`.⟩
+entropy-gate firing rate, and the within-scenario $T_{\min}$ sweep. The two
+halves come from different commands — `saturation_analysis trace` for the
+across-scenario statistics and `saturation_analysis dwell` for the causal sweep —
+so check both ran. `results/E13_saturation/scenario_behaviour.parquet`,
+`results/E4/t_min_summary.parquet`.⟩
 
 ## 4. Is the full feature set necessary?
 

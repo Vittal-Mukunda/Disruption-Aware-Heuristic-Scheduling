@@ -43,7 +43,7 @@ from experiments.evaluate import (  # noqa: E402
     evaluate_policy,
     evaluate_policy_env_aware,
 )
-from experiments.stats import compare_methods, load_phase5_results  # noqa: E402
+from experiments.stats import require_metrics, compare_methods, load_phase5_results  # noqa: E402
 from labeling.provenance import stamp_derived  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -145,6 +145,10 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
     all_metric_rows: list[pd.DataFrame] = []
     metrics = args.metrics if args.metrics else DEFAULT_METRICS
+    # Same guard as e3: a pre-revision results/*.parquet loads cleanly and carries
+    # the OLD metric names, so without this the failure surfaces inside
+    # pivot_table as a bare KeyError naming neither the file nor the cause.
+    require_metrics(df_long, list(metrics))
     for metric in metrics:
         stats_df = compare_methods(
             df_long, metric=metric, baseline=baseline,

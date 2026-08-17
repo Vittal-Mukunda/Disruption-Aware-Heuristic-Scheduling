@@ -443,7 +443,7 @@ def cmd_relabel(args: argparse.Namespace) -> int:
 def cmd_summary(args: argparse.Namespace) -> int:
     """Aggregate all E3 result parquets into one comparison table vs OURS."""
     cfg = OmegaConf.load(CONFIG_PATH)
-    from experiments.stats import compare_methods
+    from experiments.stats import require_metrics, compare_methods
 
     scenario = args.scenario
     if scenario == "default":
@@ -454,14 +454,24 @@ def cmd_summary(args: argparse.Namespace) -> int:
         e3_dir = RESULTS_DIR / f"scenario_{scenario}"
     if not ours_path.exists():
         raise SystemExit(f"missing {ours_path}")
-    parts: list[pd.DataFrame] = [pd.read_parquet(ours_path).assign(method="ours")]
+    df_ours = pd.read_parquet(ours_path)
+    # A pre-revision parquet loads fine and carries the OLD metric names, so the
+    # failure would otherwise surface as a bare KeyError inside the pivot below.
+    require_metrics(df_ours, ["service_failure_rate", "composite_cost"])
+    parts: list[pd.DataFrame] = [df_ours.assign(method="ours")]
 
     if not e3_dir.exists():
         raise SystemExit(f"no E3 results yet under {e3_dir}")
     for p in sorted(e3_dir.glob("*.parquet")):
         if p.stem in ("ours", "e3_summary"):
             continue
-        parts.append(pd.read_parquet(p).assign(method=p.stem))
+        df_abl = pd.read_parquet(p)
+        # Every frame, not just `ours`: results/E3 accumulates one parquet per
+        # ablation across campaigns, and a single pre-revision leftover carries
+        # the old metric names and takes the whole summary down with a KeyError
+        # naming the ablation rather than the schema.
+        require_metrics(df_abl, ["service_failure_rate", "composite_cost"])
+        parts.append(df_abl.assign(method=p.stem))
     df_long = pd.concat(parts, ignore_index=True)
 
     metrics = ["service_failure_rate", "mean_tardiness", "composite_cost"]
