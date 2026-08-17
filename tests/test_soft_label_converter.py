@@ -132,3 +132,97 @@ def test_fefo_mask_rejects_a_pool_of_the_wrong_width():
     with pytest.raises(ValueError):
         fefo_mask(probs, np.array([0.0]), threshold=0.05,
                   heuristic_names=HEURISTIC_NAMES[:-1])
+
+
+# --- Per-row tempering (revision) -------------------------------------------
+#
+# The corrected objective charges unserved-and-overdue orders, so a state's cost
+# scale grows with its outstanding work and the per-row spread of the cost vector
+# varies by two orders of magnitude across a shift. A single global temperature
+# is set by the loud rows and leaves the quiet ones near-uniform, which is what
+# drove the median label entropy out of its target band. These tests pin the
+# per-row construction that fixes it, and pin `global` as still reproducible.
+
+
+def _heteroscedastic_costs(n_rows: int = 512, seed: int = 7) -> np.ndarray:
+    """Cost vectors whose per-row spread ramps over three orders of magnitude.
+
+    This is the shape the corrected objective produces: early epochs cost little
+    and the rules differ by little; late epochs cost a lot and differ by a lot.
+    The *relative* ordering strength is held fixed, so a correct temperature
+    should give every row a comparable label entropy.
+    """
+    rng = np.random.default_rng(seed)
+    shape = rng.standard_normal((n_rows, K))
+    scale = np.geomspace(0.1, 100.0, n_rows).reshape(-1, 1)
+    return shape * scale
+
+
+def test_per_row_tempering_equalises_entropy_across_cost_scales(cfg_labeling):
+    """Rows differing only in cost SCALE must get comparable label entropy."""
+    costs = _heteroscedastic_costs()
+    per_row = OmegaConf.merge(cfg_labeling, {"beta_mode": "per_row"})
+    probs, _ = costs_to_probs(costs, per_row)
+
+    ent = row_entropy(probs)
+    quiet, loud = ent[:64], ent[-64:]
+    # Under per-row scaling the two decades of rows are on the same footing.
+    assert abs(float(quiet.mean()) - float(loud.mean())) < 0.15, (
+        f"per-row tempering left a scale gradient: quiet={quiet.mean():.3f} "
+        f"loud={loud.mean():.3f}"
+    )
+
+
+def test_global_tempering_leaves_a_scale_gradient(cfg_labeling):
+    """The submitted construction: the same data comes out scale-dependent.
+
+    This is a characterisation test, not an aspiration — it documents WHY the
+    default changed. If it ever fails, the premise of the change is wrong.
+    """
+    costs = _heteroscedastic_costs()
+    glob = OmegaConf.merge(cfg_labeling, {"beta_mode": "global"})
+    probs, _ = costs_to_probs(costs, glob)
+
+    ent = row_entropy(probs)
+    quiet, loud = ent[:64], ent[-64:]
+    assert float(quiet.mean()) - float(loud.mean()) > 0.5, (
+        "global tempering no longer shows the scale gradient it was changed for"
+    )
+
+
+def test_per_row_lands_median_entropy_in_band(cfg_labeling):
+    """The band is reachable on heteroscedastic costs — the smoke-run failure."""
+    costs = _heteroscedastic_costs()
+    per_row = OmegaConf.merge(cfg_labeling, {"beta_mode": "per_row"})
+    probs, _ = costs_to_probs(costs, per_row)
+    lo, hi = entropy_band(per_row, K)
+    median = float(np.median(row_entropy(probs)))
+    assert lo <= median <= hi, f"median entropy {median:.4f} outside [{lo}, {hi}]"
+
+
+def test_beta_transfers_between_corpora_under_per_row(cfg_labeling):
+    """Test labels must reuse the training multiplier, not refit their own."""
+    costs_a = _heteroscedastic_costs(seed=11)
+    costs_b = _heteroscedastic_costs(seed=12)
+    per_row = OmegaConf.merge(cfg_labeling, {"beta_mode": "per_row"})
+    _, beta = costs_to_probs(costs_a, per_row)
+    probs_b, beta_b = costs_to_probs(costs_b, per_row, beta=beta)
+    assert beta_b == beta
+    assert np.allclose(probs_b.sum(axis=1), 1.0)
+    assert np.array_equal(costs_b.argmin(axis=1), probs_b.argmax(axis=1))
+
+
+def test_tied_rows_return_uniform_not_nan(cfg_labeling):
+    """A row where every rule ties has sigma = 0 and must not divide by zero."""
+    costs = _heteroscedastic_costs(n_rows=128, seed=3)
+    costs[::8, :] = 4.2  # every rule identical on these rows
+    per_row = OmegaConf.merge(cfg_labeling, {"beta_mode": "per_row"})
+    probs, _ = costs_to_probs(costs, per_row)
+    assert np.isfinite(probs).all(), "per-row temperature produced non-finite labels"
+    assert np.allclose(probs[::8], 1.0 / K), "tied rows should be uniform"
+
+
+def test_unknown_beta_mode_is_rejected(cfg_labeling):
+    bad = OmegaConf.merge(cfg_labeling, {"beta_mode": "sqrt"})
+    with pytest.raises(ValueError, match="beta_mode"):
+        costs_to_probs(_heteroscedastic_costs(n_rows=32), bad)

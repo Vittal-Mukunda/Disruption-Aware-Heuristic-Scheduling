@@ -129,7 +129,23 @@ labeling:
   # (Reviewer 1, 6.b). 'round_robin' is retained in the code only so
   # `rl_sensitivity coverage` can measure the two head to head.
   observed_policy: random
-  beta_grid: [0.1, 0.25, 0.5, 1.0, 2.0]
+  # How the softmax temperature is formed from `beta`. 'per_row' sets
+  # T(s) = beta * sigma(s), the spread of that state's own cost vector;
+  # 'global' sets T = beta * mean_s sigma(s), which is the submitted behaviour.
+  #
+  # 'global' does not survive the corrected objective. Charging unserved-and-
+  # overdue orders makes a state's cost scale with its outstanding work, so the
+  # per-row spread runs from ~0 at the first epochs to ~172 at the last on the
+  # smoke corpus. One scale cannot serve both ends: it is set by the loud rows,
+  # the quiet ones come out near-uniform, and the median label entropy lands
+  # above the target band at every multiplier the grid offers. Normalising each
+  # row by its own sigma makes the label depend on the relative spread between
+  # rules at that state, which is what the ranker predicts.
+  beta_mode: per_row
+  # Dimensionless multiplier on the per-row spread — NOT a temperature in cost
+  # units. Smaller than the pre-revision grid because that one multiplied a
+  # single corpus-wide sigma.
+  beta_grid: [0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]
   # Target median label entropy, as a FRACTION of log|H| rather than in nats.
   # The submitted value was an absolute [0.3, 0.7] chosen when |H| = 4, i.e.
   # 22-51% of the log 4 maximum. Doubling the pool to eight (Reviewer 1, 4.d)

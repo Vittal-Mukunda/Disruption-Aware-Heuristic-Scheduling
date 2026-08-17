@@ -56,6 +56,7 @@ from labeling.ambiguity_filter import filter_ambiguous, resolve_theta
 from labeling.provenance import write_label_meta
 from labeling.rollout_labeler import label_one_shift_counted, rollout_step_budget
 from labeling.soft_label_converter import (
+    beta_mode as label_beta_mode,
     costs_to_probs,
     entropy_band,
     fefo_mask,
@@ -206,7 +207,8 @@ def main() -> int:
           f"observed_policy={cfg.labeling.observed_policy}")
     print(f"[stage2] corpus: {len(train_seeds)} train + {len(test_seeds)} test shifts")
     print(f"[stage2] a priori budget: {budget:,} interval-steps")
-    print(f"[stage2] beta_grid={list(cfg.labeling.beta_grid)}  "
+    print(f"[stage2] beta_mode={label_beta_mode(cfg.labeling)}  "
+          f"beta_grid={list(cfg.labeling.beta_grid)}  "
           f"target_median_entropy={[round(x, 4) for x in entropy_band(cfg.labeling, len(pool))]}"
           f" nats (|H|={len(pool)})")
     print(f"[stage2] n_jobs={args.n_jobs}  cpu_count={os.cpu_count()}")
@@ -298,6 +300,10 @@ def main() -> int:
         "n_rollout_samples": n_samples,
         "observed_policy": str(cfg.labeling.observed_policy),
         "beta": float(beta),
+        # 'per_row' -> beta is a multiplier on each state's own cost spread;
+        # 'global' -> beta multiplies one corpus-wide sigma (submitted scheme).
+        # Without this, `beta` alone does not identify the label construction.
+        "beta_mode": label_beta_mode(cfg.labeling),
         "median_train_entropy": median_entropy,
         "target_median_entropy": [target_lo, target_hi],
         "entropy_in_band": in_band,

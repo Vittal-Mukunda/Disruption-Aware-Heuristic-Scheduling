@@ -22,38 +22,39 @@
   "tau": 4,
   "n_rollout_samples": 20,
   "observed_policy": "random",
-  "beta": 5.808959707143723,
-  "median_train_entropy": 1.5760937793118694,
+  "beta": 0.03,
+  "beta_mode": "per_row",
+  "median_train_entropy": 0.6728018890037859,
   "target_median_entropy": [
     0.44915937300284453,
     1.050117978548317
   ],
-  "entropy_in_band": false,
+  "entropy_in_band": true,
   "theta_confidence": 0.275,
   "n_train_shifts": 3,
   "n_test_shifts": 2,
   "n_train_rows": 96,
   "n_test_rows_prefilter": 64,
-  "n_test_rows": 23,
+  "n_test_rows": 61,
   "fefo_mask_threshold": 0.05,
-  "atc_lookahead_k": 3.5,
-  "covert_lookahead_k": 3.5,
+  "atc_lookahead_k": 3.0,
+  "covert_lookahead_k": 4.0,
   "provisional_scales": true,
   "rollout_precision_train": {
-    "mean_standard_error": 6.5885658581367865,
-    "median_standard_error": 3.6576650524477863,
-    "max_standard_error": 35.286897684270386,
-    "frac_separation_below_1se": 0.7894736842105263,
-    "frac_separation_below_2se": 0.8947368421052632,
-    "median_separation": 0.33222941005282225
+    "mean_standard_error": 6.566235197876471,
+    "median_standard_error": 3.6988114171202273,
+    "max_standard_error": 35.08535846102332,
+    "frac_separation_below_1se": 0.7684210526315789,
+    "frac_separation_below_2se": 0.8842105263157894,
+    "median_separation": 0.20685631128204557
   },
   "simulated_interval_steps": 97760,
   "simulated_interval_steps_train": 58656,
   "simulated_interval_steps_test": 39104,
   "budget_interval_steps": 102560,
   "wall_clock_s": {
-    "train": 224.99556680000387,
-    "test": 210.28657140000723
+    "train": 210.7387426000205,
+    "test": 192.67573820002144
   },
   "objective_weights": {
     "w_breach": 3.0,

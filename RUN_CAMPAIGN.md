@@ -112,7 +112,7 @@ Commit and push after each stage.
 | `results/S1_calibration/pool_screening.json` | R1.4b/4d — screening table, retained pool |
 | `results/S1_calibration/diversity_state_grid.parquet` | R1.4e — replaces Figure 1 |
 | `results/S1_perishability/pivotality_summary.json` | R1.1d — the three pre-registered conditions |
-| `data/label_meta.json` | R2.3, R3.1 — beta, entropy, rollout SE, interval-steps |
+| `data/label_meta.json` | R2.3, R3.1 — beta AND beta_mode, entropy, rollout SE, interval-steps |
 | `runs/phase4/phase4_regime.json` | R1.3a — BIC sweep, K*, ARI |
 | `runs/phase4/phase4_metrics.json` | CV soft-xent, ECE pre/post, argmax distributions |
 | `results/*.parquet` | Table 1 — per-method KPIs |
@@ -138,11 +138,22 @@ rule that sorts on `min(sla_due, expiry_time)` — wins ~65% of decisions, above
 the project's own pre-registered 60% ceiling. `screen` prints the warning. Report
 the top win rate; do not drop the rule to get under the gate.
 
-**Check the label entropy band.** Stage 2 prints the median label entropy against
-its target. The corrected objective makes cost scale vary ~13x across a shift, so
-a single global temperature may leave labels near-uniform. If it prints OUT OF
-BAND, report the number and raise it — the fix is per-row tempering
-(`softmax(-J_h(s) / (beta * sigma(s)))`), which is a method change, not a bug fix.
+**The label entropy band — fixed, but still check it.** This was a live risk and
+it has been closed. The corrected objective makes the per-row cost spread vary by
+two orders of magnitude across a shift (~0 at the first epochs to ~172 at the
+last on the smoke corpus), and a single global temperature cannot serve both ends:
+on the 3-shift smoke run it produced a median label entropy of 1.60 nats against a
+target band of [0.45, 1.05], and the test ambiguity filter then discarded 45 of 64
+states. `labeling.soft_label_converter` now tempers per row —
+`softmax(-J_h(s) / (beta * sigma(s)))`, `labeling.beta_mode: per_row` — which
+brings the same corpus to 0.67 nats, in band, and the filter keeps 61 of 64.
+
+This is a method change, not a bug fix: it alters every label, and the paper
+reports it as such (Section 4.3, Appendix B). `beta_mode: global` reproduces the
+submitted construction if the comparison is wanted.
+
+Stage 2 still prints the achieved median against the band. If it prints OUT OF
+BAND at full scale, report the number rather than tuning around it.
 
 **Check `frac_separation_below_1se`** in `label_meta.json`. On a smoke corpus 79%
 of epochs had a best/second-best gap under one pooled standard error at M=20. If
