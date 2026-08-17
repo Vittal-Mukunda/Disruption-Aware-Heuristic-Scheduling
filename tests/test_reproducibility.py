@@ -214,3 +214,65 @@ def test_rollout_labelling_varies_with_sample_count(cfg):
         "averaging over 8 continuations gives the same costs as 1 — the labels "
         "are not Monte Carlo estimates"
     )
+
+
+# --- The R2.4 aliasing witness (revision) -----------------------------------
+#
+# Section 3.2 answers Reviewer 2's partial-observability point with a
+# constructive witness: two queues with identical phi that incur different cost
+# under the same rule. The first implementation put a two-order queue in front of
+# the deployed ten pickers, so both orders started at t=0 whatever the ranking
+# said, every rule produced the identical trajectory, and the reported gap was
+# 0.0000 — a witness that proved nothing, backing a claim it could not support.
+#
+# These pin the two halves of the claim: phi really coincides, and the cost
+# really differs.
+
+
+def test_aliasing_witness_exists_and_has_a_nonzero_gap(cfg):
+    """At least one rule must admit a genuine witness."""
+    from experiments.observability_analysis import aliasing_witness
+    from simulation.heuristics import resolve_pool, with_default_scales
+
+    local = with_default_scales(cfg)
+    tau = int(local.labeling.tau)
+    found = {
+        r: w
+        for r in resolve_pool(local)
+        if (w := aliasing_witness(local, r, tau)).get("found")
+    }
+    assert found, (
+        "no rule admits an aliasing witness — Section 3.2's POMDP claim is "
+        "undemonstrated and must not be reported as measured"
+    )
+    for rule, w in found.items():
+        assert w["phi_max_abs_diff"] <= 1e-9, f"{rule}: phi does not actually coincide"
+        assert abs(w["cost_gap"]) > 1e-9, f"{rule}: reported found with a zero gap"
+
+
+def test_aliasing_witness_requires_contention(cfg):
+    """The witness must be built under contention, not with idle pickers.
+
+    Characterisation test: it documents WHY the construction pins the picker
+    count. With a picker free for every order the ranking cannot bind, so no
+    rule can separate the two queues.
+    """
+    from experiments.observability_analysis import _env_with_queue, _mk
+    from simulation.heuristics import resolve_pool, with_default_scales
+
+    local = with_default_scales(cfg)
+    tau = int(local.labeling.tau)
+    qa = [_mk(0, 4.0, 30.0), _mk(1, 18.0, -5.0)]
+    qb = [_mk(0, 4.0, -5.0), _mk(1, 18.0, 30.0)]
+
+    for rule in resolve_pool(local):
+        ea = _env_with_queue(local, qa, n_pickers=len(qa))
+        eb = _env_with_queue(local, qb, n_pickers=len(qb))
+        a0, b0 = ea.potential(), eb.potential()
+        ea.run_with_policy(rule, n_steps=tau)
+        eb.run_with_policy(rule, n_steps=tau)
+        gap = (ea.potential() - a0) - (eb.potential() - b0)
+        assert abs(gap) <= 1e-9, (
+            f"{rule}: a gap appeared with one picker per order — the premise of "
+            f"pinning the picker count no longer holds, so revisit the witness"
+        )

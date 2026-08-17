@@ -76,14 +76,29 @@ RESULTS_DIR = REPO_ROOT / "results" / "S1_observability"
 # ---------------------------------------------------------------------------
 
 
-def _env_with_queue(cfg: DictConfig, queue: list[Order]) -> WarehouseEnv:
+def _env_with_queue(
+    cfg: DictConfig, queue: list[Order], n_pickers: int | None = None
+) -> WarehouseEnv:
     """An env holding exactly `queue`, with no further arrivals.
 
     Future arrivals are suppressed so the two members of a witness pair differ
     only in queue composition. Any cost gap is then attributable to the queue,
     not to a difference in the exogenous stream.
+
+    THE PICKER COUNT IS PART OF THE CONSTRUCTION, NOT AN INCIDENTAL DETAIL. A
+    dispatching rule only expresses a preference when the queue contends for a
+    scarce picker: with the deployed 10 pickers and a two-order queue, both
+    orders start at t = 0 whatever the ranking says, so every rule produces the
+    identical trajectory and the cost gap is ZERO BY CONSTRUCTION. That is what
+    this routine reported before — a witness that proved nothing, supporting a
+    claim in Section 3.2 that it could not actually demonstrate. The witness
+    therefore searches over the picker count as well, and the aliasing it
+    exhibits is aliasing under contention, which is the regime the controller
+    operates in and the only one where rule selection has any effect at all.
     """
     env = WarehouseEnv(0, cfg)
+    if n_pickers is not None:
+        env.n_pickers = int(n_pickers)
     env._all_orders = list(queue)
     env._next_order_idx = len(queue)
     env.queue = list(queue)
@@ -134,40 +149,56 @@ def aliasing_witness(
     weights = CostWeights.from_cfg(cfg)
     best: dict | None = None
 
-    for p_short, p_long in ((2.0, 12.0), (3.0, 14.0), (2.0, 20.0), (4.0, 18.0)):
-        for s_tight, s_loose in ((0.0, 40.0), (2.0, 60.0), (-5.0, 30.0)):
-            qa = [_mk(0, p_short, s_loose), _mk(1, p_long, s_tight)]
-            qb = [_mk(0, p_short, s_tight), _mk(1, p_long, s_loose)]
+    for n_pick in (1, 2):
+        for p_short, p_long in ((2.0, 12.0), (3.0, 14.0), (2.0, 20.0), (4.0, 18.0)):
+            for s_tight, s_loose in ((0.0, 40.0), (2.0, 60.0), (-5.0, 30.0)):
+                qa = [_mk(0, p_short, s_loose), _mk(1, p_long, s_tight)]
+                qb = [_mk(0, p_short, s_tight), _mk(1, p_long, s_loose)]
 
-            ea, eb = _env_with_queue(cfg, qa), _env_with_queue(cfg, qb)
-            fa, fb = ea.observe(), eb.observe()
-            gap = float(np.abs(fa - fb).max())
-            if gap > tol:
-                continue  # phi differs; not a witness
+                ea = _env_with_queue(cfg, qa, n_pickers=n_pick)
+                eb = _env_with_queue(cfg, qb, n_pickers=n_pick)
+                fa, fb = ea.observe(), eb.observe()
+                gap = float(np.abs(fa - fb).max())
+                if gap > tol:
+                    continue  # phi differs; not a witness
 
-            phi0_a, phi0_b = ea.potential(), eb.potential()
-            ea.run_with_policy(rule, n_steps=tau)
-            eb.run_with_policy(rule, n_steps=tau)
-            cost_a = ea.potential() - phi0_a
-            cost_b = eb.potential() - phi0_b
+                phi0_a, phi0_b = ea.potential(), eb.potential()
+                ea.run_with_policy(rule, n_steps=tau)
+                eb.run_with_policy(rule, n_steps=tau)
+                cost_a = ea.potential() - phi0_a
+                cost_b = eb.potential() - phi0_b
 
-            if best is None or abs(cost_a - cost_b) > abs(best["cost_gap"]):
-                best = {
-                    "rule": rule,
-                    "tau": int(tau),
-                    "p_short": p_short, "p_long": p_long,
-                    "slack_tight": s_tight, "slack_loose": s_loose,
-                    "phi_max_abs_diff": gap,
-                    "cost_A": float(cost_a),
-                    "cost_B": float(cost_b),
-                    "cost_gap": float(cost_a - cost_b),
-                }
+                if best is None or abs(cost_a - cost_b) > abs(best["cost_gap"]):
+                    best = {
+                        "rule": rule,
+                        "tau": int(tau),
+                        "n_pickers": int(n_pick),
+                        "p_short": p_short, "p_long": p_long,
+                        "slack_tight": s_tight, "slack_loose": s_loose,
+                        "phi_max_abs_diff": gap,
+                        "cost_A": float(cost_a),
+                        "cost_B": float(cost_b),
+                        "cost_gap": float(cost_a - cost_b),
+                    }
 
     if best is None:
         return {"found": False}
 
-    # Self-verification: the claim is only meaningful if phi really did coincide.
+    # Self-verification. The claim needs BOTH halves: phi must really coincide,
+    # and the cost must really differ. A pair with phi_A = phi_B and a zero cost
+    # gap is not a witness for anything — it is two states the controller cannot
+    # distinguish and does not need to.
     assert best["phi_max_abs_diff"] <= tol, "witness search returned unequal phi"
+    if abs(best["cost_gap"]) <= tol:
+        best["found"] = False
+        best["interpretation"] = (
+            "No witness found: every phi-identical pair in the search grid also "
+            "incurred identical cost. Section 3.2's partial-observability claim "
+            "is NOT demonstrated by this construction and must not be reported "
+            "as if it were. Widen the grid, or weaken the claim to the empirical "
+            "aliasing measurement below."
+        )
+        return best
     best["found"] = True
     best["interpretation"] = (
         "Two queues indistinguishable to the controller incur different cost "
@@ -269,18 +300,45 @@ def main() -> int:
     report: dict = {}
 
     # --- 1. constructive witness ---
-    rule = args.rule or pool[0]
-    witness = aliasing_witness(cfg, rule, int(cfg.labeling.tau))
+    #
+    # SEARCH THE WHOLE POOL, not just one rule. Establishing that phi is not a
+    # sufficient statistic needs only ONE rule under which two phi-identical
+    # queues diverge, so reporting the strongest witness over the pool is both
+    # the correct claim and the honest one. It also matters which rules admit a
+    # witness at all: the pure deadline rules (EDD, EEDD, MS, MDD) sort on slack
+    # alone, and the two queues carry the SAME multiset of slacks, so those
+    # rules order them identically and no witness exists. The composite rules
+    # (ATC, COVERT) key on slack AND processing time jointly, which is exactly
+    # the interaction phi discards. Defaulting to pool[0] would therefore have
+    # reported "no witness found" for a claim that does hold.
+    rules = [args.rule] if args.rule else list(pool)
+    per_rule = {r: aliasing_witness(cfg, r, int(cfg.labeling.tau)) for r in rules}
+    found = {r: w for r, w in per_rule.items() if w.get("found")}
+    witness = (
+        max(found.values(), key=lambda w: abs(w["cost_gap"])) if found
+        else next(iter(per_rule.values()))
+    )
     report["witness"] = witness
+    report["witness_by_rule"] = {
+        r: {"found": bool(w.get("found")), "cost_gap": float(w.get("cost_gap", 0.0))}
+        for r, w in per_rule.items()
+    }
     if witness.get("found"):
-        print(f"[observability] constructive witness under {rule}, tau={witness['tau']}")
+        print(f"[observability] strongest constructive witness: {witness['rule']}, "
+              f"tau={witness['tau']}, {witness['n_pickers']} picker(s)")
         print(f"  phi max |A - B|   = {witness['phi_max_abs_diff']:.2e}  (identical)")
         print(f"  cost(queue A)     = {witness['cost_A']:.4f}")
         print(f"  cost(queue B)     = {witness['cost_B']:.4f}")
         print(f"  gap               = {witness['cost_gap']:+.4f}")
+        print(f"  admits a witness  : "
+              f"{', '.join(sorted(found)) or 'none'}")
+        print(f"  does not          : "
+              f"{', '.join(sorted(set(per_rule) - set(found))) or 'none'} "
+              f"(slack-only rules order both queues identically)")
     else:
-        print("[observability] no witness found on the search grid; widen it "
-              "before concluding phi is sufficient.")
+        print("[observability] NO witness found for any rule on the search grid. "
+              "Section 3.2's partial-observability claim is not demonstrated; "
+              "widen the grid or weaken the claim.")
 
     # --- 2. empirical aliasing ---
     if args.train.exists():

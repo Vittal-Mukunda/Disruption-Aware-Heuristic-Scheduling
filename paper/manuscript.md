@@ -583,11 +583,36 @@ so that the critical thresholds fall the same way — the same critical and at-r
 counts. Every coordinate of $\phi$ agrees: $\phi(S^A) = \phi(S^B)$ exactly. The
 dynamics do not agree. In $\mathcal{Q}^{A}$ the binding deadline sits on the order
 that occupies a picker longest, so deferring it is expensive and the feasible set
-of on-time completions is strictly smaller than in $\mathcal{Q}^{B}$. Under the
-*same* rule the two states incur different cost.
-`experiments/observability_analysis.py` constructs such a pair, verifies that the
-feature vectors coincide to machine precision before comparing anything, and
-reports the resulting cost gap; Section 8 gives the value.
+of on-time completions is strictly smaller than in $\mathcal{Q}^{B}$.
+
+Two conditions are needed for that difference to be *realised*, and both are part
+of the construction rather than incidental to it.
+
+*The queue must contend for a picker.* A ranking expresses a preference only when
+something has to wait. With the deployed ten pickers and a two-order queue both
+orders start immediately whatever the ranking says, every rule produces the
+identical trajectory, and the cost gap is zero by construction. The witness is
+therefore built at one picker. This is not a weakening: contention is the regime
+in which rule selection has any effect at all, so it is the only regime in which
+partial observability can cost anything.
+
+*The rule must key on slack and processing time jointly.* Queues $\mathcal{Q}^A$
+and $\mathcal{Q}^B$ carry the *same multiset* of slacks, so a rule that sorts on
+slack alone — EDD, EEDD, MS, MDD — orders them identically and no witness exists
+under it. The composite rules ATC and COVERT rank on slack *and* $p_o$ together,
+which is precisely the interaction $\phi$ discards by recording the two marginals
+separately. That is the sharper statement of the defect: $\phi$ retains the
+marginal distributions of slack and of processing time and destroys their
+coupling.
+
+`experiments/observability_analysis.py` searches a grid of picker counts,
+processing times and slacks over every rule in the pool, verifies that the feature
+vectors coincide to machine precision before comparing anything, and reports the
+strongest gap. Under ATC at $\tau = 4$ with one picker it finds
+$\phi(S^A) = \phi(S^B)$ to machine precision with costs of $3.79$ against
+$-0.01$ — a gap of $3.80$, against a per-order breach weight of $W_b = 3.0$. One
+such pair is sufficient: $\phi$ is not a sufficient statistic, and no quantity of
+training data recovers from $\phi$ what $\phi$ does not contain.
 
 **Consequence: a POMDP, and a policy-function approximation**. We therefore do not
 claim that $\phi$ is a sufficient statistic — it is not, and the witness settles
