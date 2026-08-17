@@ -811,7 +811,7 @@ customer clock; and the choice of rule moving the spoilage count at at least 10%
 epochs. Had any failed, the correct response was to drop the perishability framing
 and the expiry-aware rules, and to report that instead.
 
-**Table 0**. Perishability decision-relevance, 30 calibration shifts, 7,440
+**Table 1**. Perishability decision-relevance, 30 calibration shifts, 7,440
 decision epochs.
 
 | Quantity | Measured | Threshold |
@@ -1321,7 +1321,7 @@ selector. Its results therefore stand ahead of the rest of Section 6.
 
 ### Calibration
 
-**Table 4**. Look-ahead scale calibration, 30 calibration shifts, $M = 5$
+**Table 2**. Look-ahead scale calibration, 30 calibration shifts, $M = 5$
 continuations under common random numbers. Standalone cost is the composite
 objective with the rule used alone; portfolio marginal is the cost increase when
 the rule is removed from the pool at that $k$.
@@ -1349,7 +1349,7 @@ the scale that makes ATC best *alone* is not the scale that makes it most useful
 
 ### Screening
 
-**Table 5**. Pool screening on the same corpus. Marginal contribution is the
+**Table 3**. Pool screening on the same corpus. Marginal contribution is the
 increase in achievable cost when the rule is removed, with a percentile bootstrap
 interval; a rule is retained when that interval excludes zero.
 
@@ -1371,8 +1371,8 @@ Four findings, three of them answering questions put to the submitted version.
 its marginal contribution is identically zero. As the zero-information control in
 a due-date-driven setting that is the expected result, and it is the direct answer
 to the question of what FIFO was doing in the pool: nothing, and it is dropped.
-Note that FIFO's flattering position in the submitted Table 1 is separately
-explained by the admission defect of Section 6.2, which penalised every
+Note that FIFO's flattering position in the submitted results (Table 4) is
+separately explained by the admission defect of Section 6.2, which penalised every
 arrival-agnostic rule and never penalised FIFO.
 
 **WSPT earns nothing either, and that is consistent rather than surprising.** A
@@ -1407,7 +1407,7 @@ state dimensions that govern the decision: queue length and deadline pressure (m
 slack), in quantile bins. A pool is complementary when different rules own
 different cells.
 
-**Table 6**. Cell ownership and the oracle gap over the 4x4 grid (960 decision
+**Table 5**. Cell ownership and the oracle gap over the 4x4 grid (960 decision
 epochs from the calibration corpus).
 
 | Quantity | Value |
@@ -1438,7 +1438,7 @@ lower bound on the room available to a richer selector, and the honest statement
 is that *this projection* of the state space does not by itself justify selection.
 
 *Win rate is not the objective.* A rule can win rarely and still be worth its slot
-if the states it wins are expensive ones, which is exactly why Table 5 screens on
+if the states it wins are expensive ones, which is exactly why Table 3 screens on
 marginal contribution rather than on win rate — and the two orderings differ:
 COVERT wins 14.5% of decisions but carries a marginal contribution of 2.047,
 while EDD wins 6.8% and carries 0.007. The quantity that decides whether selection
@@ -1469,7 +1469,7 @@ one purpose only: the two corrections diagnosed in this subsection are visible i
 it, and the argument that they are corrections rather than tuning is easier to
 follow with the symptomatic numbers in view.
 
-⟨TBD-rerun: regenerate Table 1 under the corrected objective and metric. Report,
+⟨TBD-rerun: regenerate Table 4 under the corrected objective and metric. Report,
 per method: composite cost; service-failure rate; the outcome partition
 (arrived / served / unserved / rejected); the breach rate over arrived orders and
 over completed orders, both labelled; spoilage rate; tardiness; throughput;
@@ -1478,7 +1478,7 @@ the objective every learned method optimises (Section 5) — not by breach rate.
 State plainly whether the method ranking changes under the corrected metric, and
 if the sample-efficiency claim of Section 6.3 weakens, weaken it.⟩
 
-**Table 1 (superseded)**. The submitted results: default scenario, 50 test
+**Table 4 (superseded)**. The submitted results: default scenario, 50 test
 shifts, under the *old* objective, the *old* completed-orders-only breach metric
 and the *old* four-rule pool. Retained solely as the evidence for the two
 diagnoses below. No claim in this paper rests on these figures.
@@ -1505,9 +1505,10 @@ selecting it (Section 6.9).
 
 ### The corrected accounting, and what it costs the headline
 
-The submitted Table 1 ranked methods by a breach rate whose denominator was
-*completed* orders. That leaves an opening — a controller can lower the reported
-rate by declining to touch difficult orders — and the submitted table carries the
+The submitted paper's main table, reproduced above as Table 4, ranked methods
+by a breach rate whose denominator was *completed* orders. That leaves an
+opening — a controller can lower the reported rate by declining to touch
+difficult orders — and the submitted table carries the
 direct evidence: DAHS completed 721.6 orders on average against basic FIFO's
 750.6. The correct accounting counts every overdue order as a failure, whether it
 was completed late or abandoned in the queue.
@@ -1575,14 +1576,14 @@ Together these mean the submitted rule comparison was not measuring rule quality
 All results in this section are regenerated under the corrected environment and
 objective, with the recalibrated pool of Section 3.6.
 
-⟨TBD-rerun: regenerate Table 1 and the accompanying analysis. Report throughput
+⟨TBD-rerun: regenerate Table 4 and the accompanying analysis. Report throughput
 and utilisation by rule under the corrected admission rule, and state whether WSPT
 now behaves as theory predicts. If it does, that is the confirmation that Cause 2
 was the mechanism; if it does not, the remaining discrepancy must be explained
 rather than absorbed.⟩
 
 **The multi-scenario picture.** The submitted comparison across four load
-scenarios is reproduced below under the same marking as Table 1, because one cell
+scenarios is reproduced below under the same marking as Table 4, because one cell
 of it sets up the boundary-condition analysis that follows. In the
 high-load-perishable scenario DAHS's breach rate (0.1943) was edged by greedy_mpc
 (0.1884) by 0.59 percentage points — the one cell where DAHS did not lead the
@@ -1592,8 +1593,8 @@ survives the corrected objective is an open question, not a claim: the corrected
 objective charges the unserved orders that saturation produces most of, which is
 precisely the regime in which the old and new metrics diverge furthest.
 
-**Table 2 (superseded)**. Submitted SLA-breach rate by scenario, over completed
-orders only, 50 test shifts. Superseded for the same reasons as Table 1.
+**Table 6 (superseded)**. Submitted SLA-breach rate by scenario, over completed
+orders only, 50 test shifts. Superseded for the same reasons as Table 4.
 
 | Scenario | DAHS | greedy_mpc | snapshot_xgb | offline_fqi | Best static rule |
 |---|---:|---:|---:|---:|---:|
@@ -1602,7 +1603,7 @@ orders only, 50 test shifts. Superseded for the same reasons as Table 1.
 | default | 0.0133 | 0.0313 | 0.0373 | 0.0718 | FIFO 0.0660 |
 | high-load-perishable | 0.1943 | 0.1884 | 0.1949 | 0.6192 | WSPT 0.1965 |
 
-⟨TBD-rerun: regenerate Table 2 on composite cost and service-failure rate across
+⟨TBD-rerun: regenerate Table 6 on composite cost and service-failure rate across
 all four scenarios. Report whether DAHS still loses the high-load-perishable cell
 and on which metric; whether any method Pareto-dominates DAHS in any scenario; and
 whether the offline-RL baseline still collapses under saturation once its
@@ -1684,7 +1685,7 @@ restate the claim at the measured budget; the claim is that the signal is
 sample-efficient relative to the alternatives at matched budgets (Section 6.10),
 not that any particular number holds.⟩
 
-![Figure 4. Sample efficiency. DAHS performance versus the number of simulated
+![Figure 2. Sample efficiency. DAHS performance versus the number of simulated
 training shifts (mean ± standard deviation over 5 replications; at the 250-shift
 budget all five replications draw the identical full training corpus, so the
 plotted standard deviation there is zero by construction). Dashed and dotted lines
@@ -1710,7 +1711,7 @@ labels the variance term now exists and is measured; with Proposition 2 there is
 also a model-error term the submitted analysis lacked entirely. The sweep is
 therefore re-run as a test of a prediction rather than re-described.
 
-**Table 3 (superseded)**. Submitted rollout-horizon sensitivity, under the old
+**Table 7 (superseded)**. Submitted rollout-horizon sensitivity, under the old
 objective, the old metric and single-path labels.
 
 | $\tau$ | CV soft cross-entropy | SLA breach (completed only) | Composite cost (old) |
@@ -1740,7 +1741,7 @@ labels carry a usable signal: if it stays high at the deployed $M$, the soft lab
 is mostly noise and both the temperature search and the ambiguity filter are
 operating on noise, which must be reported rather than absorbed.⟩
 
-![Figure 5. Performance versus rollout horizon.](../figures/E4/tau_sla_breach_rate.png)
+![Figure 3. Performance versus rollout horizon.](../figures/E4/tau_sla_breach_rate.png)
 
 ## 6.5 Robustness across untuned configurations
 
@@ -1759,20 +1760,21 @@ the best static rule degraded catastrophically in the hardest cell.
 **A defect in the submitted grid, and how it is prevented from recurring.** One
 cell of that grid — arrival rate 1.65 at default tightness — is byte-identical in
 configuration to the default scenario and uses the same 50 seeds, so it must
-reproduce Table 1 exactly. It did not: it read 0.0048 for DAHS and 0.0956 for the
-best static rule against Table 1's 0.0133 and 0.1181. A static rule carries no
+reproduce the submitted main table (Table 4) exactly. It did not: it read 0.0048
+for DAHS and 0.0956 for the best static rule against that table's 0.0133 and
+0.1181. A static rule carries no
 learned artefact and is deterministic given a seed, so the discrepancy isolates to
 the simulator or the seed stream rather than to any model. The rebuild resolves it
 by construction, and a regression test now pins the static rules' KPIs on fixed
 seeds so the two paths cannot silently diverge again.
 
 ⟨TBD-rerun: regenerate the grid on composite cost and service-failure rate.
-Confirm first that the calibrated cell reproduces the Table 1 row for every static
+Confirm first that the calibrated cell reproduces the Table 4 row for every static
 rule to within floating-point tolerance — if it does not, stop and fix that before
 reading anything else off the grid. Then report the ranking stability, the
 degradation profile with load, and the cells where DAHS does not lead.⟩
 
-![Figure 6. Robustness grid across 12 untuned configurations (4 arrival rates x 3
+![Figure 4. Robustness grid across 12 untuned configurations (4 arrival rates x 3
 deadline-tightness levels). The calibrated cell is
 outlined.](../figures/E8/robustness_grid_heatmap_sla_breach_rate.png)
 
@@ -1788,7 +1790,7 @@ report rather than suppress.
 
 Those figures are also the subject of a reproducibility defect we record rather
 than quietly repair. They come from a *different fitted model* than the one whose
-KPIs Table 1 reports: they match the 250-shift replication of the data-efficiency
+KPIs Table 4 reports: they match the 250-shift replication of the data-efficiency
 sweep, not the deployed run. Those two runs share their data, their seed and their
 hyperparameters and should be identical; their cross-validated soft cross-entropy
 differs in the sixth decimal place. The rebuild pins library versions and adds a
@@ -1804,10 +1806,10 @@ selector attends to the product clock at all is a substantive question about
 whether the perishability framing is doing work, not a presentational one. Read it
 alongside Appendix A.3 and the `top5_features` ablation of Section 6.8.⟩
 
-![Figure 9. Reliability diagrams before and after isotonic
+![Figure 5. Reliability diagrams before and after isotonic
 calibration.](../figures/E5/reliability_pre_post.png)
 
-![Figure 10. Global SHAP feature importance for the ranker.](../figures/E5/shap_summary.png)
+![Figure 6. Global SHAP feature importance for the ranker.](../figures/E5/shap_summary.png)
 
 ## 6.7 Real-data grounding
 
@@ -2074,7 +2076,7 @@ low tardiness and competitive composite cost — but does not sharply avoid the 
 breach. DAHS's per-rule rollout-cost vector measures the breach-laden cost of each
 rule directly, at every state, and the ranker fits it without bootstrapping.
 
-The sample-efficiency comparison is the sharper one (Figure 11), because it varies
+The sample-efficiency comparison is the sharper one (Figure 9), because it varies
 the data budget rather than the tuning. Under the submitted model offline_fqi
 improved with the budget but was still descending at the largest one, while DAHS
 was flat from the smallest; and offline_fqi's cross-replication spread at the
@@ -2090,7 +2092,7 @@ at the smallest budget. State whether DAHS at its smallest budget still matches 
 beats offline_fqi at the full budget; if it no longer does, report the crossing
 point instead of the headline.⟩
 
-![Figure 11. Sample efficiency: DAHS versus the offline reinforcement-learning
+![Figure 9. Sample efficiency: DAHS versus the offline reinforcement-learning
 baseline. SLA-breach rate (mean ± standard deviation over five replications)
 versus the number of simulated training shifts. DAHS is flat near 1.3% from 25
 shifts onward; offline_fqi descends from 11.6% but is still well above DAHS at the

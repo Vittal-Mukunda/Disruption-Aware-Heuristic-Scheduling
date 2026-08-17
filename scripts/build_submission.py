@@ -139,6 +139,43 @@ def check() -> list[str]:
             + art[s0:art.find(chr(10), m.start())].strip()[:60]
         )
 
+    # Elsevier: tables and figures numbered consecutively in order of first
+    # mention. The revision broke both — Sections 3.5 and 6.1 gained tables that
+    # appear before the old Table 1, and figures deleted during the revision left
+    # gaps. It will break again as the campaign adds and removes results, so this
+    # is checked rather than fixed once.
+    #
+    # References to the SUBMITTED paper's tables are a different document's
+    # numbering and must NOT be renumbered; they are matched and excluded here so
+    # a legitimate "the submitted Table 1" does not trip the ordering check.
+    article = re.sub(r"the submitted (?:paper's )?Table\s+\d+", "", prose, flags=re.I)
+    for kind in ("Table", "Figure"):
+        seen = []
+        for m in re.finditer(rf"{kind}\s+(\d+)", article):
+            if m.group(1) not in seen:
+                seen.append(m.group(1))
+        if not seen:
+            continue
+        expected = [str(i) for i in range(1, len(seen) + 1)]
+        if seen != expected:
+            nums = sorted(int(n) for n in seen)
+            gaps = [n for n in range(1, max(nums) + 1) if n not in nums]
+            detail = f"gaps at {gaps}" if gaps else "out of order of first mention"
+            problems.append(
+                f"{kind} numbering is not consecutive in order of first mention "
+                f"({detail}); saw {seen}"
+            )
+        # Every number mentioned must also have a caption.
+        if kind == "Table":
+            caps = set(re.findall(r"^\*\*Table (\d+)", text, re.M))
+        else:
+            caps = set(re.findall(r"^!\[Figure (\d+)", text, re.M))
+        uncaptioned = sorted(set(seen) - caps, key=int)
+        if uncaptioned:
+            problems.append(
+                f"{kind}(s) referenced without a caption: {uncaptioned}"
+            )
+
     for fig in sorted(set(re.findall(r"\]\((\.\./figures/[^)]+)\)", text))):
         if not (PAPER / fig).resolve().exists():
             problems.append(f"figure referenced but missing: {fig}")
