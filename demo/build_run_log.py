@@ -11,8 +11,8 @@ Faithful
       experiments.evaluate._build_policy, the same factory the paper's E2
       evaluation uses.
     - The per-interval loop matches experiments.evaluate.run_shift /
-      run_shift_env_aware: the decision state is env.current_state() read
-      BEFORE env.step(). Final KPIs are computed by simulation.kpis.compute_kpis
+      run_shift_env_aware: admission is env.observe(), then the policy, then
+      env.step(). Final KPIs are env.kpis().
       and the order partition is asserted, so each floor IS a real eval shift.
     - Picker assignment is reconstructed by replaying the env's own greedy
       argmin over the dispatch-ordered completions (exact; no frozen code is
@@ -47,7 +47,6 @@ sys.path.insert(0, str(REPO))
 from baselines.ours import load_ours  # noqa: E402
 from experiments.evaluate import _build_policy  # noqa: E402
 from simulation.heuristics import HEURISTIC_NAMES  # noqa: E402
-from simulation.kpis import compute_kpis  # noqa: E402
 from simulation.warehouse_env import WarehouseEnv  # noqa: E402
 
 RUNS_DIR = REPO / "demo" / "dahs-app" / "runs"
@@ -58,9 +57,12 @@ BASELINES: dict[str, dict] = {
     "fifo": {"label": "FIFO",
              "source": "First-In-First-Out - classical dispatching rule",
              "blurb": "Serves orders strictly in arrival order; deadline-blind."},
+    "eedd": {"label": "EEDD",
+             "source": "Earliest effective deadline min(sla_due, expiry) - this work",
+             "blurb": "The strongest static rule on the calibration corpus."},
     "fefo": {"label": "FEFO",
-             "source": "First-Expire-First-Out - classical deadline-aware rule",
-             "blurb": "Serves the earliest due-date first; the strongest static rule here."},
+             "source": "First-Expire-First-Out - classical expiry-aware rule",
+             "blurb": "Serves perishables by expiry; screened out of the deployed pool."},
     "wspt": {"label": "WSPT",
              "source": "Weighted Shortest Processing Time - Smith (1956)",
              "blurb": "Ranks by priority weight over processing time."},
@@ -93,11 +95,12 @@ def _classify(env: WarehouseEnv, order_picker: dict[int, int]) -> tuple[list, di
     orders = []
     for o in env._all_orders:
         if o.order_id in completed_ids:
-            breached = bool(o.finish_time > o.sla_due)
+            breached = bool(o.is_overdue_at(env.shift_minutes))
             outcome = "breached" if breached else "shipped"
-            spoiled = breached and o.is_perishable
+            spoiled = bool(o.is_expired_at(env.shift_minutes))
         elif o.order_id in queued_ids:
-            outcome, breached, spoiled = "unfinished", False, False
+            breached = bool(o.is_overdue_at(env.shift_minutes))
+            outcome, spoiled = "unfinished", bool(o.is_expired_at(env.shift_minutes))
         else:
             outcome, breached, spoiled = "dropped", False, False
         orders.append({
@@ -131,14 +134,15 @@ def run_one(seed: int, cfg, policy, env_aware: bool) -> dict:
     """Drive one WarehouseEnv(seed) to completion under `policy`; log everything.
 
     Mirrors experiments.evaluate.run_shift (state-based) and run_shift_env_aware
-    (env-based). `policy.controller` (present for the DAHS stack) is read for the
-    rule-probability vector and the switch-decision trace.
+    (env-based). Admission goes through env.observe() so the policy sees the same
+    queue the dispatcher acts on.
     """
     if hasattr(policy, "reset"):
         policy.reset()
     env = WarehouseEnv(seed, cfg)
     ctrl = getattr(policy, "controller", None)        # SwitchingController or None
     regime_gmm = getattr(policy, "regime_gmm", None)
+    rule_names = list(getattr(ctrl, "heuristic_names", []) or HEURISTIC_NAMES)
 
     picker_free = [0.0] * env.n_pickers
     order_picker: dict[int, int] = {}
@@ -151,10 +155,11 @@ def run_one(seed: int, cfg, policy, env_aware: bool) -> dict:
         dwell_before = int(ctrl.dwell_remaining) if ctrl is not None else None
 
         if env_aware:
+            env.observe()
             rule = policy(env)                        # greedy_mpc / linucb
             probs, regime = None, None
         else:
-            state = env.current_state()               # PRE-pull state == run_shift
+            state = env.observe()
             rule = policy(state)
             probs = (ctrl.last_probs.tolist()
                      if (ctrl is not None and ctrl.last_probs is not None) else None)
@@ -172,7 +177,7 @@ def run_one(seed: int, cfg, policy, env_aware: bool) -> dict:
         switched = prev_rule is not None and rule != prev_rule
         candidate = entropy = reason = None
         if probs is not None:
-            candidate = HEURISTIC_NAMES[int(np.argmax(probs))]
+            candidate = rule_names[int(np.argmax(probs))]
             entropy = float(-sum(p * math.log(p) for p in probs if p > 0))
             if prev_rule is None:
                 reason = "initial selection"
@@ -198,10 +203,10 @@ def run_one(seed: int, cfg, policy, env_aware: bool) -> dict:
             "entropy": round(entropy, 6) if entropy is not None else None,
             "reason": reason,
             "fromRule": prev_rule,
-            "nArrived": int(env._n_arrivals_this_interval),
+            "nArrived": int(env._n_arrivals_last_interval),
             "nDispatched": len(newly),
             "queueLenEnd": int(env._history_queue_length[i]),
-            "breachRateEnd": round(float(env._history_breach_rate[i]), 6),
+            "breachRateEnd": round(float(env._history_failure_rate[i]), 6),
         }
         intervals.append(rec)
         switch_log.append({k: rec[k] for k in
@@ -212,7 +217,7 @@ def run_one(seed: int, cfg, policy, env_aware: bool) -> dict:
         prev_completed = len(env.completed)
 
     orders, counts = _classify(env, order_picker)
-    kpis = compute_kpis(env.completed, env.queue, env.n_pickers, env.shift_minutes)
+    kpis = env.kpis()
     return {
         "orders": orders,
         "intervals": intervals,
@@ -291,10 +296,10 @@ def main() -> int:
     log_line = (
         f"[run-log] seed={m['seed']}  DAHS vs {m['baseline']['label']}  "
         f"({m['nOrders']} orders, {m['nIntervals']} intervals)\n"
-        f"  DAHS      sla_breach={d['kpis']['sla_breach_rate']:.4f}  "
+        f"  DAHS      service_failure={d['kpis']['service_failure_rate']:.4f}  "
         f"shipped={d['counts']['shipped']}  breached={d['counts']['breached']}  "
         f"unfinished={d['counts']['unfinished']}\n"
-        f"  {m['baseline']['label']:<9s} sla_breach={b['kpis']['sla_breach_rate']:.4f}  "
+        f"  {m['baseline']['label']:<9s} service_failure={b['kpis']['service_failure_rate']:.4f}  "
         f"shipped={b['counts']['shipped']}  breached={b['counts']['breached']}  "
         f"unfinished={b['counts']['unfinished']}"
     )

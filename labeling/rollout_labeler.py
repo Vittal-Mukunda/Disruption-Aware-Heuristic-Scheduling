@@ -34,8 +34,8 @@ pair, costing sum_t |H|*(t + tau) = O(n_intervals^2 * |H|) interval-steps per
 shift. This one walks the shift forward once and branches at each epoch:
 O(n_intervals * |H| * M * tau). At the submitted setting (32 epochs, 4 rules,
 tau=4) the old scheme cost ~2,500 steps per shift; the new scheme at M=20 costs
-~10,300 with 4 rules. The corpus stays at 250 shifts and the pool doubles to
-eight, so total labelling work rises rather than falls: the saving is per
+~10,300 with 4 rules. the corpus stays at 250 shifts and the candidate pool is nine rules (six
+retained after screening), so total labelling work rises rather than falls: the saving is per
 sample, and it is what makes M=20 affordable at all. Rule calibration, not
 labelling, is the binding cost in this campaign — see
 `experiments/calibrate_rules.py`, which runs at a deliberately smaller M.

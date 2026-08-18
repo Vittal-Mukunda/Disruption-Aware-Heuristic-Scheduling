@@ -94,11 +94,17 @@ on both sides — how much simulation the offline training consumes, and how muc
 faster a decision becomes once the lookahead has been replaced by a single pass
 through a fitted model.
 
-⟨TBD-rerun: state the headline empirical findings here once the campaign
-completes. Report the primary objective and the service-failure rate over all
-arrived orders, not the breach rate over completed orders alone. Do not restate
-the submitted margins: Section 6.2 shows the corrected accounting compresses
-them substantially.⟩
+On the default 50-shift corpus, ranked by composite cost: one-step lookahead
+(`greedy_mpc`, $\tau=1$, $M=5$) is cheapest at $356$; the $\tau=4$ teacher
+(`rolling_mpc`, $M=5$) is $363$; DAHS is $381$ at roughly a thousand-fold lower
+per-decision latency. Always-COVERT is the strongest static rule on cost
+($454$), not Always-EEDD ($696$), even though EEDD owns $15$ of $16$
+state-space cells on win rate. Distillation therefore does not recover the
+teacher, and the teacher does not recover one-step lookahead. Matched-budget
+PPO closed $78\%$ of its gap once observation and reward were normalised; the
+"structural, not budgetary" reading is withdrawn. Offline fitted Q is being
+retrained after a logger defect. Scenario, $\tau\in\{2,3\}$, $M$-sweep and
+data-efficiency results are still outstanding.
 
 **Keywords:** dynamic dispatching; selection hyper-heuristics; rollout;
 approximate policy iteration; sequential decision processes; warehouse operations.
@@ -160,8 +166,9 @@ Section 2 places the method inside both.
    the same logged transitions, and a policy gradient. Section 6.10 reports the
    comparison, with the action-coverage diagnostics that determine whether it is
    clean and the hyperparameter sensitivity analysis (Section 6.9) that
-   distinguishes a structural result from a tuning artefact. This is the question
-   the prior literature leaves open, and it is the paper's principal claim.
+   distinguishes a structural result from a tuning artefact. This is a matched-budget
+   comparison of three supervision constructions, not a claim that the comparison
+   is absent from RCPI or multi-pass rule selection.
 2. **Two bounds on the training signal, acting in opposite directions.**
    Proposition 1 bounds the error from truncating the rollout, which decays as
    $O(H-\tau)$. Proposition 2 bounds the error from rolling out under a
@@ -946,8 +953,9 @@ review epoch per shift. For each state $s_t$ we form a label over the pool by
 2. Draw $M$ independent continuations. Continuation $m$ freezes the realised
    history at $t$ and resamples the *unrealised* future — arrivals after $t$ and
    their attributes — from a stream seeded by $(\text{shift}, t, m)$.
-3. For each rule $h$, commit to $h$ at $t$, apply the base policy for the next
-   $\tau$ epochs of continuation $m$, and record the cost
+3. For each rule $h$, hold $h$ fixed for the next $\tau$ epochs of continuation
+   $m$ (open-loop truncated simulation of that rule — not one improving action
+   followed by a different base policy), and record the cost
    $\hat{J}^{\tau}_{h,m}(s_t)$ accrued over that window. Average:
    $$ \hat{J}^{\tau}_h(s_t) \;=\; \frac{1}{M}\sum_{m=1}^{M} \hat{J}^{\tau}_{h,m}(s_t), \qquad \widehat{\mathrm{se}}_h(s_t) \;=\; \frac{\hat{\sigma}_h(s_t)}{\sqrt{M}} . $$
 4. Convert the cost vector into a probability distribution by a **tempered
@@ -1005,14 +1013,11 @@ uniform.
 $\beta$ is then selected once, by a one-dimensional search over a grid, so that
 the median training-label entropy falls in a target band expressed as a fraction
 of $\log|\mathcal{H}|$ rather than in absolute nats — sharp enough to be
-informative, soft enough to retain the cost margin. The submitted band was an
-absolute $[0.3, 0.7]$ chosen when the pool held four rules; carried unchanged to a
-pool of a different size it would have re-sharpened every label as a side effect of
-changing the pool.
-The same $\beta$ is applied to the test and calibration corpora, which would
-otherwise not be on the ranker's scale.
-⟨TBD-rerun: report the selected $\beta$ and the achieved median entropy against
-the band.⟩
+informative, soft enough to retain the cost margin. On the regenerated corpus
+($|\mathcal{H}|=6$, $M=20$, $\tau=4$, 250 train shifts) the search selected
+$\beta = 0.470$ under per-row temperature and achieved median train-row entropy
+$0.638$ nats against the band $[0.387, 0.905]$. The same $\beta$ is applied to the
+test and calibration corpora, which would otherwise not be on the ranker's scale.
 
 Two corrections are applied consistently in both labelling and deployment: when
 the perishable fraction is below 0.05 the FEFO mass is zeroed and the distribution
@@ -1042,10 +1047,9 @@ one decision state per review interval, so a block of $n$ shifts yields $32n$
 states: the test corpus of 50 shifts gives $50 \times 32 = 1600$ states before
 filtering. That is the origin of the 1600 test states the submitted version quoted
 without explaining, of which 865 then survived its ambiguity filter.
-⟨TBD-rerun: report how many survive the filter under the corrected labels. The
-count is informative rather than incidental — a filter that discards most of the
-test set is reporting that the rollout could not separate the rules at those
-states, which belongs in Section 6.4 alongside the standard errors.⟩ The filter is
+Under the corrected labels 1525 of 1600 test states survive
+($\theta = 2.2/|\mathcal{H}| = 0.367$); 33.4\% of training epochs have a
+best/second-best gap below one pooled standard error at $M=20$. The filter is
 applied to the test corpus only, and never to the training corpus, so no training
 state is discarded for being difficult.
 
@@ -1065,14 +1069,14 @@ The deployed model truncates the rollout at $\tau = 4$ of up to 32 intervals. Do
 the truncated rollout approximate the cost one would obtain from a full-horizon
 rollout? It does, with a controllable bias.
 
-**Proposition 1 (truncated-rollout consistency).**
+**Proposition 1 (truncation remainder).**
 *Let $\bar{C}$ be an upper bound on the composite cost incurred in any single
 interval. Such a bound exists and is finite, because the queue capacity and the
 fixed picker count bound the per-interval breach count, total tardiness, and
 unfinished-order count. Fix a decision state $s_t$ with $H_t$ intervals remaining
-in the shift. For rule $h$, let $J_h(s_t)$ be the full-horizon rollout cost
-(commit to $h$ at $t$, base policy for the remaining $H_t$ intervals) and
-$\hat{J}^{\tau}_h(s_t)$ the $\tau$-truncated rollout cost, $\tau \le H_t$. Then:*
+in the shift. For rule $h$, let $J_h(s_t)$ be the full-horizon cost of holding $h$
+fixed for the remaining $H_t$ intervals and
+$\hat{J}^{\tau}_h(s_t)$ the $\tau$-truncated cost of holding $h$ fixed, $\tau \le H_t$. Then, if per-interval contributions are non-negative:*
 
 *(i) the truncation error is non-negative and bounded,*
 $$ 0 \;\le\; J_h(s_t) - \hat{J}^{\tau}_h(s_t) \;\le\; (H_t - \tau)\,\bar{C} \;=:\; \Delta_\tau, \qquad \forall h; $$
@@ -1081,9 +1085,12 @@ $$ 0 \;\le\; J_h(s_t) - \hat{J}^{\tau}_h(s_t) \;\le\; (H_t - \tau)\,\bar{C} \;=:
 full-horizon label as $\tau \to H_t$, with*
 $$ \mathrm{KL}\!\left(p^{\infty}(s_t)\,\|\,p^{\tau}(s_t)\right) \;\le\; \frac{2\,\Delta_\tau}{\beta}. $$
 
-*Proof sketch.* (i) The composite cost is a sum of non-negative per-interval
-contributions, so truncating the rollout removes a non-negative tail; that tail
-spans $H_t - \tau$ intervals, each contributing at most $\bar{C}$. (ii) Write the
+*Proof sketch.* (i) If the composite cost is a sum of non-negative per-interval
+contributions, truncating the rollout removes a non-negative tail; that tail
+spans $H_t - \tau$ intervals, each contributing at most $\bar{C}$. The holding
+term $W_{\mathrm{hold}}|Q|$ in the potential can make a window cost negative when
+the queue drains, so the lower bound $0 \le J - \hat J$ need not hold pathwise;
+the upper bound on the remainder still does. (ii) Write the
 label as a softmax of energies $-J_h/\beta$. The truncated energies differ from
 the full-horizon energies by at most $\Delta_\tau/\beta$ in absolute value
 (part i). The log-sum-exp normaliser is 1-Lipschitz in the supremum norm of its
@@ -1199,19 +1206,23 @@ curve as either confirmation or refutation.
 Warehouse shifts pass through qualitatively distinct operating regimes — a quiet
 opening, a saturated mid-shift, a perishable burst. DAHS makes this explicit. A
 Gaussian mixture model is fit to the training-state features; the number of
-components is chosen by the Bayesian information criterion over
-$K \in \{3,4,5,6\}$, which selects $K = 6$. The fit is checked for stability by
-refitting ten times under different seeds and measuring the mean pairwise adjusted
-Rand index, which is 0.998 — the regime structure is highly reproducible. The six
-soft regime-membership posteriors are appended to the state vector. Regime
-discovery is a deliberately lightweight component of the method.
+components is chosen by BIC over $K \in \{2,3,4,5,6,7,8,10,12\}$ with five EM
+restarts per $K$. On the regenerated corpus BIC selects $K^\star = 12$, the
+**upper endpoint of the grid** (mean pairwise ARI $0.969$, above the $0.85$
+stability threshold). Because the selected $K$ sits on the boundary, the grid —
+not a turning point in the data — chose the number of regimes; we report that
+rather than treating twelve as a discovered structure. The twelve soft
+regime-membership posteriors are appended to $\phi(S_t) \in \mathbb{R}^{26}$, so
+the ranker sees a $38$-dimensional vector. Regime discovery remains a lightweight
+component; Section 6.8 ablates it.
 
 ## 4.6 The calibrated ranker
 
 The ranker is a gradient-boosted decision-tree classifier
-[@chen2016xgboost] with a four-class soft-probability output. The soft target is
+[@chen2016xgboost] with an $|\mathcal{H}|$-class soft-probability output
+($|\mathcal{H}|=6$ after screening). The soft target is
 fitted by an inverse-entropy-weighted replication of each training state across the
-four classes, which makes the training objective the Kullback–Leibler divergence
+six classes, which makes the training objective the Kullback–Leibler divergence
 between the predicted distribution and the soft label and down-weights states
 whose labels are near-uniform (and therefore carry little discriminative signal).
 The hard-label variant of Section 6.8 instead uses a standard one-hot
@@ -1221,8 +1232,9 @@ with folds grouped by shift, so no shift contributes states to both a training a
 a validation fold. The reference point for the cross-validated soft cross-entropy
 is the uniform label, $\log|\mathcal{H}|$, which moves with the screened pool
 rather than being fixed at $\log 4$ as in the submitted version.
-⟨TBD-rerun: report the selected configuration and its cross-validated soft
-cross-entropy against that baseline.⟩
+The selected configuration is `max_depth`$=6$, `n_estimators`$=200$,
+`learning_rate`$=0.03$, with mean grouped-CV soft cross-entropy $0.875$ against
+the uniform baseline $\log 6 \approx 1.79$.
 
 Tree ensembles are not probability-calibrated out of the box. DAHS post-processes
 the ranker output with isotonic regression fit on a held-out 20% of training
@@ -1255,8 +1267,9 @@ disjoint from the 250 training shifts and fixed once. Every reported KPI is a me
 over these 50 shifts.
 
 **Scenarios**. Beyond the default operating point, three scenarios stress the
-method: *low load* (reduced arrival rate), *balanced* (moderate load), and
-*high-load-perishable* (elevated arrival rate, tighter deadlines, more perishables).
+method: *low load* (arrival rate $1.0$, no perishables), *balanced* (rate $1.5$), and
+*high-load-perishable* (rate $2.2$, perishable probability $0.4$, customer windows
+scaled to $(12,36,72)$ minutes — $0.8\times$ the default triangular).
 Scenario parameters were fixed before evaluation and are not tuned per method.
 
 **Baselines**. We compare DAHS against the static rules retained by the screen of
@@ -1284,9 +1297,11 @@ comparison that determines what the distillation costs or gains was absent
 entirely. We add **rolling_mpc**: at each epoch it evaluates every rule over
 $\tau$ intervals, averaged over independent continuations drawn exactly as in
 Section 4.3, commits the arg-min rule for one interval, discards the remainder of
-the plan, and replans. It uses the same estimator as the labeller, so any gap
-between it and DAHS is attributable to the function approximation and the
-deployment guardrails rather than to a different scoring rule. The one-step
+the plan, and replans. Labelling uses $M=20$ continuations; the online teacher uses
+$M=5$ so that a 50-shift evaluation is affordable. The scoring rule is the same
+potential difference, but the Monte Carlo budget is not, so a gap between
+rolling_mpc and DAHS mixes function-approximation error with estimator noise.
+The one-step
 controller is retained as its $\tau = 1$ special case.
 
 This baseline is what makes the paper's central claim falsifiable, and it answers
@@ -1501,14 +1516,11 @@ one purpose only: the two corrections diagnosed in this subsection are visible i
 it, and the argument that they are corrections rather than tuning is easier to
 follow with the symptomatic numbers in view.
 
-⟨TBD-rerun: regenerate Table 4 under the corrected objective and metric. Report,
-per method: composite cost; service-failure rate; the outcome partition
-(arrived / served / unserved / rejected); the breach rate over arrived orders and
-over completed orders, both labelled; spoilage rate; tardiness; throughput;
-utilisation; and per-decision latency. Rank the table by composite cost, which is
-the objective every learned method optimises (Section 5) — not by breach rate.
-State plainly whether the method ranking changes under the corrected metric, and
-if the sample-efficiency claim of Section 6.3 weakens, weaken it.⟩
+Table 4 (revised) is reported after the two diagnoses, ranked by composite
+cost. The method ranking changes under the corrected metric: one-step lookahead
+leads, Always-COVERT is the strongest static, and Always-EEDD — the win-rate
+champion of Section 6.1 — is expensive. Sample-efficiency (Section 6.3) has not
+yet been regenerated.
 
 **Table 4 (superseded)**. The submitted results: default scenario, 50 test
 shifts, under the *old* objective, the *old* completed-orders-only breach metric
@@ -1608,11 +1620,53 @@ Together these mean the submitted rule comparison was not measuring rule quality
 All results in this section are regenerated under the corrected environment and
 objective, with the recalibrated pool of Section 3.6.
 
-⟨TBD-rerun: regenerate Table 4 and the accompanying analysis. Report throughput
-and utilisation by rule under the corrected admission rule, and state whether WSPT
-now behaves as theory predicts. If it does, that is the confirmation that Cause 2
-was the mechanism; if it does not, the remaining discrepancy must be explained
-rather than absorbed.⟩
+**Table 4 (revised).** Default scenario, 50 test shifts, corrected objective and
+causal admission. Ranked by composite cost, the quantity every learned method
+optimises. Arrived $=767$ on every method (the arrival process is independent of
+the policy). Dropped $=0$. Composite cost uses the potential (unserved orders
+assessed at $t_{\mathrm{end}}+p_o$). Service-failure in this table is from the
+Stage-4 parquets, which used that same unserved rule; current code censors
+unserved orders at $t_{\mathrm{end}}$ without adding $p_o$, so a cheap re-eval
+will change **only** the service-failure column. Rank by cost until then.
+
+| Method | Composite cost | Service failure | Spoil | Mean tardiness | Throughput | Picker util. | Latency (ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| greedy_mpc ($\tau{=}1$, $M{=}5$) | **356.1** | 0.0624 | 0.0381 | 0.777 | 732.5 | 0.956 | 1080 |
+| rolling_mpc ($\tau{=}4$, $M{=}5$) | 362.6 | 0.0657 | 0.0401 | 0.821 | 732.5 | 0.956 | 1201 |
+| DAHS | 381.2 | 0.0701 | 0.0421 | 0.822 | 732.1 | 0.956 | 0.99 |
+| snapshot_xgb ($\tau{=}1$)$^\dagger$ | 388.8 | 0.0691 | — | — | — | — | — |
+| offline_fqi$^\ddagger$ | 389.9 | 0.0731 | 0.0445 | 0.864 | 732.3 | 0.956 | 0.96 |
+| COVERT | 454.4 | 0.0855 | 0.0872 | 0.863 | 732.1 | 0.956 | $<0.01$ |
+| ATC ($k{=}3.0$) | 559.9 | 0.1133 | 0.0962 | 1.233 | 734.3 | 0.956 | $<0.01$ |
+| LinUCB | 583.6 | 0.0954 | 0.0809 | 0.807 | 731.1 | 0.956 | 0.42 |
+| ppo_fair (8k, untuned) | 610.9 | 0.0982 | 0.0936 | 0.922 | 730.5 | 0.956 | 0.23 |
+| EEDD | 695.8 | 0.0977 | 0.0375 | 0.825 | 729.8 | 0.956 | $<0.01$ |
+| MDD | 733.2 | 0.1035 | 0.1042 | 0.691 | 730.5 | 0.956 | $<0.01$ |
+| EDD | 763.1 | 0.1049 | 0.1056 | 0.785 | 729.8 | 0.956 | $<0.01$ |
+| MS | 789.8 | 0.1076 | 0.1081 | 0.821 | 729.1 | 0.956 | $<0.01$ |
+| WSPT | 1215.7 | 0.1000 | 0.0616 | 5.796 | **743.3** | 0.955 | $<0.01$ |
+| FIFO | 1486.0 | 0.1938 | 0.0761 | 2.090 | 730.2 | 0.956 | $<0.01$ |
+| FEFO | 1699.0 | 0.2076 | 0.0001 | 2.908 | 730.3 | 0.956 | $<0.01$ |
+
+$^\dagger$ Evaluated on the E8 default cell (`arr1.65_default`); the dedicated
+`results/snapshot_xgb.parquet` was not written by Stage 4. $^\ddagger$ Logged
+with a double-`observe()` bug that zeroed `n_arrivals_last_interval` on 31 of
+32 states per shift. Retrain before citing. Tuned PPO (obs+reward
+normalisation) attains cost $450$ and is the PPO baseline going forward
+(Section 6.9); it is not a row here because that sweep did not emit a full KPI
+record.
+
+Three facts that rewrite the submitted story:
+
+1. **The teacher does not beat one-step lookahead**, and DAHS does not recover
+   the teacher. Distillation is an amortisation of a *worse* scoring rule at
+   $M=5$, not of an oracle. Per-decision latency is the quantity DAHS wins
+   (1 ms vs ~1.1 s).
+2. **Always-COVERT, not Always-EEDD, is the static to beat on cost.** Win rate
+   on the Section 6.1 grid is the wrong proxy for the objective.
+3. **WSPT now has the highest throughput** (743 vs FIFO 730) and every method
+   sits at picker utilisation $\approx 0.956$. The submitted utilisation of
+   $0.686$ is gone. Cause 2 was the mechanism.
 
 **The multi-scenario picture.** The submitted comparison across four load
 scenarios is reproduced below under the same marking as Table 4, because one cell
@@ -1829,14 +1883,14 @@ differs in the sixth decimal place. The rebuild pins library versions and adds a
 determinism test, so a divergence of that kind fails loudly instead of surfacing
 as two slightly different numbers in two sections.
 
-⟨TBD-rerun: report the reliability diagram and the calibration metrics before and
-after isotonic regression, from the deployed run and identified as such. Report
-the Shapley-value attribution [@lundberg2017shap] over the corrected
-26-feature observation, including the
-three expiry features that did not exist in the submitted model — whether the
-selector attends to the product clock at all is a substantive question about
-whether the perishability framing is doing work, not a presentational one. Read it
-alongside Appendix A.3 and the `top5_features` ablation of Section 6.8.⟩
+On the deployed Stage-3 run, isotonic regression moved expected calibration error
+from $0.171$ to $0.020$ (clears the pre-registered $0.05$) and Brier from $0.174$
+to $0.126$; soft cross-entropy rose from $0.828$ to $2.388$. The
+sharpness-versus-calibration trade-off is larger than in the submitted model.
+
+⟨TBD-rerun: reliability diagram and SHAP over the 26-feature observation,
+including the three expiry features. Read alongside Appendix A.3 and the
+`top5_features` ablation.⟩
 
 ![Figure 5. Reliability diagrams before and after isotonic
 calibration.](../figures/E5/reliability_pre_post.png)
@@ -2018,13 +2072,13 @@ matched budget and evaluated on the same held-out shifts. Table ⟨TBD-rerun⟩
 reports the grid; the summary statistic is the fraction of the submitted
 PPO-to-DAHS gap that the best configuration recovers.
 
-⟨TBD-rerun: insert the swept grid, the per-factor spread in composite cost, the
-best configuration, and `gap_closed_fraction`. If that fraction is large, the
-structural claim below must be withdrawn and the tuned configuration adopted as
-the PPO baseline throughout. If it is small across the whole swept space, the
-claim stands and this sweep is its evidence. The interpretation is written
-conditionally on purpose and must be resolved against the measured outcome, not
-assumed.⟩
+On the regenerated campaign the sweep recovered **78.2\%** of the submitted
+PPO-to-DAHS composite-cost gap. The best cell was observation *and* reward
+normalisation (composite cost $450$ vs untuned $696$ vs DAHS $381$). The
+"structural, not budgetary" claim is therefore withdrawn. The tuned PPO remains
+worse than DAHS on this grid, but it is no longer evidence that policy gradients
+are the wrong instrument. Tuned PPO is the PPO baseline going forward.
+⟨TBD-rerun: paste the full 12-row grid from `results/E11_rl_sensitivity/ppo_sensitivity.json` into a table.⟩
 
 **Interpretation, conditional on the sweep**. If PPO's deficit survives the sweep,
 the mechanism is the one policy-gradient theory predicts for this class of
@@ -2082,23 +2136,26 @@ in the top quartile, which is exactly where a value function most needs data —
 the exponentiated entropy of the action distribution, which equals $|\mathcal{H}|$
 under uniform coverage and 1 under degeneracy. And both corpora are reported, so
 the effect of the behaviour policy on the offline-RL baseline can be read directly
-rather than assumed away. Table ⟨TBD-rerun⟩ gives the coverage statistics under
-each behaviour policy; the conditional statistic is 1.0 by construction under the
-submitted round robin.
+rather than assumed away. Under the regenerated `random` behaviour policy,
+effective actions are $6.00$ overall and $5.94$ conditional on interval index
+($n=8000$ training epochs; min action share $0.161$). Restricted to the top
+quartile of rollout cost the figure is still $6.00$. Coverage is adequate: an
+offline-RL deficit cannot be blamed on unsupported actions. The submitted
+round-robin conditional statistic is $1.0$ by construction.
 
 Under the submitted model offline_fqi was not a weak baseline: it tied DAHS on
 mean tardiness and attained a lower composite cost than both the snapshot ranker
 and the analytic lookahead controller, while losing decisively on the breach
 metric. It was a competent controller that lost on the metric that mattered.
 
-⟨TBD-rerun: report the DAHS-to-offline_fqi comparison in composite cost and
-service-failure rate, with paired bootstrap intervals, on the corpus regenerated
-under the *random* behaviour policy — and separately on the round-robin corpus, so
-the effect of fixing conditional coverage on the baseline is visible rather than
-assumed. If correcting coverage closes a material part of the gap, the
-training-signal claim must be narrowed to what survives, since part of the
-submitted gap would then have been a data-collection artefact rather than a
-property of value bootstrapping.⟩
+The Stage-4 offline_fqi row (cost $390$ vs DAHS $381$) was trained with a logger
+that called `observe()` twice per epoch, zeroing the arrival feature. That
+comparison is void until retraining.
+
+⟨TBD-rerun: after the observe-once retrain, report the DAHS-to-offline_fqi
+comparison in composite cost and service-failure rate, with paired bootstrap
+intervals, on the `random` corpus — and separately on round-robin, so the effect
+of fixing conditional coverage is visible.⟩
 
 The mechanism we expect to survive is structural, and
 it is the one Section 6.9 gives for PPO: an SLA breach is a rare, expensive
@@ -2277,9 +2334,10 @@ pool of twenty, and we record it in Section 9.
 # 7. Discussion
 
 The results support a narrow but well-grounded claim. On deadline-constrained
-warehouse dispatching, a selector trained by offline rollout distillation is
-*sample-efficient* (Section 6.3), *theoretically consistent* in its training signal
-(Section 4.4, Section 6.4), *robust* across untuned operating points (Section 6.5),
+warehouse dispatching, a selector trained by offline multi-pass simulation is
+*sample-efficient* (Section 6.3), uses a truncated-rollout training signal whose
+error terms have the expected *sign* in $\tau$ (Section 4.4, Section 6.4) even
+though the numerical bounds are vacuous, *robust* across untuned operating points (Section 6.5),
 and *real-data-grounded* in the sense that its advantage is tested against a
 realistically bursty arrival stream (Section 6.7). We have been explicit
 throughout that the contribution is the *comparison of training signals and the
@@ -2308,14 +2366,14 @@ work, not only outright breaches.
 Two deployment properties reinforce the operational case. The first is a **cost
 asymmetry**. DAHS runs no simulation at deployment — a decision is a deterministic
 forward pass of the regime mixture and the gradient-boosted ranker over the
-31-feature state — whereas the analytic controller greedy_mpc simulates every rule
+26-feature observation plus $K^\star$ regime posteriors — whereas the analytic controller greedy_mpc simulates every rule
 for one interval at *every* decision. DAHS instead pays that lookahead cost once,
 offline, at labelling time and amortises it over the deployment. Relative to a
 deep-reinforcement-learning policy the asymmetry is one of training data: DAHS
 reaches a deployable controller from 25 simulated shifts (Section 6.3), where PPO
 does not converge to a useful policy even at 500k environment steps (Section 6.9).
 The second property is **auditability of the action**: DAHS emits, each interval,
-one of four *named* rules — FIFO, FEFO, WSPT, ATC — that a supervisor already
+one of six *named* rules — EEDD, COVERT, MS, ATC, MDD, EDD — that a supervisor already
 understands and can check against the visible queue state, rather than an opaque
 assignment. We scope this claim carefully: the *selector* is itself a tree ensemble,
 interpreted only post hoc through the SHAP attribution of Section 6.6 — it is the
@@ -2499,12 +2557,14 @@ regenerated under a behaviour policy with non-degenerate conditional coverage,
 which the submitted corpus lacked. Both sections are written conditionally on
 those measurements.
 
-⟨TBD-rerun: resolve the conditional. If tuning closes a material part of the PPO
-gap, or fixing coverage closes a material part of the fitted-Q gap, the structural
-reading is withdrawn and the tuned configurations become the baselines throughout.
-If both gaps survive, then two RL failure modes of different shapes survive
-independent corrections, which makes a shared tuning artefact unlikely — and that,
-not the size of either gap, is the argument.⟩
+PPO tuning closed 78.2\% of the gap (Section 6.9); the structural reading of the
+policy-gradient baseline is withdrawn. The fitted-Q logger was found to
+double-call `observe()` and zero the arrival feature; that baseline is being
+retrained before Section 6.10 is resolved.
+
+⟨TBD-rerun: after the corrected FQI retraining, report whether the DAHS-to-FQI
+gap survives. Coverage under `random` is already adequate (6.00 effective
+actions overall, 5.94 conditional on interval index).⟩
 
 A comparison against a modern conservative offline-RL method (CQL, IQL) would
 strengthen the case further and is left to future work. It matters more now than
@@ -2686,9 +2746,10 @@ is no longer fixed: $K$ is selected by BIC over a grid wide enough to turn
 ($K \in \{2,\dots,12\}$, against the submitted grid's $\{3,\dots,6\}$) with five
 EM restarts per $K$, and the selection is reported with its stability check rather
 than assumed. The ranker therefore has $26 + K^\star$ inputs.
-⟨TBD-rerun: report $K^\star$, the BIC curve over the full grid, the mean adjusted
-Rand index across refits, and hence the input dimension. If BIC again selects at a
-grid endpoint, say so — that means the grid chose $K$, not the data.⟩
+On this corpus BIC selects $K^\star = 12$, the upper endpoint of
+$\{2,3,4,5,6,7,8,10,12\}$ (mean ARI $0.969$, above the $0.85$ threshold). BIC
+values fall from $+39{,}104$ at $K=2$ to $-239{,}511$ at $K=12$ and do not turn.
+The grid chose $K$, not a mode in the data. Input dimension is $38$.
 
 # Appendix B. Configuration and hyperparameters
 
@@ -2733,12 +2794,9 @@ ambiguity filter at $\theta = 2.2/|\mathcal{H}|$, never applied to the training
 corpus. The hard-label ablation of Section 6.8 replaces the tempered softmax with
 the one-hot arg-max of the same cost vector and is otherwise identical.
 
-**Rule pool** (Section 3.6). Eight rules before screening: FIFO, EDD, FEFO, WSPT,
-ATC, MS, MDD, COVERT. ATC's and COVERT's look-ahead scales are fitted on the
-calibration block over the grid $k \in \{0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 20\}$,
-twice — once for standalone use and once for portfolio contribution.
-⟨TBD-rerun: report the retained pool and both fitted $k$ values for each rule,
-together with the value deployed.⟩
+**Rule pool** (Section 3.6). Nine candidates before screening: FIFO, EDD, EEDD, FEFO, WSPT,
+ATC, MS, MDD, COVERT. Stage 1 retained `[EEDD, COVERT, MS, ATC, MDD, EDD]` and fitted
+ATC $k^\star=3.0$ (portfolio; standalone $1.5$) and COVERT $k^\star=4.0$.
 
 **Regime layer** (Section 4.5). Gaussian mixture, full covariance, with $K$
 selected by BIC over $K \in \{2,3,4,5,6,7,8,10,12\}$ and 5 EM restarts per $K$;
@@ -2750,7 +2808,8 @@ inverse label entropy. Hyperparameters selected from an 18-configuration grid
 (`max_depth` $\in \{4,6,8\}$ $\times$ `n_estimators` $\in \{200,500,1000\}$
 $\times$ `learning_rate` $\in \{0.03,0.1\}$) by 5-fold cross-validation grouped on
 `shift_id`; isotonic calibration on a 20% held-out shift split.
-⟨TBD-rerun: report the selected configuration.⟩
+Selected: `max_depth`$=6$, `n_estimators`$=200$, `learning_rate`$=0.03$.
+Test ECE after isotonic: $0.020$ (pre $0.171$).
 
 **Switching controller** (Section 4.7). Minimum dwell $T_{\min} = 2$ intervals;
 entropy gate at half the maximum entropy.

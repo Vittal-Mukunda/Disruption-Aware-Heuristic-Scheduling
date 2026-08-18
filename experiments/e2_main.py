@@ -45,6 +45,7 @@ from experiments.evaluate import (  # noqa: E402
 )
 from experiments.stats import require_metrics, compare_methods, load_phase5_results  # noqa: E402
 from labeling.provenance import stamp_derived  # noqa: E402
+from seed import data_efficiency_shift_indices
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -108,13 +109,21 @@ def cmd_eval(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     methods = args.methods if args.methods else DEFAULT_METHODS
+    skipped: list[str] = []
     for method in methods:
         print(f"[E2 eval] scenario={args.scenario}  method={method}  "
               f"n_seeds={len(seeds)}")
-        policy, env_aware = _build_policy(method, args.run_dir)
+        try:
+            policy, env_aware = _build_policy(method, args.run_dir)
+        except FileNotFoundError as exc:
+            print(f"[E2 eval] SKIP {method}: {exc}")
+            skipped.append(method)
+            continue
         runner = evaluate_policy_env_aware if env_aware else evaluate_policy
         runner(method, policy, seeds, cfg, results_dir=out_dir,
-               save=True, verbose=args.verbose)
+               save=True, verbose=args.verbose, n_jobs=args.n_jobs)
+    if skipped:
+        print(f"[E2 eval] skipped missing artifacts: {skipped}")
     print(f"\n[E2 eval] wrote {out_dir.relative_to(REPO_ROOT)}/")
     return 0
 
@@ -132,6 +141,13 @@ def cmd_stats(args: argparse.Namespace) -> int:
         raise SystemExit(f"results dir not found: {results_dir}")
 
     df_long = load_phase5_results(results_dir, methods=methods)
+    present = set(df_long["method"].unique())
+    if "snapshot_xgb" in methods and "snapshot_xgb" not in present:
+        raise SystemExit(
+            "snapshot_xgb.parquet is missing from this scenario's results. "
+            "Run `python -m experiments.evaluate --method snapshot_xgb --n-jobs=-1` "
+            "before `e2_main stats` so Table 1 includes the tau=1 arm."
+        )
     print(f"[E2 stats] {len(df_long)} rows across "
           f"{df_long['method'].nunique()} methods, "
           f"{df_long['shift_seed'].nunique()} seeds.")
@@ -215,7 +231,7 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
 
     df_train_full = pd.read_parquet(REPO_ROOT / "data" / "train.parquet")
     all_shift_ids = sorted(df_train_full["shift_id"].unique())
-    rng = np.random.default_rng(args.seed)
+    n_train = len(all_shift_ids)
 
     run_root = REPO_ROOT / "runs" / "data_efficiency"
     out_root = RESULTS_ROOT / "data_efficiency"
@@ -225,11 +241,13 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
     rep_log: list[dict] = []
     n_reps = int(cfg.experiments.e2.data_efficiency_reps)
     for budget in budgets:
-        if budget > len(all_shift_ids):
-            print(f"  [skip] budget={budget} > {len(all_shift_ids)} train shifts")
+        if budget > n_train:
+            print(f"  [skip] budget={budget} > {n_train} train shifts")
             continue
-        for rep in range(n_reps):
-            chosen = rng.choice(all_shift_ids, size=int(budget), replace=False)
+        reps = 1 if budget >= n_train else n_reps
+        for rep in range(reps):
+            idx = data_efficiency_shift_indices(n_train, int(budget), int(rep), args.seed)
+            chosen = np.asarray(all_shift_ids)[idx]
             sub = df_train_full[df_train_full["shift_id"].isin(chosen)]
             tag = f"ours_n{budget}_rep{rep}"
             run_dir = run_root / tag
@@ -265,6 +283,7 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
             df_eval = evaluate_policy(
                 tag, policy, seeds, cfg,
                 results_dir=out_root, save=True, verbose=False,
+                n_jobs=args.n_jobs,
             )
             rep_log.append({
                 "budget": int(budget),
@@ -292,6 +311,9 @@ def main() -> int:
     p_eval.add_argument("--run-dir", type=Path, default=None)
     p_eval.add_argument("--results-dir", type=Path, default=None)
     p_eval.add_argument("--verbose", action="store_true")
+    p_eval.add_argument("--n-jobs", type=int, default=-1,
+                        help="Parallel shifts. Policies with parallel_safe=False "
+                             "are forced serial by the harness.")
     p_eval.set_defaults(func=cmd_eval)
 
     p_stats = sub.add_parser("stats", help="Compute bootstrap CI + Wilcoxon + BH-FDR.")
@@ -306,6 +328,8 @@ def main() -> int:
                           help="Re-train OURS at multiple budgets.")
     p_de.add_argument("--budgets", type=int, nargs="*", default=None)
     p_de.add_argument("--seed", type=int, default=1337)
+    p_de.add_argument("--n-jobs", type=int, default=-1,
+                      help="Shift-level parallelism for the post-retrain eval.")
     p_de.add_argument("--dry-run", action="store_true",
                       help="Print the plan without retraining.")
     p_de.set_defaults(func=cmd_data_efficiency)

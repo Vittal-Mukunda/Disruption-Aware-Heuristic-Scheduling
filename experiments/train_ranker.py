@@ -180,6 +180,18 @@ def main() -> int:
           f"M={label_meta.get('n_rollout_samples')} "
           f"beta={label_meta.get('beta'):.4f} "
           f"policy={label_meta.get('observed_policy')}")
+    if label_meta.get("provisional_scales") and not args.smoke:
+        raise SystemExit(
+            f"{train_path} is stamped provisional_scales=true. Those labels "
+            f"used unfitted ATC/COVERT scales. Re-run Stage 2 without "
+            f"--allow-provisional-scales, or pass --smoke."
+        )
+    if label_meta.get("entropy_in_band") is False and not args.smoke:
+        raise SystemExit(
+            f"label_meta entropy_in_band is false (median="
+            f"{label_meta.get('median_train_entropy')}). Refusing to train. "
+            f"Re-label, or pass --smoke for a throwaway check."
+        )
 
     # The pool is a property of the labels, not of the config: Stage 1 may have
     # screened rules out since config.yaml was last edited. Train and test must

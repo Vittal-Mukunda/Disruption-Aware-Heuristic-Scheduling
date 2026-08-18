@@ -18,7 +18,10 @@
 # `pip freeze --exclude-editable` only when a dependency is deliberately changed,
 # and re-run the campaign if you do.
 #
-# Generated on Python 3.12.10, Windows.
+# Generated on Python 3.12.10, Windows. Windows-only wheels (pywinpty,
+# win32_setctime) carry `sys_platform == "win32"` markers so Linux can
+# `pip install -r requirements-lock.txt` without aborting. If you regenerate
+# the lock on another OS, keep those markers.
 
 antlr4-python3-runtime==4.9.3
 anyio==4.14.2
@@ -120,7 +123,7 @@ pytest-cov==7.1.0
 python-dateutil==2.9.0.post0
 python-json-logger==4.1.0
 pytz==2026.3.post1
-pywinpty==3.0.5
+pywinpty==3.0.5; sys_platform == "win32"
 PyYAML==6.0.3
 pyzmq==27.1.0
 referencing==0.37.0
@@ -158,5 +161,5 @@ webcolors==25.10.0
 webencodings==0.5.1
 websocket-client==1.9.0
 widgetsnbextension==4.0.15
-win32_setctime==1.2.0
+win32_setctime==1.2.0; sys_platform == "win32"
 xgboost==2.1.4

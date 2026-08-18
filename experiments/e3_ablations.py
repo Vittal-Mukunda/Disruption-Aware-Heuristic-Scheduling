@@ -437,7 +437,8 @@ def cmd_relabel(args: argparse.Namespace) -> int:
     print(f"  3) python -m experiments.evaluate --method ours \\")
     print(f"       --run-dir runs/e3_{name} --results-dir results/E3")
     print("\n  Step 1 is the expensive one; run it from a detached session.")
-    return 0
+    print("  Exiting 2: a printed recipe is not a completed ablation.")
+    return 2
 
 
 def cmd_summary(args: argparse.Namespace) -> int:

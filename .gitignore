@@ -92,6 +92,8 @@ EL_Phase2_build/unpacked/
 
 # --- Scratch / scratch UI experiments (real demo lives in demo/dahs-app/) ---
 *.zip
+!runs/ppo_fair/ppo_fair.zip
+!runs/ppo_full/ppo_full.zip
 UI Fix *.html
 
 # --- Personal ops scripts (contains internal campus portal URL + token) ---

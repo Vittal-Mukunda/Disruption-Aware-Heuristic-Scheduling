@@ -158,9 +158,12 @@ def _evaluate(
 
     So parallelism is opt-in per call AND per policy: a policy that carries
     state across shifts sets `parallel_safe = False` and is always run serially,
-    whatever the caller asks for. This matters because the online lookahead
-    baselines dominate the campaign — on measured throughput the misspecification
-    sweep alone is ~14 hours serial and under an hour across 16 cores.
+    whatever the caller asks for (LinUCB). DAHS and snapshot_xgb reset per
+    shift and are parallel-safe; saturation traces must still be collected
+    with n_jobs=1 so the in-process controller sees every epoch. This matters
+    because the online lookahead baselines dominate the campaign — on measured
+    throughput the misspecification sweep alone is ~14 hours serial and under
+    an hour across 16 cores.
     """
     parallel_ok = bool(getattr(policy, "parallel_safe", True))
     if n_jobs != 1 and not parallel_ok:
@@ -310,9 +313,8 @@ def main() -> int:
     # expensive evaluation in the campaign — the tau-step teacher costs
     # |H| * M * tau = 480 simulated interval-steps per decision, measured at
     # ~32 s per shift, so 50 shifts is ~26 minutes serial on a 16-thread machine.
-    # Policies that carry state across shifts (LinUCB, and `ours` via its
-    # switching controller) set `parallel_safe = False` and are forced serial by
-    # the harness regardless of this flag, so raising it cannot corrupt them.
+    # LinUCB keeps weights across the 50-shift trajectory (`parallel_safe=False`)
+    # and is forced serial. DAHS / snapshot_xgb reset per shift and honour this.
     parser.add_argument("--n-jobs", type=int, default=1,
                         help="Shift-level parallelism. -1 uses every core. "
                              "Ignored for policies that are not parallel-safe.")

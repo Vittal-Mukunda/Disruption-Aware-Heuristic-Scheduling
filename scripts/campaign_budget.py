@@ -76,7 +76,7 @@ n_w = sum(len(e4[a]) for a in ("w_breach", "w_spoil", "w_tardy", "w_holding"))
 add("5  objective-weight sweep", n_w * (eval_mpc(TAU) + eval_static(3)), f"{n_w} settings")
 
 add("5  t_min / theta / arrival_noise sweeps",
-    (len(e4.t_min) + len(e4.theta) + len(e4.arrival_noise)) * eval_static(1))
+    (len(e4.t_min) + len(e4.theta_uniform_multiple) + len(e4.arrival_noise)) * eval_static(1))
 
 # tau sweep: tau=1 already built; needs a LABELLING pass at tau=2 and 3
 add("5  tau sweep (relabel tau=2,3 + retrain)",

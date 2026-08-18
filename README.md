@@ -83,9 +83,12 @@ rules.
 - **The paper:** [`paper/manuscript.md`](paper/manuscript.md). Passages awaiting
   the re-run are marked `TBD-rerun` and state what must be reported.
 
-The committed `data/`, `runs/` and `results/` trees predate these corrections.
-`make clean-stale` removes them; the test suite skips any check that would
-otherwise read a pre-revision artifact.
+Stages 1–4 of the current-revision campaign are in `data/`, `runs/` and
+`results/` (labels at $\tau=4$, $M=20$; ranker; static and lookahead evals).
+Do **not** run `make clean-stale` on this tree — it would delete them. Remaining
+work is FQI retrain (logger fix), default `snapshot_xgb` eval, Stage 4b/5, and
+the items in `RUN_CAMPAIGN.md` §6. The test suite skips checks that need later
+stage artifacts.
 
 > The headline margin shrinks. Counting unserved-and-overdue orders as failures
 > moves the advantage over FIFO from roughly 3.8x to 1.20x on this repository's own
@@ -203,7 +206,8 @@ source .venv/bin/activate
 
 # 2. Install the package and dev tools
 python -m pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
 
 # 3. Import smoke test
 python -c "import xgboost, sklearn, shap, stable_baselines3, omegaconf; print('ok')"
@@ -247,11 +251,11 @@ you enter seed 7 on the setup screen.
 
 ## Reproducing the Experiments
 
-The committed `data/`, `runs/`, `results/` and `figures/` trees are **pre-revision
-artifacts** and are not the numbers this project now claims — see
-[Status](#status--results-are-being-regenerated). Run `make clean-stale` before
-reproducing anything, then follow [`RUN_CAMPAIGN.md`](RUN_CAMPAIGN.md), which
-gives the stages in order with their costs.
+The committed `data/`, `runs/`, `results/` trees hold **current-revision
+Stages 1–4**. Do not run `make clean-stale` on this clone. Remaining compute is
+in [`RUN_CAMPAIGN.md`](RUN_CAMPAIGN.md) §6 (`scripts/run_remaining.ps1` on
+Windows). A fresh clone of *pre-revision* artifacts still needs `clean-stale`
+before Stage 2.
 
 The experiment entry points live in `experiments/`; the `Makefile` wraps them as
 stage targets (run `make help` for the full list). Key targets:
@@ -320,11 +324,10 @@ STEP 1 — PYTHON BACKEND
     Windows (PowerShell):  .\.venv\Scripts\Activate.ps1
     macOS / Linux:         source .venv/bin/activate
 - Upgrade pip:             python -m pip install --upgrade pip
-- Install the package with development extras (this reads pyproject.toml and
-  pulls numpy, pandas, scipy, scikit-learn, xgboost, shap, matplotlib,
-  seaborn, joblib, tqdm, loguru, hydra-core, omegaconf, stable-baselines3,
-  gymnasium, torch, sb3-contrib, plus pytest and ruff):
-                           pip install -e ".[dev]"
+- Install from the lockfile (bit-reproducible), then the package with no extra
+  deps:
+                           pip install -r requirements-lock.txt
+                           pip install -e . --no-deps
 - Verify the install:
       python -c "import xgboost, sklearn, shap, stable_baselines3, omegaconf; print('backend ok')"
 - Run the test suite as a smoke check:   python -m pytest -q
@@ -356,12 +359,12 @@ STEP 4 — OPTIONAL: REAL-DATA EXPERIMENTS
   folder named "Olist Dataset/" in the repository root. Everything else — all
   code, the trained model weights under runs/, the results, the figures, and the
   dashboard — works without it.
-- The committed run logs, results and figures predate the current objective and
-  metric (see the Status section of README.md). `make clean-stale` removes them;
-  RUN_CAMPAIGN.md regenerates them.
+- Stages 1–4 of the current revision are already in data/, runs/ and results/.
+  Do not run `make clean-stale` unless those trees are still pre-revision.
 
 FINAL REPORT
-Report: the Python version used; whether `pip install -e ".[dev]"` succeeded;
+Report: the Python version used; whether `pip install -r requirements-lock.txt`
+and `pip install -e . --no-deps` succeeded;
 whether `python -m pytest -q` passed; and the dashboard URL
 (http://localhost:5180). Note any step that failed and what you did about it.
 =====================================================================

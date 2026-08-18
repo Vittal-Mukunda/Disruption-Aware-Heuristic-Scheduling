@@ -214,6 +214,7 @@ def test_snapshot_xgb_one_shift(cfg, one_test_seed, tmp_path):
     from baselines.snapshot_xgb import load_snapshot_xgb
 
     policy = load_snapshot_xgb(PHASE4_TAU1_DIR, cfg=cfg)
+    assert policy.parallel_safe is True
     df = evaluate_policy(
         "snapshot_xgb", policy, one_test_seed, cfg,
         results_dir=tmp_path, save=True,

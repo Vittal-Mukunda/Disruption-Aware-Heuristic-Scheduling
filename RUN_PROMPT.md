@@ -35,20 +35,28 @@ SETUP
   one. Do not substitute a different version silently — that breaks the
   cross-machine comparability the lockfile exists for.
 
-GATE — do not skip, do not proceed past a failure
+GATE — do not skip. Exit 0/pytest failures are stop. Exit 2 from
+`e4_sensitivity theta|n_samples|tau` or `e3_ablations relabel` is a printed
+recipe, not a crash — continue.
       .venv/bin/python scripts/preflight.py            # ~2s, imports every module
       .venv/bin/python -m pytest -q                    # must exit 0
       .venv/bin/python scripts/audit_reviewer_items.py # must print ALL CHECKS PASS
-Expect 142 passed and 11 skipped. Every skip should name a campaign artifact that
-does not exist yet, or say "FEFO is not in the deployed pool". Any OTHER skip, or
-any failure, means stop and report. The suite takes ~6 minutes.
+Expect 154 passed and 4 skipped (PPO meta, FEFO-not-in-pool, E5 reliability/SHAP).
+Any OTHER skip, or any failure, means stop and report. The suite takes ~6 minutes.
 
-WIPE THE PRE-REVISION ARTIFACTS
-      make clean-stale
-This is mandatory, not tidiness. The committed data/, runs/ and results/ predate
-the corrected objective, and inserting the calibration seed block shifted the test
-seeds so old and new results overlap on only 20 of 50 seeds — a paired comparison
-across them is silently misaligned rather than obviously empty.
+WIPE THE PRE-REVISION ARTIFACTS — skip if Stages 2–4 already exist
+      python scripts/clean_stale.py     # refuses if tau=4 labels exist, unless --force
+This was mandatory on a tree that still had *pre-revision* data/, runs/ and
+results/. If `data/label_meta.json` exists with `tau: 4`, `n_rollout_samples: 20`
+and `provisional_scales: false`, Stages 2–3 are current-revision and
+`clean-stale` would delete them. Do not wipe. Continue from RUN_CAMPAIGN.md §6
+(`scripts/run_remaining.ps1` on Windows).
+
+If you *are* on a fresh clone of pre-revision artifacts: `clean-stale` is
+mandatory. The old data predates the corrected objective, and inserting the
+calibration seed block shifted the test seeds so old and new results overlap on
+only 20 of 50 seeds — a paired comparison across them is silently misaligned
+rather than obviously empty.
 
 `clean-stale` deliberately KEEPS results/S1_calibration, results/S1_perishability
 and figures/S1_calibration. Those are current-revision Stage-1 results, not stale
@@ -57,7 +65,7 @@ from them and Section 6.1 of the manuscript reports them. After running it,
 confirm they are still there. If they are gone, restore with
 `git checkout -- results/S1_calibration results/S1_perishability config.yaml`.
 
-LAST GATE BEFORE THE EXPENSIVE STAGES — run this AFTER clean-stale
+LAST GATE BEFORE THE EXPENSIVE STAGES
       .venv/bin/python scripts/campaign_preflight.py
 It checks everything knowable in advance: interpreter version, that the installed
 packages match the lockfile, that Stage 1's results exist and agree with the
@@ -70,7 +78,7 @@ Exit 0 means start. Exit 1 means something WILL fail later, and later is
 expensive. Do not start on a non-zero exit; report what it said.
 
 If it warns that the Olist dataset is missing, decide before starting: without it
-Figures 5-6 and all of Reviewer 1's comment 5.b are simply not produced, and
+Figures 7-8 and all of Reviewer 1's comment 5.b are simply not produced, and
 that is a gap in the resubmission, not a nuisance.
 
 DO NOT RE-RUN STAGE 1. It is complete. Verify before starting Stage 2:
@@ -111,8 +119,9 @@ WHAT TO WATCH, AND REPORT RATHER THAN FIX
 These are known risks. Each is a finding to report, not a bug to work around. If
 you find yourself changing a parameter to make one of them go away, stop.
 
-1. Label entropy band. Stage 2 prints the achieved median against the target.
-   Report it either way.
+1. Label entropy band. Stage 2 prints the achieved median against the target
+   and **aborts** if it is OUT OF BAND unless `--force-out-of-band` is passed.
+   Report the number; do not tune around it.
 2. frac_separation_below_1se in data/label_meta.json — the share of decision
    epochs whose best and second-best rules are separated by less than one pooled
    standard error. On a 4-shift smoke corpus with the deployed six-rule pool this

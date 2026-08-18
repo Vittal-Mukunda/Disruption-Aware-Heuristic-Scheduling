@@ -29,7 +29,7 @@ from baselines.offline_fqi import (
 from experiments.evaluate import canonical_test_seeds, evaluate_policy
 from seed import shift_corpora
 from simulation.heuristics import resolve_pool, with_default_scales
-from simulation.state_extractor import N_FEATURES
+from simulation.state_extractor import FEATURE_NAMES, N_FEATURES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -95,6 +95,33 @@ def test_log_transitions_shapes(transitions, pool):
     if pos.size:
         assert pos.max() < abs(transitions["rewards"].min())
     assert set(np.unique(transitions["actions"])).issubset(set(range(len(pool))))
+
+
+def test_log_transitions_are_consistent_within_a_shift(transitions):
+    """observe() must run once per epoch. A second call zeros n_arrivals.
+
+    states[t+1] is the next loop's s; next_states[t] is s' after step. They
+    must agree on every non-terminal transition, including the arrival count
+    that observe() overwrites when it is called twice.
+    """
+    idx = FEATURE_NAMES.index("n_arrivals_last_interval")
+    for sid in np.unique(transitions["shift_id"]):
+        m = transitions["shift_id"] == sid
+        s = transitions["states"][m]
+        sp = transitions["next_states"][m]
+        done = transitions["dones"][m]
+        # Within a shift, s[1:] equals the previous next_state on live steps.
+        live = ~done
+        if live.sum() < 2:
+            continue
+        assert np.allclose(s[1:], sp[:-1]), (
+            f"shift {sid}: states[t+1] != next_states[t] — observe() was "
+            f"probably called twice per epoch"
+        )
+        # Arrivals are not identically zero after epoch 0 under Poisson load.
+        assert float(s[1:, idx].mean()) > 0.0, (
+            f"shift {sid}: n_arrivals_last_interval is zero after epoch 0"
+        )
 
 
 def test_behaviour_policy_is_not_a_function_of_the_interval_index(transitions):
@@ -254,6 +281,10 @@ def test_cache_stamp_changes_with_pool_features_policy_and_objective():
             mutate(c)
         return list(_cache_stamp(c))
 
+    assert any("logger=observe_once" in str(x) for x in base), (
+        "cache stamp dropped the observe-once logger token; a double-observe "
+        "transition log would be reused"
+    )
     # Reordering the pool must change the stamp: action indices are positional,
     # so the same rules in a different order are a different action set.
     def reorder(c):

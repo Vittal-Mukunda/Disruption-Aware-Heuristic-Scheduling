@@ -108,8 +108,12 @@ def log_transitions(
     for sid, seed in enumerate(shift_seeds):
         env = WarehouseEnv(int(seed), cfg)
         schedule = behaviour_policy(kind, pool, env.n_intervals, int(seed))
+        # Gym-style loop: observe once per epoch. Calling observe() both for
+        # s_next and again at the top of the next iteration overwrites
+        # n_arrivals_last_interval with 0 (admission is idempotent) so
+        # states[t+1] != next_states[t]. PPO's wrapper already does this right.
+        s = _augment(np.asarray(env.observe(), dtype=np.float64), regime_gmm)
         while env.interval_idx < env.n_intervals:
-            s = _augment(np.asarray(env.observe(), dtype=np.float64), regime_gmm)
             rule = schedule[env.interval_idx]
             a = pool.index(rule)
             phi_before = env.potential()
@@ -128,6 +132,7 @@ def log_transitions(
             next_states.append(s_next)
             dones.append(done)
             shift_id.append(int(sid))
+            s = s_next
 
     return {
         "states": np.asarray(states, dtype=np.float64),
@@ -300,9 +305,20 @@ def load_offline_fqi(
         cfg = OmegaConf.load(DEFAULT_CONFIG_PATH)
 
     arms = list(meta.get("arms") or resolve_pool(cfg))
+    # Meta, not the live config flag, decides whether this *saved* Q-model
+    # expects regime posteriors. The flag is a training switch; honouring it
+    # at load time would strip the GMM off a 38+onehot model and crash with
+    # a feature-shape mismatch (the evaluate-harness unit test hit this).
     regime_gmm = None
     if meta.get("use_regime_features"):
-        regime_gmm = _load_regime_gmm(cfg, meta.get("regime_run", DEFAULT_REGIME_RUN))
+        regime_run = Path(meta.get("regime_run", DEFAULT_REGIME_RUN))
+        path = regime_run / "regime.joblib"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"saved FQI model was trained with regime features but "
+                f"{path} is missing. Restore runs/phase4/regime.joblib."
+            )
+        regime_gmm = joblib.load(path)
     return OfflineFQIPolicy(
         model=model,
         fefo_threshold=float(

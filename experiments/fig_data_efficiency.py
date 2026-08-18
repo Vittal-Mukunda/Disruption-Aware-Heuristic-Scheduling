@@ -62,8 +62,16 @@ def main() -> int:
         cost_std=("composite_cost_mean", "std"),
     ).reset_index()
 
-    snap = pd.read_parquet(ROOT / "results" / "snapshot_xgb.parquet")
-    mpc = pd.read_parquet(ROOT / "results" / "greedy_mpc.parquet")
+    snap_path = ROOT / "results" / "snapshot_xgb.parquet"
+    mpc_path = ROOT / "results" / "greedy_mpc.parquet"
+    if not snap_path.exists() or not mpc_path.exists():
+        raise SystemExit(
+            f"need {snap_path.name} and {mpc_path.name} as reference lines. "
+            "Run `python -m experiments.evaluate --method snapshot_xgb --n-jobs=-1` "
+            "and ensure greedy_mpc.parquet exists."
+        )
+    snap = pd.read_parquet(snap_path)
+    mpc = pd.read_parquet(mpc_path)
     ref = {
         "snapshot_xgb": {
             "sla": float(snap["service_failure_rate"].mean()),

@@ -107,7 +107,7 @@ shifts:
   # of the submitted sample-efficiency result, which is circular: that result is
   # itself being re-derived. It also runs against Section 6.12's own argument
   # that the statistical cost of an |H|-class problem grows faster than linearly
-  # in |H| — and the pool has doubled from four rules to eight. Labelling cost is
+  # in |H| — and the candidate pool is nine rules (six retained). Labelling cost is
   # linear in shifts and is not the bottleneck (rule calibration is), so the
   # corpus stays large.
   n_train: 250
@@ -148,8 +148,8 @@ labeling:
   beta_grid: [0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]
   # Target median label entropy, as a FRACTION of log|H| rather than in nats.
   # The submitted value was an absolute [0.3, 0.7] chosen when |H| = 4, i.e.
-  # 22-51% of the log 4 maximum. Doubling the pool to eight (Reviewer 1, 4.d)
-  # would have left the same absolute band meaning 14-34% of log 8, sharpening
+  # 22-51% of the log 4 maximum. Expanding the pool to nine (Reviewer 1, 4.d)
+  # would have left the same absolute band meaning ~14-34% of log 9, sharpening
   # every label as a side effect of adding rules. These fractions reproduce the
   # submitted band's intent at whatever pool Stage 1 settles on.
   target_median_entropy_ratio: [0.216, 0.505]
@@ -208,7 +208,8 @@ baselines:
   # `n_samples` branches, commits the best for one interval, replans.
   rolling_horizon_mpc:
     tau: 4
-    n_samples: 5                  # per-decision cost is |H| * tau * n_samples steps
+    n_samples: 5                  # cheaper online estimator than labelling (M=20).
+                                  # The paper must not call this "the same estimator".
 
   ppo_fair:
     total_timesteps: 8000
@@ -241,8 +242,8 @@ baselines:
       max_depth:     [4, 6]
       n_estimators:  [200, 500]
       learning_rate: [0.05]
-    # Give FQI the same 6 regime posteriors the ranker sees, so the comparison
-    # isolates the training signal rather than the feature set.
+    # Give FQI the same K* regime posteriors the ranker sees (currently 12),
+    # so the comparison isolates the training signal rather than the feature set.
     use_regime_features: true
 
 # ---------------------------------------------------------------------------
@@ -252,10 +253,10 @@ experiments:
   scenarios:
     low_load:         { arrivals: { base_rate_per_minute: 1.0 }, order_attrs: { perishable_prob: 0.0 } }
     balanced:         { arrivals: { base_rate_per_minute: 1.5 }, order_attrs: { perishable_prob: 0.2 } }
-    high_load_perish: { arrivals: { base_rate_per_minute: 2.2 }, order_attrs: { perishable_prob: 0.4 } }
+    high_load_perish: { arrivals: { base_rate_per_minute: 2.2 }, order_attrs: { perishable_prob: 0.4, sla_due_triangular: [12.0, 36.0, 72.0] } }
 
   e2:
-    data_efficiency_budgets: [10, 25, 50, 100]
+    data_efficiency_budgets: [25, 50, 100, 150, 250]
     data_efficiency_reps: 5
 
   e3_ablations:
@@ -270,9 +271,9 @@ experiments:
 
   e4_sensitivity:
     tau:           [1, 2, 3, 4]
-    n_samples:     [1, 5, 10, 20]   # the variance arm of Propositions 1 and 2
+    n_samples:     [1, 5, 10, 20, 40]   # the variance arm of Propositions 1 and 2
     t_min:         [0, 1, 2, 3, 4]
-    theta:         [0.40, 0.50, 0.55, 0.60, 0.70]
+    theta_uniform_multiple: [1.5, 2.0, 2.2, 3.0, 4.0]
     arrival_noise: [0.5, 1.0, 1.5, 2.0]   # multiplier on the base arrival rate
     # Objective-weight sensitivity. Reviewer 1 (6.c) asked that the composite
     # cost be made the primary metric, which it now is (experiments/stats.py) —

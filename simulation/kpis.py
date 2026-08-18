@@ -109,14 +109,14 @@ def compute_kpis(
         }
 
     n_failed = sum(1 for o in arrived if o.is_service_failure(t_ref))
-    n_late = sum(1 for o in arrived if o.is_late(t_ref))
-    n_late_served = sum(1 for o in completed if o.is_late(t_ref))
+    n_late = sum(1 for o in arrived if o.is_overdue_at(t_ref))
+    n_late_served = sum(1 for o in completed if o.is_overdue_at(t_ref))
 
     perishables = [o for o in arrived if o.is_perishable]
-    n_spoiled = sum(1 for o in perishables if o.is_spoiled(t_ref))
+    n_spoiled = sum(1 for o in perishables if o.is_expired_at(t_ref))
 
-    tardiness_all = [o.tardiness(t_ref) for o in arrived]
-    tardiness_served = [o.tardiness(t_ref) for o in completed]
+    tardiness_all = [o.tardiness_accounted(t_ref) for o in arrived]
+    tardiness_served = [o.tardiness_accounted(t_ref) for o in completed]
 
     # Picker-busy time clipped to the shift window. An order dispatched near the
     # end keeps its picker busy past `shift_minutes`; only the in-shift portion

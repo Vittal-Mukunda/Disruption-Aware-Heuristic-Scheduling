@@ -326,9 +326,9 @@ Three expiry-pressure features are added, since the product deadline now enters
 the objective and a selector cannot act on a constraint it cannot observe. The
 observation is $\phi(S_t) \in \mathbb{R}^{26}$.
 
-⟨PENDING: the correlation/VIF table and whether any further feature is
-recommended for removal — `results/features/`. Also $K^\star$, the BIC curve and
-the mean ARI — `runs/phase4/phase4_regime.json`.⟩
+⟨PENDING: correlation/VIF after `feature_analysis`. $K^\star=12$ at the grid
+endpoint, mean ARI $0.969$, BIC does not turn; ranker input dim $=38$.
+`runs/phase4/phase4_regime.json`.⟩
 
 ### 3.b — Where do the 1600 test states come from?
 
@@ -337,7 +337,8 @@ Shift seeds are drawn from a single `SeedSequence` and partitioned into three
 disjoint blocks — training, calibration, test. Each shift contributes one decision
 state per review interval, so a block of $n$ shifts yields $32n$ states: the test
 block of 50 shifts gives $50 \times 32 = 1600$ before filtering. In the submitted
-version, 865 of those survived the ambiguity filter.
+version, 865 of those survived the ambiguity filter; under the corrected labels
+1525 of 1600 survive.
 
 The calibration block is new in this revision and exists so that rule
 hyperparameters can be fitted without touching training or test shifts — part of
@@ -510,9 +511,9 @@ only orders arrived by $t$ are eligible at $t$ — which also removes fifteen mi
 of undisclosed look-ahead from the observed state.
 
 ⟨PENDING: throughput and utilisation by rule under the corrected admission rule.
-State whether WSPT now behaves as theory predicts. If it does, that confirms
-Cause 2 was the mechanism; if it does not, the remaining discrepancy must be
-explained rather than absorbed.⟩
+WSPT now records the *highest* throughput (743 vs FIFO 730) and every method sits
+at picker utilisation $\approx 0.956$. Cause 2 is confirmed. Composite-cost
+ranking is in manuscript Table 4 (revised).⟩
 
 ### 6.b — The RL failure explanations are post hoc
 
@@ -557,9 +558,12 @@ tuning or the coverage fix closes a material part of either gap, the structural
 reading is withdrawn and the tuned configurations become the baselines throughout.
 We have written both branches deliberately.
 
-⟨PENDING: the swept grid, per-factor spread, best configuration, and
-`gap_closed_fraction` — `results/E11_rl_sensitivity/`. Coverage statistics under
-both behaviour policies — `results/E9/`.⟩
+**PPO: the structural reading is withdrawn.** The sweep recovered $78.2\%$ of the
+submitted PPO-to-DAHS cost gap. Best cell: observation *and* reward
+normalisation (cost $450$ vs untuned $696$ vs DAHS $381$). Tuned PPO is the PPO
+baseline. Coverage under `random`: $6.00$ effective actions overall, $5.94$
+conditional on interval index; adequate. Fitted Q must be retrained — the
+Stage-4 logger double-called `observe()` and zeroed arrivals.
 
 ### 6.c — The composite cost should be the primary metric
 
