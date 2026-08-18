@@ -1,36 +1,32 @@
 {
   "pool": [
-    "FIFO",
-    "EDD",
-    "FEFO",
-    "WSPT",
-    "ATC",
+    "EEDD",
+    "COVERT",
     "MS",
+    "ATC",
     "MDD",
-    "COVERT"
+    "EDD"
   ],
   "prob_columns": [
-    "p_FIFO",
-    "p_EDD",
-    "p_FEFO",
-    "p_WSPT",
-    "p_ATC",
+    "p_EEDD",
+    "p_COVERT",
     "p_MS",
+    "p_ATC",
     "p_MDD",
-    "p_COVERT"
+    "p_EDD"
   ],
   "tau": 4,
   "n_rollout_samples": 20,
   "observed_policy": "random",
-  "beta": 0.03,
+  "beta": 0.40679443210830474,
   "beta_mode": "per_row",
-  "median_train_entropy": 0.6728018890037859,
+  "median_train_entropy": 0.639860758936278,
   "target_median_entropy": [
-    0.44915937300284453,
-    1.050117978548317
+    0.38702004535325985,
+    0.9048385319601677
   ],
   "entropy_in_band": true,
-  "theta_confidence": 0.275,
+  "theta_confidence": 0.3666666666666667,
   "n_train_shifts": 3,
   "n_test_shifts": 2,
   "n_train_rows": 96,
@@ -41,20 +37,20 @@
   "covert_lookahead_k": 4.0,
   "provisional_scales": true,
   "rollout_precision_train": {
-    "mean_standard_error": 6.566235197876471,
-    "median_standard_error": 3.6988114171202273,
-    "max_standard_error": 35.08535846102332,
-    "frac_separation_below_1se": 0.7684210526315789,
-    "frac_separation_below_2se": 0.8842105263157894,
-    "median_separation": 0.20685631128204557
+    "mean_standard_error": 5.903598389576422,
+    "median_standard_error": 1.7708708415345042,
+    "max_standard_error": 33.31048836081277,
+    "frac_separation_below_1se": 0.5531914893617021,
+    "frac_separation_below_2se": 0.7659574468085106,
+    "median_separation": 0.8796818587503606
   },
-  "simulated_interval_steps": 97760,
-  "simulated_interval_steps_train": 58656,
-  "simulated_interval_steps_test": 39104,
-  "budget_interval_steps": 102560,
+  "simulated_interval_steps": 73360,
+  "simulated_interval_steps_train": 44016,
+  "simulated_interval_steps_test": 29344,
+  "budget_interval_steps": 76960,
   "wall_clock_s": {
-    "train": 210.7387426000205,
-    "test": 192.67573820002144
+    "train": 40.01822379999794,
+    "test": 36.82752369999071
   },
   "objective_weights": {
     "w_breach": 3.0,

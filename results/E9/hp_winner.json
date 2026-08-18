@@ -1,9 +1,0 @@
-{
-  "gamma": 0.99,
-  "n_iterations": 20,
-  "xgb_params": {
-    "max_depth": 4,
-    "n_estimators": 200,
-    "learning_rate": 0.05
-  }
-}
