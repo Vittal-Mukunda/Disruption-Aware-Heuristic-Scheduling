@@ -162,6 +162,11 @@ def test_e2_apply_scenario_overlays_arrival_rate():
     same = apply_scenario(cfg, "default")
     assert float(same.sim.arrivals.base_rate_per_minute) == base_rate
 
+    high = apply_scenario(cfg, "high_load_perish")
+    assert float(high.sim.arrivals.base_rate_per_minute) == 2.2
+    assert float(high.sim.order_attrs.perishable_prob) == 0.4
+    assert list(high.sim.order_attrs.sla_due_triangular) == [12.0, 36.0, 72.0]
+
 
 def test_e3_no_calibration_policy_returns_valid_heuristic():
     from baselines.ours import REPO_ROOT as _ROOT

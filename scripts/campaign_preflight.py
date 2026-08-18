@@ -69,8 +69,7 @@ def main() -> int:
             if got != want:
                 drift.append(f"{pkg} {got} != locked {want}")
         check(not drift,
-              f"core packages match the lockfile{'' if not drift else ': ' + '; '.join(drift)}",
-              fatal=False)
+              f"core packages match the lockfile{'' if not drift else ': ' + '; '.join(drift)}")
 
     print("\n[2/7] Stage 1 results present and consistent with the config")
     import json
@@ -118,6 +117,11 @@ def main() -> int:
         with np.load(npz, allow_pickle=True) as d:
             if "cache_stamp" not in d.files:
                 stale.append("data/offline_fqi_transitions.npz has no schema stamp")
+            else:
+                stamp = " ".join(str(x) for x in d["cache_stamp"])
+                if "logger=observe_once" not in stamp:
+                    print("  warn  FQI cache predates the observe-once logger; "
+                          "e9 will rebuild it (do not skip hpsearch/eval)", flush=True)
     check(not stale,
           "no stale artifacts detected" + ("" if not stale else f": {stale}; run `make clean-stale`"))
 
@@ -135,7 +139,7 @@ def main() -> int:
     check(olist.exists(),
           "Olist dataset present"
           if olist.exists() else
-          "Olist dataset MISSING — Figures 5-6 and all of R1.5b will not be "
+          "Olist dataset MISSING — Figures 7-8 and all of R1.5b will not be "
           "produced. Download 'Brazilian E-Commerce Public Dataset by Olist' "
           "from Kaggle into 'Olist Dataset/' before starting.",
           fatal=False)

@@ -58,6 +58,22 @@ def shift_corpora(cfg) -> dict[str, list[int]]:
     }
 
 
+def data_efficiency_shift_indices(
+    n_train: int, budget: int, rep: int, seed: int = 1337
+) -> np.ndarray:
+    """Shared train-shift subset for DAHS and FQI sample-efficiency curves.
+
+    Indices are positional over the training block (0 .. n_train-1), which is
+    also `shift_id` in data/train.parquet and in the FQI transition log.
+    Independent RNG per (budget, rep) so adding a budget does not reshuffle
+    the others.
+    """
+    if budget >= n_train:
+        return np.arange(n_train, dtype=np.int64)
+    rng = np.random.default_rng([int(seed), int(budget), int(rep)])
+    return np.sort(rng.choice(n_train, size=int(budget), replace=False).astype(np.int64))
+
+
 def seed_all(seed: int) -> None:
     """Seed Python `random`, numpy, and torch (if installed) in one call."""
     random.seed(seed)

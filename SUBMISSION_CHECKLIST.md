@@ -11,8 +11,8 @@ format it.
 ## 0. Before you start the campaign
 
 - [x] `scripts/preflight.py` passes
-- [x] `pytest` green (94 passed, 11 skipped — every skip names a missing campaign
-      artifact or the FEFO-not-in-pool no-op)
+- [x] `pytest` green (154 passed, 4 skipped — remaining skips name missing PPO
+      meta, FEFO-not-in-pool, and E5 reliability/SHAP)
 - [x] `scripts/audit_reviewer_items.py` prints ALL CHECKS PASS (40/40)
 - [x] `config.yaml` carries the Stage-1 pool `[EEDD, COVERT, MS, ATC, MDD, EDD]`
       and fitted scales `3.0 / 4.0`
@@ -38,21 +38,17 @@ format it.
 These are the four places the campaign could tell you the paper needs
 restructuring rather than rewriting. Check them first, in this order.
 
-- [ ] **Does DAHS beat EEDD-alone on composite cost, with a paired interval
-      excluding zero?** EEDD wins 65% of decisions and owns 15/16 state-space
-      cells; the win-rate oracle gap is 7.29 points. If DAHS does not clear EEDD
-      meaningfully, the "selection beats any single rule" framing does not survive
-      and §6.2, §7 and the abstract need rebuilding around sample efficiency and
-      amortisation instead.
-- [ ] **`frac_separation_below_1se` in `data/label_meta.json`.** 50.4% on a
-      4-shift smoke corpus with the deployed six-rule pool (76.8% on the nine-rule
-      candidate set). If it stays near half at full scale, the rollout does not
-      resolve half the decisions — report it, and make the $M$ sweep the headline
-      of §6.4 rather than a supplementary result.
-- [ ] **`gap_closed_fraction` for PPO, and the FQI coverage fix.** §6.9 and §6.10
-      are written conditionally. If either gap closes materially, withdraw the
-      structural claim and adopt the tuned configuration as the baseline throughout.
-      Do not keep the unfavourable branch and the favourable numbers.
+- [x] **Does DAHS beat EEDD-alone on composite cost, with a paired interval
+      excluding zero?** Yes on cost (381 vs 696). The static to beat is
+      **Always-COVERT** (454), not EEDD. One-step lookahead (356) and the τ=4
+      teacher (363) both beat DAHS. Rebuild §7 around amortisation + training
+      signal, not "selection beats any single rule vs the win-rate champion".
+- [x] **`frac_separation_below_1se` in `data/label_meta.json`.** 33.4% at full
+      scale (M=20, |H|=6). Report it; the M sweep remains load-bearing.
+- [x] **`gap_closed_fraction` for PPO, and the FQI coverage fix.** PPO closed
+      78.2% — structural reading withdrawn; tuned PPO (obs+rew norm, cost 450)
+      is the baseline. FQI coverage under `random` is adequate (6.00 / 5.94);
+      the logger was still broken at Stage 4 — retrain before resolving §6.10.
 - [ ] **Does the calibrated E8 grid cell reproduce the Table 1 static rows
       exactly?** `tests/test_reproducibility.py` pins this. If it fails, stop —
       the submitted version had a contradiction here and nothing downstream is

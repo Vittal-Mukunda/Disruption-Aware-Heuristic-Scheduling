@@ -148,8 +148,11 @@ def main() -> int:
     parser.add_argument("--theta", type=float, default=None,
                         help="Override the test ambiguity threshold "
                              "(absolute top-1 probability; normally derived "
-                             "from theta_confidence_uniform_multiple). "
-                             "Used by the E4 theta sweep.")
+                             "from theta_confidence_uniform_multiple).")
+    parser.add_argument("--theta-uniform-multiple", type=float, default=None,
+                        help="Override theta as a multiple of 1/|H|. Preferred "
+                             "by the E4 theta sweep so the axis does not "
+                             "confound pool size.")
     parser.add_argument("--train-out", type=Path, default=None)
     parser.add_argument("--test-out", type=Path, default=None)
     parser.add_argument("--allow-provisional-scales", action="store_true",
@@ -157,6 +160,9 @@ def main() -> int:
                              "unfitted ATC/COVERT scale. SMOKE TESTING ONLY — "
                              "labels produced this way are not deployable and "
                              "are stamped as provisional.")
+    parser.add_argument("--force-out-of-band", action="store_true",
+                        help="Write the corpus even if median label entropy "
+                             "misses the target band. Default is to abort.")
     args = parser.parse_args()
 
     cfg = OmegaConf.load(CONFIG_PATH)
@@ -252,15 +258,34 @@ def main() -> int:
     print(f"  median train row entropy = {median_entropy:.4f} "
           f"(target [{target_lo}, {target_hi}]) -> "
           f"{'OK' if in_band else 'OUT OF BAND'}")
+    allow_oob = bool(args.force_out_of_band or args.allow_provisional_scales)
+    if not in_band and not allow_oob:
+        raise SystemExit(
+            "median train-label entropy is OUT OF BAND. Soft labels would be "
+            "near-uniform or near-one-hot and every downstream stage would fit "
+            "to them. Pass --force-out-of-band to write the corpus anyway, or "
+            "--allow-provisional-scales for a smoke run."
+        )
 
-    theta = (
-        float(args.theta) if args.theta is not None
-        else resolve_theta(cfg.labeling.ambiguity_filter, len(pool))
-    )
+    if args.theta is not None and args.theta_uniform_multiple is not None:
+        raise SystemExit("pass only one of --theta and --theta-uniform-multiple")
+    if args.theta_uniform_multiple is not None:
+        theta = float(args.theta_uniform_multiple) / max(len(pool), 1)
+    elif args.theta is not None:
+        theta = float(args.theta)
+    else:
+        theta = resolve_theta(cfg.labeling.ambiguity_filter, len(pool))
     keep_mask = filter_ambiguous(test_probs, theta=theta)
     n_kept = int(keep_mask.sum())
     print(f"  test ambiguity filter (theta={theta}): kept {n_kept}/{len(test_df)} "
           f"(dropped {len(test_df) - n_kept})")
+    min_kept = max(32, len(test_seeds) * 8)
+    if n_kept < min_kept and not args.allow_provisional_scales:
+        raise SystemExit(
+            f"ambiguity filter kept {n_kept}/{len(keep_mask)} test rows "
+            f"(floor {min_kept}). Theta is too aggressive for this pool, or the "
+            f"labels do not separate the rules. Do not train on an empty test set."
+        )
 
     train_se = _se_summary(train_df, pool)
     print(f"  rollout SE: mean={train_se['mean_standard_error']:.4f}  "

@@ -98,6 +98,7 @@ def cmd_trace(args: argparse.Namespace) -> int:
         df = evaluate_policy(
             f"ours_{scenario}", policy, seeds, cfg,
             results_dir=RESULTS_DIR / "kpis", save=True,
+            n_jobs=1,
         )
         rows.append(_controller_summary(controller, scenario, {
             "composite_cost": float(df["composite_cost"].mean()),

@@ -108,3 +108,26 @@ def test_arrived_partition_is_exhaustive(cfg):
     assert k["arrived"] == k["throughput"] + k["unserved"] + k["dropped"]
     assert k["arrived"] == len(env.arrived_orders())
     assert 0.0 <= k["service_failure_rate"] <= 1.0
+
+
+def test_unserved_not_yet_due_is_not_a_service_failure(cfg):
+    """KPI accounting must not add p_o onto unserved orders.
+
+    An order still waiting whose sla_due is after shift end is not overdue.
+    The objective may still charge t_ref + p_o so inaction is not cheaper than
+    dispatch; that charge must not leak into service_failure_rate.
+    """
+    from simulation.orders import Order
+
+    o = Order(
+        order_id=0, arrival_time=470.0, processing_time=12.0,
+        sla_due=485.0, is_perishable=False, priority_class="low",
+    )
+    t_end = 480.0
+    assert o.sla_due > t_end
+    assert not o.is_overdue_at(t_end)
+    assert not o.is_service_failure(t_end)
+    # The objective still treats dispatch-now as the lower bound: t_end + p_o
+    # (492) is past sla_due (485), so inaction is charged even though the
+    # clock has not yet elapsed.
+    assert o.is_late(t_end)

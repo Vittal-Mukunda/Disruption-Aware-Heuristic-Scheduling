@@ -15,10 +15,12 @@ This baseline is that teacher, run online:
     `n_samples` independent continuations; commit the arg-min rule for ONE
     interval; discard the rest of the plan and replan at the next epoch.
 
-It is the standard receding-horizon construction, and it is deliberately the
-same estimator the labeller uses (`labeling.rollout_labeler.costs_at_epoch`) so
-that any gap between this policy and DAHS is attributable to the function
-approximation and the deployment guardrails, not to a different scoring rule.
+It is the standard receding-horizon construction, and it calls the same
+scoring function as the labeller (`labeling.rollout_labeler.costs_at_epoch`).
+The Monte Carlo budget is not the same: labelling uses M=20, this teacher
+defaults to M=5 so a 50-shift evaluation is affordable. A gap versus DAHS
+therefore mixes function-approximation error with estimator noise. Do not
+call the two "the same estimator" in the paper.
 
 WHAT IT COSTS
 -------------

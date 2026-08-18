@@ -118,15 +118,16 @@ class Order:
         return t_ref + self.processing_time
 
     def is_late(self, t_ref: float) -> bool:
-        """Missed the customer deadline, whether or not it was ever dispatched."""
+        """Missed the customer deadline under the *objective*.
+
+        Undispatched orders are assessed at `t_ref + p_o` so abandoning work
+        cannot undercut dispatching it (see `_resolution_time`). KPI accounting
+        uses `is_overdue_at`, which does not add `p_o`.
+        """
         return self._resolution_time(t_ref) > self.sla_due
 
     def is_spoiled(self, t_ref: float) -> bool:
-        """Perishable and past its product deadline.
-
-        An undispatched perishable order whose expiry has passed is spoiled: the
-        goods are destroyed regardless of what happens next.
-        """
+        """Perishable and past its product deadline under the *objective*."""
         if self.expiry_time is None:
             return False
         return self._resolution_time(t_ref) > self.expiry_time
@@ -134,15 +135,36 @@ class Order:
     def tardiness(self, t_ref: float) -> float:
         """Lateness against the customer deadline, floored at zero.
 
-        Censored for undispatched orders: the true value is at least this large.
+        Censored for undispatched orders at `t_ref + p_o`. KPI mean tardiness
+        uses `tardiness_accounted`, which censors at `t_ref`.
         """
         return max(self._resolution_time(t_ref) - self.sla_due, 0.0)
 
-    def is_service_failure(self, t_ref: float) -> bool:
-        """The headline per-order failure predicate.
+    def is_overdue_at(self, t_ref: float) -> bool:
+        """Customer clock has already passed at `t_ref`. KPI accounting only.
 
-        An order fails if it ships late, or if it spoils. This is the quantity
-        Reviewer 2 (1) asked to see reported: it does not care whether the order
-        was completed late or abandoned in the queue.
+        Served orders: `finish_time > sla_due`. Unserved/dropped: `sla_due < t_ref`.
+        This is Reviewer 2 (1)'s unserved-and-overdue predicate — it does not
+        charge an order whose due date is still in the future.
         """
-        return self.is_late(t_ref) or self.is_spoiled(t_ref)
+        if self.finish_time is not None:
+            return self.finish_time > self.sla_due
+        return t_ref > self.sla_due
+
+    def is_expired_at(self, t_ref: float) -> bool:
+        """Product clock has already passed at `t_ref`. KPI accounting only."""
+        if self.expiry_time is None:
+            return False
+        if self.finish_time is not None:
+            return self.finish_time > self.expiry_time
+        return t_ref > self.expiry_time
+
+    def tardiness_accounted(self, t_ref: float) -> float:
+        """Censored lateness for KPIs: served at finish, unserved at `t_ref`."""
+        if self.finish_time is not None:
+            return max(self.finish_time - self.sla_due, 0.0)
+        return max(t_ref - self.sla_due, 0.0)
+
+    def is_service_failure(self, t_ref: float) -> bool:
+        """Headline per-order failure: late-served, unserved-and-overdue, or spoiled."""
+        return self.is_overdue_at(t_ref) or self.is_expired_at(t_ref)

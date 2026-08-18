@@ -43,7 +43,7 @@ from baselines.offline_fqi import (
 )
 from experiments.evaluate import canonical_test_seeds, evaluate_policy
 from experiments.stats import require_metrics
-from seed import shift_corpora
+from seed import data_efficiency_shift_indices, shift_corpora
 from simulation.heuristics import resolve_pool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -95,6 +95,9 @@ def _cache_stamp(cfg: DictConfig) -> np.ndarray:
         str(cfg.labeling.observed_policy),
         f"{obj.w_breach},{obj.w_tardy},{obj.w_spoil},{obj.w_holding},"
         f"{obj.use_priority_weights}",
+        # Bump this if the logger's observe/admit contract changes. A stamp that
+        # ignored it would reload transitions whose n_arrivals feature is zeroed.
+        "logger=observe_once",
     ], dtype=object)
 
 
@@ -226,7 +229,8 @@ def cmd_hpsearch(args: argparse.Namespace) -> int:
         t0 = time.perf_counter()
         policy = _train_policy(fit_transitions, hp, cfg)
         df = evaluate_policy(
-            "offline_fqi_hp", policy, val_seeds, cfg, save=False, verbose=False
+            "offline_fqi_hp", policy, val_seeds, cfg, save=False, verbose=False,
+            n_jobs=getattr(args, "n_jobs", -1),
         )
         kpis = _mean_kpis(df)
         rows.append({
@@ -311,6 +315,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     df = evaluate_policy(
         "offline_fqi", policy, test_seeds, cfg,
         results_dir=None, save=True, verbose=args.verbose,
+        n_jobs=getattr(args, "n_jobs", -1),
     )
     kpis = _mean_kpis(df)
     print(f"\n[e9 eval] offline_fqi over {len(df)} test shifts:")
@@ -346,16 +351,13 @@ def cmd_data_efficiency(args: argparse.Namespace) -> int:
     for budget in budgets:
         reps = 1 if budget >= n_train else n_reps
         for rep in range(reps):
-            if budget >= n_train:
-                ids = np.arange(n_train)
-            else:
-                rng = np.random.default_rng(1000 * budget + rep)
-                ids = rng.choice(n_train, size=budget, replace=False)
+            ids = data_efficiency_shift_indices(n_train, budget, rep)
             sub = subset_transitions(transitions, ids)
             t0 = time.perf_counter()
             policy = _train_policy(sub, hp, cfg)
             df = evaluate_policy(
-                "offline_fqi_de", policy, test_seeds, cfg, save=False, verbose=False
+                "offline_fqi_de", policy, test_seeds, cfg, save=False, verbose=False,
+                n_jobs=getattr(args, "n_jobs", -1),
             )
             kpis = _mean_kpis(df)
             rows.append({
@@ -416,6 +418,7 @@ def cmd_robustness_grid(args: argparse.Namespace) -> int:
             df = evaluate_policy(
                 "offline_fqi", policy, seeds, cell_cfg,
                 results_dir=grid_dir / cell_id, save=True, verbose=False,
+                n_jobs=getattr(args, "n_jobs", -1),
             )
             ci = bootstrap_mean_ci(
                 df["service_failure_rate"].to_numpy(dtype=np.float64),
@@ -437,10 +440,17 @@ def cmd_robustness_grid(args: argparse.Namespace) -> int:
     out = RESULTS_DIR / "robustness_grid_offline_fqi.parquet"
     table.to_parquet(out, index=False)
 
-    # Side-by-side with the frozen DAHS grid (E8 summary).
-    e8 = pd.read_parquet(
-        REPO_ROOT / "results" / "E8" / "robustness_grid_summary.parquet"
-    )
+    # Side-by-side with the DAHS grid (E8 summary). E8 lives in Stage 5 of the
+    # campaign; this command is in Stage 4. Missing E8 must not abort FQI's own
+    # 12-cell parquet — that is how Stage 4 died on the first campaign machine.
+    e8_path = REPO_ROOT / "results" / "E8" / "robustness_grid_summary.parquet"
+    if not e8_path.exists():
+        print(f"[e9 robustness_grid] {e8_path.relative_to(REPO_ROOT)} is not "
+              f"present yet (E8 is a later stage). FQI grid written to {out.name}; "
+              f"re-run this command after `e8_robustness_grid summary` for the "
+              f"side-by-side.")
+        return 0
+    e8 = pd.read_parquet(e8_path)
     dahs = e8[(e8["method"] == "ours") & (e8["metric"] == "service_failure_rate")]
     print(f"\n[e9 robustness_grid] offline_fqi vs DAHS — SLA breach, 12 untuned cells:")
     print(f"  {'cell':<20}{'offline_fqi':>13}{'DAHS':>11}{'winner':>13}")
@@ -582,15 +592,21 @@ def _plot_data_efficiency(de: pd.DataFrame) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="E9 — offline-FQI baseline vs DAHS.")
+    jobs = argparse.ArgumentParser(add_help=False)
+    jobs.add_argument("--n-jobs", type=int, default=-1,
+                      help="Shift-level parallelism for evaluate_policy.")
     sub = parser.add_subparsers(dest="command", required=True)
-    p_hp = sub.add_parser("hpsearch", help="fair HP search on validation shifts")
+    p_hp = sub.add_parser("hpsearch", parents=[jobs],
+                          help="fair HP search on validation shifts")
     p_hp.set_defaults(func=cmd_hpsearch)
-    p_ev = sub.add_parser("eval", help="train winner on 250 shifts, eval on test")
+    p_ev = sub.add_parser("eval", parents=[jobs],
+                          help="train winner on 250 shifts, eval on test")
     p_ev.add_argument("--verbose", action="store_true")
     p_ev.set_defaults(func=cmd_eval)
-    p_de = sub.add_parser("data_efficiency", help="FQI sample-efficiency curve")
+    p_de = sub.add_parser("data_efficiency", parents=[jobs],
+                          help="FQI sample-efficiency curve")
     p_de.set_defaults(func=cmd_data_efficiency)
-    p_rg = sub.add_parser("robustness_grid",
+    p_rg = sub.add_parser("robustness_grid", parents=[jobs],
                           help="evaluate frozen offline_fqi across the 12-cell grid")
     p_rg.set_defaults(func=cmd_robustness_grid)
     p_su = sub.add_parser("summary", help="comparison table, paired stats, figure")

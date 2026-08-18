@@ -21,11 +21,11 @@
 PY ?= python
 RUN_ID ?= dev
 
-.PHONY: help install gate test clean clean-stale preflight smoke \
+.PHONY: help install gate test clean clean-stale preflight campaign-preflight smoke \
         stage1 stage1-calibrate stage1-screen stage1-diversity \
         stage1-perishability stage1-budget \
-        stage2 stage2-smoke stage2-tau1 \
-        stage3 stage3-smoke stage3-tau1 tau1 \
+        stage2 stage2-smoke stage2-tau1 stage2-tau2 stage2-tau3 \
+        stage3 stage3-smoke stage3-tau1 stage3-tau2 stage3-tau3 tau1 tau2 tau3 \
         stage4-static stage4-teacher stage4-fqi stage4-rl-sensitivity \
         stage5-scenarios stage5-robustness stage5-misspecification \
         stage5-sensitivity stage5-weights \
@@ -33,7 +33,7 @@ RUN_ID ?= dev
 
 help:
 	@echo "DAHS pipeline (run stages in order):"
-	@echo "  install                  Install package + dev deps (editable)"
+	@echo "  install                  Lockfile + editable install (--no-deps)"
 	@echo "  gate                     Import smoke test"
 	@echo "  preflight                Compile + import every module (~2s)  [DO THIS FIRST]"
 	@echo "  smoke                    preflight + tests + tiny label/train run"
@@ -63,12 +63,13 @@ help:
 	@echo "  stage5-sensitivity       t_min and arrival-noise sweeps"
 	@echo ""
 	@echo "  test                     Run pytest"
-	@echo "  clean-stale              Delete pre-revision labels/models/results  [DO THIS FIRST]"
+	@echo "  clean-stale              Wipe PRE-revision artifacts only (refuses if Stage 2 exists)"
 	@echo "  clean                    Empty runs/, results/, figures/ (keeps dirs)"
 
 install:
 	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -e ".[dev]"
+	$(PY) -m pip install -r requirements-lock.txt
+	$(PY) -m pip install -e . --no-deps
 
 # --- Preflight + smoke: run this BEFORE committing to the campaign ----------
 # Ordered cheapest-first, so a break costs seconds rather than hours:
@@ -147,13 +148,40 @@ stage3-tau1:
 
 tau1: stage2-tau1 stage3-tau1
 
+stage2-tau2:
+	$(PY) -m experiments.generate_labels --tau 2 \
+	  --train-out data/tau2/train.parquet --test-out data/tau2/test.parquet
+
+stage3-tau2:
+	$(PY) -m experiments.train_ranker --run-id phase4_tau2 \
+	  --train-path data/tau2/train.parquet \
+	  --test-path data/tau2/test.parquet --skip-cv-cal
+
+tau2: stage2-tau2 stage3-tau2
+
+stage2-tau3:
+	$(PY) -m experiments.generate_labels --tau 3 \
+	  --train-out data/tau3/train.parquet --test-out data/tau3/test.parquet
+
+stage3-tau3:
+	$(PY) -m experiments.train_ranker --run-id phase4_tau3 \
+	  --train-path data/tau3/train.parquet \
+	  --test-path data/tau3/test.parquet --skip-cv-cal
+
+tau3: stage2-tau3 stage3-tau3
+
 # --- Stage 4: baselines ----------------------------------------------------
 stage4-static:
-	$(PY) -m experiments.evaluate --method fifo
-	$(PY) -m experiments.evaluate --method edd
-	$(PY) -m experiments.evaluate --method fefo
-	$(PY) -m experiments.evaluate --method wspt
-	$(PY) -m experiments.evaluate --method atc
+	$(PY) -m experiments.evaluate --method eedd --n-jobs -1
+	$(PY) -m experiments.evaluate --method covert --n-jobs -1
+	$(PY) -m experiments.evaluate --method ms --n-jobs -1
+	$(PY) -m experiments.evaluate --method atc --n-jobs -1
+	$(PY) -m experiments.evaluate --method mdd --n-jobs -1
+	$(PY) -m experiments.evaluate --method edd --n-jobs -1
+	$(PY) -m experiments.evaluate --method fifo --n-jobs -1
+	$(PY) -m experiments.evaluate --method wspt --n-jobs -1
+	$(PY) -m experiments.evaluate --method fefo --n-jobs -1
+	$(PY) -m experiments.evaluate --method snapshot_xgb --n-jobs -1
 
 stage4-teacher:
 	$(PY) -m experiments.evaluate --method rolling_mpc --verbose
@@ -168,7 +196,9 @@ stage4-rl-sensitivity:
 
 # --- Stage 5: scenarios, robustness, sensitivity ---------------------------
 stage5-scenarios:
-	$(PY) -m experiments.e2_main eval --scenario balanced --verbose
+	$(PY) -m experiments.e2_main eval --scenario low_load --verbose --n-jobs -1
+	$(PY) -m experiments.e2_main eval --scenario balanced --verbose --n-jobs -1
+	$(PY) -m experiments.e2_main eval --scenario high_load_perish --verbose --n-jobs -1
 
 stage5-robustness:
 	$(PY) -m experiments.e8_robustness_grid eval
@@ -203,22 +233,13 @@ paper-figures: stage1-diversity e2-stats e3-summary stage5-sensitivity e5-reliab
 test:
 	$(PY) -m pytest
 
-# Everything committed under data/, runs/ and results/ predates the revision:
-# the deleted objective, the four-rule pool, the completed-orders-only KPI
-# schema, and a test-seed block that only PARTIALLY overlaps the current one
-# (the calibration block was inserted between train and test, shifting it by 30).
-# Comparing new numbers against those files is not conservative, it is wrong —
-# and a paired test across them would be silently misaligned rather than empty.
-# Run this once before the campaign.
-# Removes every PRE-revision artifact. Stage-1 outputs are current-revision
-# results, not stale ones: they were produced under the corrected objective and
-# dispatcher, config.yaml's fitted k and screened pool are derived from them, and
-# Section 6.1 of the manuscript reports them. Removing results/ wholesale would
-# delete them and silently revert the campaign to an unscreened pool.
+# clean-stale wipes PRE-revision labels/models/results only. It now refuses if
+# current-revision Stage-2 labels are present (tau=4, not provisional) unless
+# you pass --force. Stage-1 outputs are kept either way.
 KEEP := results/S1_calibration results/S1_perishability figures/S1_calibration
 
 clean-stale:
-	@$(PY) -c "import shutil, glob, os; \nkeep = set('$(KEEP)'.split()); \n[os.remove(p) for p in glob.glob('data/*.parquet')]; \n[os.remove(p) for p in glob.glob('data/*.npz')]; \n[os.remove(p) for p in glob.glob('data/label_meta.json')]; \n[shutil.rmtree(d, ignore_errors=True) for d in glob.glob('data/e3_*') + glob.glob('data/tau1') + glob.glob('data/e4_*') + glob.glob('data/smoke')]; \nshutil.rmtree('runs', ignore_errors=True); \n[shutil.rmtree(d, ignore_errors=True) for top in ('results','figures') for d in glob.glob(top+'/*') if os.path.isdir(d) and d.replace(os.sep,'/') not in keep]; \n[os.remove(f) for top in ('results','figures') for f in glob.glob(top+'/*') if os.path.isfile(f)]; \n[os.makedirs(d, exist_ok=True) for d in ('runs','results','figures')]; \nprint('removed pre-revision labels, models and results; kept ' + ', '.join(sorted(keep)))"
+	$(PY) scripts/clean_stale.py
 
 clean:
 	@$(PY) -c "import shutil, os; \

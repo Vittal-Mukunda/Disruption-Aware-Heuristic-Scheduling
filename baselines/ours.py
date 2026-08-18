@@ -57,12 +57,10 @@ class OursPolicy:
     does this automatically when a `reset` attribute is present.
     """
 
-    # The controller accumulates a decision trace across shifts, which
-    # `experiments/saturation_analysis.py` consumes to answer Reviewer 3 (3).
-    # Parallel evaluation would scatter that trace across worker processes and
-    # lose it. Costs nothing to forbid: this policy is a forward pass, so a
-    # 50-shift evaluation is ~1600 interval-steps either way.
-    parallel_safe: bool = field(default=False, init=False, repr=False)
+    # Dwell state is per-shift and `reset()` clears it, so KPI evals may run
+    # shifts in parallel. Decision traces live on the in-process controller;
+    # `saturation_analysis` therefore evaluates serially (`n_jobs=1`).
+    parallel_safe: bool = field(default=True, init=False, repr=False)
 
     controller: SwitchingController
     regime_gmm: GaussianMixture | None

@@ -21,10 +21,11 @@ The pool spans the four information sources a dispatcher can key on, so that
 rather than an empirical accident:
 
   arrival only ............ FIFO                        (no-information reference)
-  customer deadline ....... EDD, MS, MDD                (Jackson 1955; Conway,
+  customer deadline ....... EDD, EEDD, MS, MDD          (Jackson 1955; Conway,
                                                          Maxwell & Miller 1967;
                                                          Baker & Bertrand 1982)
-  product deadline ........ FEFO                        (the only expiry-aware rule)
+  both clocks ............. EEDD = min(d, x)            (once two deadlines exist)
+  product deadline ........ FEFO                        (the only expiry-only rule)
   processing + weight ..... WSPT                        (Smith 1955)
   deadline x processing ... ATC, COVERT                 (Vepsalainen & Morton 1987;
                                                          Carroll 1965)
@@ -269,7 +270,7 @@ HEURISTICS: dict[str, Callable[[list[Order], dict], list[Order]]] = {
     "SPT": spt,
 }
 
-# The eight rules that enter Stage-1 screening (Reviewer 1, 4.d). CR and SPT are
+# The nine rules that enter Stage-1 screening (Reviewer 1, 4.d). CR and SPT are
 # in the library but out of the screen by default: CR was already screened out
 # once, SPT exists as an unweighted throughput reference for the screening table.
 SCREENING_POOL: list[str] = [

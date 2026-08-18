@@ -30,7 +30,9 @@ comment it serves.
 git clone https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling.git CAOR
 cd CAOR
 python -m venv .venv                    # Python 3.10-3.12 ONLY
-.venv/bin/pip install -e ".[dev]"       # Windows: .venv\Scripts\pip
+# Install from the LOCKFILE (bit-reproducible). Windows: .venv\Scripts\pip
+.venv/bin/pip install -r requirements-lock.txt
+.venv/bin/pip install -e . --no-deps
 ```
 
 ## 1. Gate — do not skip
@@ -40,14 +42,15 @@ python -m venv .venv                    # Python 3.10-3.12 ONLY
 .venv/bin/python -m pytest -q            # must exit 0
 ```
 
-Then wipe every pre-revision artifact. This is mandatory, not tidiness: the
-committed `data/`, `runs/` and `results/` predate the corrected objective, and
-inserting the calibration block shifted the test-seed range so old and new
-results overlap on only 20 of 50 seeds. A paired comparison across them is
-silently misaligned rather than obviously empty.
+Then wipe **pre-revision** artifacts only if this clone still has the old
+objective's `data/` / `runs/` / `results/`. If `data/label_meta.json` exists
+with `tau: 4` and `provisional_scales: false`, Stages 2–4 are current — **do
+not wipe**. `scripts/clean_stale.py` now refuses in that case unless you pass
+`--force`.
 
 ```bash
-make clean-stale
+python scripts/clean_stale.py          # Windows: .venv\Scripts\python
+# make clean-stale                     # optional, if make is installed
 ```
 
 **Check what `clean-stale` removes before running it.** `results/S1_calibration/`
@@ -114,47 +117,58 @@ done
 # The last three are screened OUT of the pool but are still reported as
 # standalone benchmarks: Table 1 has to show what the selector is beating,
 # including the rules the screen rejected.
-.venv/bin/python -m experiments.evaluate --method ours --verbose
+.venv/bin/python -m experiments.evaluate --method ours --verbose --n-jobs=-1
 # The two lookahead controllers are the expensive evaluations: the tau-step
 # teacher costs |H|*M*tau = 480 simulated interval-steps PER DECISION, measured
 # at ~32 s/shift. Serial that is ~26 min for 50 shifts; -1 cuts it to a few.
-# `ours` and `linucb` carry state across shifts and are forced serial by the
-# harness whatever this says, so it is safe to pass everywhere.
+# LinUCB keeps weights across shifts and is forced serial. DAHS / snapshot_xgb
+# reset per shift and honour --n-jobs.
 .venv/bin/python -m experiments.evaluate --method rolling_mpc --verbose --n-jobs -1
 .venv/bin/python -m experiments.evaluate --method greedy_mpc --n-jobs -1
 .venv/bin/python -m experiments.evaluate --method linucb
-.venv/bin/python -m experiments.e9_offline_fqi hpsearch
-.venv/bin/python -m experiments.e9_offline_fqi eval
-.venv/bin/python -m experiments.e9_offline_fqi robustness_grid
+.venv/bin/python -m experiments.evaluate --method snapshot_xgb --n-jobs -1
+# FQI: if this tree already has results/offline_fqi.parquet from before the
+# observe-once logger fix, DELETE data/offline_fqi_transitions.npz (or rely on
+# the cache stamp `logger=observe_once`) and re-run hpsearch + eval.
+.venv/bin/python -m experiments.e9_offline_fqi hpsearch --n-jobs=-1
+.venv/bin/python -m experiments.e9_offline_fqi eval --n-jobs=-1
+# robustness_grid compares against E8; E8 is Stage 5. The command now writes
+# FQI's own 12-cell parquet even if E8 is missing. Re-run it after E8 summary.
+.venv/bin/python -m experiments.e9_offline_fqi robustness_grid --n-jobs=-1
 .venv/bin/python -m baselines.ppo_fair
 .venv/bin/python -m experiments.evaluate --method ppo_fair
 .venv/bin/python -m experiments.rl_sensitivity ppo
 .venv/bin/python -m experiments.rl_sensitivity coverage
 
 # --- Stage 4b: the sample-efficiency curves (~1.5 h) ----------------------
-# THE CENTRAL FIGURE. Both retrain the model at every budget, so they cannot
-# be recovered from the Stage-3 run afterwards.
-.venv/bin/python -m experiments.e2_main data_efficiency
-.venv/bin/python -m experiments.e9_offline_fqi data_efficiency
+# THE CENTRAL FIGURE. snapshot_xgb must exist as a reference line.
+.venv/bin/python -m experiments.evaluate --method snapshot_xgb --n-jobs=-1
+.venv/bin/python -m experiments.e2_main data_efficiency --n-jobs=-1
+.venv/bin/python -m experiments.e9_offline_fqi data_efficiency --n-jobs=-1
 .venv/bin/python -m experiments.e9_offline_fqi summary
 .venv/bin/python -m experiments.fig_data_efficiency
 
 # --- Stage 5: scenarios, robustness, sensitivity (~2 h) -------------------
 .venv/bin/python -m experiments.e2_main stats --scenario default --baseline ours
-.venv/bin/python -m experiments.e2_main eval --scenario balanced
-.venv/bin/python -m experiments.e2_main eval --scenario high_load_perish
+.venv/bin/python -m experiments.e2_main eval --scenario low_load --n-jobs -1
+.venv/bin/python -m experiments.e2_main eval --scenario balanced --n-jobs -1
+.venv/bin/python -m experiments.e2_main eval --scenario high_load_perish --n-jobs -1
 .venv/bin/python -m experiments.e8_robustness_grid eval --n-jobs -1
 .venv/bin/python -m experiments.e8_robustness_grid summary
+.venv/bin/python -m experiments.e9_offline_fqi robustness_grid --n-jobs=-1
 .venv/bin/python -m experiments.misspecification run --n-jobs -1
 .venv/bin/python -m experiments.misspecification summary
 .venv/bin/python -m experiments.e4_sensitivity weights --n-jobs -1
-.venv/bin/python -m experiments.e4_sensitivity t_min
-.venv/bin/python -m experiments.e4_sensitivity arrival_noise
+.venv/bin/python -m experiments.e4_sensitivity t_min --n-jobs=-1
+.venv/bin/python -m experiments.e4_sensitivity arrival_noise --n-jobs=-1
+# The next three PRINT A RECIPE and exit 2. That is success, not a crash:
+# continue. Do not wrap Stage 5 in `set -e` / stop-on-error that treats 2 as abort.
 .venv/bin/python -m experiments.e4_sensitivity theta
 # The tau sweep needs a LABELLING pass per tau, not just a retrain, because
 # tau changes the estimator. Both of these PRINT A RECIPE rather than running
 # it -- follow the printed commands. tau=1 is already built by `make tau1`.
-.venv/bin/python -m experiments.e4_sensitivity tau
+.venv/bin/python -m experiments.e4_sensitivity tau --n-jobs=-1
+.venv/bin/python -m experiments.e4_sensitivity n_samples
 .venv/bin/python -m experiments.e5_calibration reliability
 .venv/bin/python -m experiments.e5_calibration shap
 .venv/bin/python -m experiments.feature_analysis
@@ -255,7 +269,9 @@ reports it as such (Section 4.3, Appendix B). `beta_mode: global` reproduces the
 submitted construction if the comparison is wanted.
 
 Stage 2 still prints the achieved median against the band. If it prints OUT OF
-BAND at full scale, report the number rather than tuning around it.
+BAND at full scale, the process **aborts** unless you pass `--force-out-of-band`
+(or `--allow-provisional-scales` for a smoke run). Do not tune around a failed
+band; report it.
 
 **Check `frac_separation_below_1se`** in `label_meta.json`. On a smoke corpus 79%
 of epochs had a best/second-best gap under one pooled standard error at M=20. If
@@ -278,3 +294,33 @@ Stage 3 refuses to train without a `label_meta.json` beside its train parquet.
 That is deliberate: pre-revision label files are structurally valid and would
 train a plausible model on the deleted objective. Re-run Stage 2 rather than
 bypassing it.
+
+---
+
+## 6. This clone already has Stages 1–4
+
+Do **not** run `make clean-stale` or `make clean` here: that deletes the committed
+Stage-2 labels, Stage-3 ranker, and Stage-4 parquets. Stage 1 is done. Stages 2–3
+are done. Stage 4 baselines exist, but:
+
+- `offline_fqi` must be retrained (double-`observe()` logger, now fixed).
+- `results/snapshot_xgb.parquet` for the default scenario was never written
+  (`evaluate --method snapshot_xgb`).
+- Stages 4b and 5 (data-efficiency, low_load / balanced / high_load_perish,
+  misspecification, weights, SHAP) have not run.
+
+On Windows, from the repo root with the lockfile venv:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+powershell -File scripts\run_remaining.ps1
+```
+
+That block retrains FQI, evaluates snapshot_xgb, then Stage 4b and the three
+scenario evals. Continue afterwards from Stage 5 in section 2 above
+(`e8_robustness_grid`, misspecification, E4, E5). `e4_sensitivity tau`,
+`n_samples`, `theta`, and `e3_ablations relabel` **exit 2 on purpose** — they
+print a recipe; a zero exit would look like a finished sweep.
+
+Python on this machine is `.venv\Scripts\python.exe`, not `.venv/bin/python`.
+`make` is optional; every Makefile target is a `python -m ...` line.

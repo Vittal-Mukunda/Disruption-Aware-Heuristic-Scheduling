@@ -117,6 +117,7 @@ def cmd_t_min(args: argparse.Namespace) -> int:
         df = evaluate_policy(
             f"t_min_{v}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
+            n_jobs=getattr(args, "n_jobs", -1),
         )
         for metric in ("service_failure_rate", "mean_tardiness", "composite_cost",
                        "throughput", "picker_utilization"):
@@ -154,6 +155,7 @@ def cmd_arrival_noise(args: argparse.Namespace) -> int:
         df = evaluate_policy(
             f"arrival_x{mult}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
+            n_jobs=getattr(args, "n_jobs", -1),
         )
         for metric in ("service_failure_rate", "mean_tardiness", "composite_cost",
                        "throughput", "picker_utilization"):
@@ -191,14 +193,31 @@ def cmd_tau(args: argparse.Namespace) -> int:
         3: REPO_ROOT / "runs" / "phase4_tau3",
         4: REPO_ROOT / "runs" / "phase4",
     }
+    missing: list[int] = []
     summary_rows: list[dict] = []
     for tau in values:
         run_dir = pre_built.get(int(tau))
-        if run_dir is None or not run_dir.exists():
+        ready = (
+            run_dir is not None
+            and (run_dir / "calibrator.joblib").exists()
+            and (run_dir / "ranker_meta.joblib").exists()
+        )
+        if not ready:
             print(f"[E4 tau] tau={tau}: no pretrained ranker at "
-                  f"{REPO_ROOT / 'runs' / f'phase4_tau{tau}'} — needs re-label + retrain.")
-            print("  Skipping (use experiments.generate_labels --tau <v> then "
-                  "experiments.train_ranker --run-id phase4_tau<v>).")
+                  f"{run_dir or REPO_ROOT / 'runs' / f'phase4_tau{tau}'} "
+                  "— needs re-label + retrain.")
+            if int(tau) == 4:
+                print("  python -m experiments.generate_labels --run-id phase4")
+                print("  python -m experiments.train_ranker --run-id phase4")
+            else:
+                print("  python -m experiments.generate_labels --tau "
+                      f"{tau} --train-out data/tau{tau}/train.parquet "
+                      f"--test-out data/tau{tau}/test.parquet")
+                print("  python -m experiments.train_ranker "
+                      f"--run-id phase4_tau{tau} "
+                      f"--train-path data/tau{tau}/train.parquet "
+                      f"--test-path data/tau{tau}/test.parquet --skip-cv-cal")
+            missing.append(int(tau))
             continue
         from baselines.ours import load_ours
         policy = load_ours(run_dir, cfg=cfg)
@@ -206,6 +225,7 @@ def cmd_tau(args: argparse.Namespace) -> int:
         df = evaluate_policy(
             f"tau_{tau}", policy, seeds, cfg,
             results_dir=out_dir, save=True, verbose=False,
+            n_jobs=getattr(args, "n_jobs", -1),
         )
         for metric in ("service_failure_rate", "mean_tardiness", "composite_cost"):
             summary_rows.append(_bootstrap_summary(df, metric, int(tau), "tau"))
@@ -220,27 +240,57 @@ def cmd_tau(args: argparse.Namespace) -> int:
             _plot_curve(summary, "tau", metric)
         print(f"\n[E4 tau] summary -> "
               f"{(RESULTS_DIR / 'tau_summary.parquet').relative_to(REPO_ROOT)}")
+    if missing and not args.allow_partial:
+        print(f"[E4 tau] missing tau values {missing}. Build them (make tau2 / "
+              f"make tau3) or pass --allow-partial.")
+        return 2
     return 0
 
 
 def cmd_theta(args: argparse.Namespace) -> int:
-    """θ sweep — re-labeling required. Wired only; prints the plan."""
+    """θ sweep on the uniform-multiple axis. Relabel required; prints the plan."""
     cfg = OmegaConf.load(CONFIG_PATH)
-    values = args.values if args.values else list(cfg.experiments.e4_sensitivity.theta)
-    print(f"[E4 theta] values={values}  (re-labeling pipeline)")
-    print("  For each θ:")
+    from simulation.heuristics import resolve_pool
+    pool_n = len(resolve_pool(cfg))
+    raw = args.values if args.values else list(
+        cfg.experiments.e4_sensitivity.theta_uniform_multiple
+    )
+    print(f"[E4 theta] uniform multiples={raw}  |H|={pool_n}  "
+          f"(absolute theta = multiple/|H|; re-labeling pipeline)")
+    print("  For each multiple m:")
     print("    1) python -m experiments.generate_labels "
-          "--theta <v> --train-out data/e4_theta_<v>/train.parquet "
-          "--test-out data/e4_theta_<v>/test.parquet")
+          "--theta-uniform-multiple <m> --train-out data/e4_theta_m<m>/train.parquet "
+          "--test-out data/e4_theta_m<m>/test.parquet")
     print("    2) python -m experiments.train_ranker "
-          "--run-id e4_theta_<v> "
-          "--train-path data/e4_theta_<v>/train.parquet "
-          "--test-path data/e4_theta_<v>/test.parquet")
+          "--run-id e4_theta_m<m> "
+          "--train-path data/e4_theta_m<m>/train.parquet "
+          "--test-path data/e4_theta_m<m>/test.parquet")
     print("    3) python -m experiments.evaluate --method ours "
-          "--run-dir runs/e4_theta_<v> "
-          "--results-dir results/E4/theta/theta_<v>")
-    print("  This is multi-hour compute; run from a screen/nohup session.")
-    return 0
+          "--run-dir runs/e4_theta_m<m> "
+          "--results-dir results/E4/theta/m_<m>")
+    print("  This is multi-hour compute. Exiting 2 so a campaign cannot treat "
+          "the printed recipe as a finished sweep.")
+    return 2
+
+
+def cmd_n_samples(args: argparse.Namespace) -> int:
+    """M-sweep (Propositions 1–2 variance arm). Relabel required; prints the plan."""
+    cfg = OmegaConf.load(CONFIG_PATH)
+    values = args.values if args.values else list(
+        cfg.experiments.e4_sensitivity.n_samples
+    )
+    print(f"[E4 n_samples] M={values}  (each M needs its own labelling pass)")
+    print("  For each M:")
+    print("    1) python -m experiments.generate_labels --n-samples <M> "
+          "--train-out data/e4_M<M>/train.parquet --test-out data/e4_M<M>/test.parquet")
+    print("    2) python -m experiments.train_ranker --run-id e4_M<M> "
+          "--train-path data/e4_M<M>/train.parquet "
+          "--test-path data/e4_M<M>/test.parquet --skip-cv-cal")
+    print("    3) python -m experiments.evaluate --method ours "
+          "--run-dir runs/e4_M<M> "
+          "--results-dir results/E4/n_samples/M_<M>")
+    print("  Exiting 2: a printed recipe is not a completed experiment.")
+    return 2
 
 
 WEIGHT_AXES: tuple[str, ...] = ("w_breach", "w_spoil", "w_tardy", "w_holding")
@@ -359,22 +409,31 @@ def main() -> int:
     p_t.add_argument("--values", type=int, nargs="*", default=None)
     p_t.add_argument("--run-dir", type=Path, default=None)
     p_t.add_argument("--n-test", type=int, default=None)
+    p_t.add_argument("--n-jobs", type=int, default=-1)
     p_t.set_defaults(func=cmd_t_min)
 
     p_a = sub.add_parser("arrival_noise", help="Arrival-rate multiplier sweep.")
     p_a.add_argument("--values", type=float, nargs="*", default=None)
     p_a.add_argument("--run-dir", type=Path, default=None)
     p_a.add_argument("--n-test", type=int, default=None)
+    p_a.add_argument("--n-jobs", type=int, default=-1)
     p_a.set_defaults(func=cmd_arrival_noise)
 
     p_tau = sub.add_parser("tau", help="Rollout horizon sweep.")
     p_tau.add_argument("--values", type=int, nargs="*", default=None)
     p_tau.add_argument("--n-test", type=int, default=None)
+    p_tau.add_argument("--n-jobs", type=int, default=-1)
+    p_tau.add_argument("--allow-partial", action="store_true",
+                       help="Write a summary even if some tau run dirs are missing.")
     p_tau.set_defaults(func=cmd_tau)
 
     p_th = sub.add_parser("theta", help="Confidence-filter threshold sweep.")
     p_th.add_argument("--values", type=float, nargs="*", default=None)
     p_th.set_defaults(func=cmd_theta)
+
+    p_m = sub.add_parser("n_samples", help="Rollout-continuation (M) sweep.")
+    p_m.add_argument("--values", type=int, nargs="*", default=None)
+    p_m.set_defaults(func=cmd_n_samples)
 
     args = parser.parse_args()
     return args.func(args)
