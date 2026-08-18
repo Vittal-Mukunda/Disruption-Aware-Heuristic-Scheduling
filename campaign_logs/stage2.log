@@ -1,0 +1,44 @@
+START 11:41:09
+.venv/Scripts/python.exe -m experiments.generate_labels --run-id dev
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:  1.5min
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  6.0min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed: 12.4min remaining:   37.4s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed: 12.5min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:  1.4min remaining:  6.5min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:  1.6min remaining:  2.4min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:  1.7min remaining:  1.1min
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  2.6min remaining:   29.5s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  2.6min finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=4  M=20  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 4,617,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=4, M=20, |H|=6)...
+  train: 751.4s  (3.01s/shift)  3,668,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=4, M=20, |H|=6)...
+  test: 158.9s  (3.18s/shift)  733,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.469759
+  median train row entropy = 0.6381 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1525/1600 (dropped 75)
+  rollout SE: mean=3.7089  median=1.8144
+  epochs with best/second gap < 1 SE: 33.4%
+
+[stage2] saved:
+  data\train.parquet  (8000 rows)
+  data\test.parquet  (1525 rows)
+  data\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\label_meta.json
+[stage2] simulated interval-steps: 4,401,600 (a priori budget 4,617,600)
+[stage2] total wall-clock: 910.3s
+EXIT=0
+END 11:56:20
