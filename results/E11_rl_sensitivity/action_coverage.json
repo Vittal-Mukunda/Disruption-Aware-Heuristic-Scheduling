@@ -1,0 +1,36 @@
+{
+  "behaviour_policy": "random",
+  "n_actions": 6,
+  "breach_prone_quantile": 0.75,
+  "overall": {
+    "n": 8000,
+    "per_action": {
+      "EEDD": 1352,
+      "COVERT": 1367,
+      "MS": 1301,
+      "ATC": 1345,
+      "MDD": 1348,
+      "EDD": 1287
+    },
+    "min_action_share": 0.160875,
+    "effective_actions": 5.998580704639578
+  },
+  "breach_prone": {
+    "n": 2000,
+    "per_action": {
+      "EEDD": 332,
+      "COVERT": 348,
+      "MS": 337,
+      "ATC": 320,
+      "MDD": 349,
+      "EDD": 314
+    },
+    "min_action_share": 0.157,
+    "effective_actions": 5.995365421004826
+  },
+  "conditional_on_interval_idx": {
+    "mean_effective_actions": 5.936987862989815,
+    "interpretation": "Marginal coverage can be uniform while conditional coverage is degenerate. Under the submitted round-robin scheme this value is 1.0 by construction \u2014 the logged action is a deterministic function of interval_idx, which is an observed feature \u2014 so every Q(s, a) for a not equal to the logged action is an extrapolation, contradicting Section 6.10's coverage claim."
+  },
+  "verdict": "Coverage is adequate: the offline-RL deficit cannot be attributed to unsupported actions in the hard region."
+}

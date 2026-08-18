@@ -1,0 +1,14 @@
+{
+  "pool": [
+    "EEDD",
+    "COVERT",
+    "MS",
+    "ATC",
+    "MDD",
+    "EDD"
+  ],
+  "total_timesteps": 8000,
+  "hyperparams": {},
+  "normalize_obs": false,
+  "normalize_reward": false
+}

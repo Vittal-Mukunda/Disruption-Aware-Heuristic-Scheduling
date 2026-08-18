@@ -1,0 +1,435 @@
+STAGE4 START 14:23:41
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method eedd --n-jobs -1 ##########  14:23:41
+[eval] method=eedd  n_test=50
+
+[eval] eedd over 50 shifts:
+  mean composite_cost             = 695.7708
+  mean service_failure_rate       = 0.0977
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.8400
+  mean unserved                   = 37.1600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0944
+  mean sla_breach_rate_served     = 0.0944
+  mean spoilage_rate              = 0.0375
+  mean mean_tardiness             = 0.8249
+  mean mean_tardiness_served      = 0.8361
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 21.7428
+  mean wall_clock_s               = 0.0124
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:43
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method covert --n-jobs -1 ##########  14:23:43
+[eval] method=covert  n_test=50
+
+[eval] covert over 50 shifts:
+  mean composite_cost             = 454.3620
+  mean service_failure_rate       = 0.0855
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.1000
+  mean unserved                   = 34.9000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0732
+  mean sla_breach_rate_served     = 0.0716
+  mean spoilage_rate              = 0.0872
+  mean mean_tardiness             = 0.8628
+  mean mean_tardiness_served      = 0.5760
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 14.1988
+  mean wall_clock_s               = 0.0116
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:44
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ms --n-jobs -1 ##########  14:23:45
+[eval] method=ms  n_test=50
+
+[eval] ms over 50 shifts:
+  mean composite_cost             = 789.8243
+  mean service_failure_rate       = 0.1076
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.1400
+  mean unserved                   = 37.8600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0932
+  mean sla_breach_rate_served     = 0.0932
+  mean spoilage_rate              = 0.1081
+  mean mean_tardiness             = 0.8212
+  mean mean_tardiness_served      = 0.8336
+  mean picker_utilization         = 0.9559
+  mean mean_interval_cost         = 24.6820
+  mean wall_clock_s               = 0.0113
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0005
+########## rc=0  14:23:46
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method atc --n-jobs -1 ##########  14:23:46
+[eval] method=atc  n_test=50
+
+[eval] atc over 50 shifts:
+  mean composite_cost             = 559.9183
+  mean service_failure_rate       = 0.1133
+  mean arrived                    = 767.0000
+  mean throughput                 = 734.3000
+  mean unserved                   = 32.7000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.1012
+  mean sla_breach_rate_served     = 0.0987
+  mean spoilage_rate              = 0.0962
+  mean mean_tardiness             = 1.2334
+  mean mean_tardiness_served      = 0.8206
+  mean picker_utilization         = 0.9556
+  mean mean_interval_cost         = 17.4974
+  mean wall_clock_s               = 0.0122
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:48
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method mdd --n-jobs -1 ##########  14:23:48
+[eval] method=mdd  n_test=50
+
+[eval] mdd over 50 shifts:
+  mean composite_cost             = 733.1523
+  mean service_failure_rate       = 0.1035
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.5000
+  mean unserved                   = 36.5000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0892
+  mean sla_breach_rate_served     = 0.0896
+  mean spoilage_rate              = 0.1042
+  mean mean_tardiness             = 0.6910
+  mean mean_tardiness_served      = 0.6559
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 22.9110
+  mean wall_clock_s               = 0.0121
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0005
+########## rc=0  14:23:50
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method edd --n-jobs -1 ##########  14:23:50
+[eval] method=edd  n_test=50
+
+[eval] edd over 50 shifts:
+  mean composite_cost             = 763.0576
+  mean service_failure_rate       = 0.1049
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.7800
+  mean unserved                   = 37.2200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0908
+  mean sla_breach_rate_served     = 0.0908
+  mean spoilage_rate              = 0.1056
+  mean mean_tardiness             = 0.7853
+  mean mean_tardiness_served      = 0.7965
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 23.8455
+  mean wall_clock_s               = 0.0130
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:52
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method fifo --n-jobs -1 ##########  14:23:52
+[eval] method=fifo  n_test=50
+
+[eval] fifo over 50 shifts:
+  mean composite_cost             = 1485.9735
+  mean service_failure_rate       = 0.1938
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.1600
+  mean unserved                   = 36.8400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.1862
+  mean sla_breach_rate_served     = 0.1854
+  mean spoilage_rate              = 0.0761
+  mean mean_tardiness             = 2.0900
+  mean mean_tardiness_served      = 2.0948
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 46.4367
+  mean wall_clock_s               = 0.0107
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:54
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method wspt --n-jobs -1 ##########  14:23:54
+[eval] method=wspt  n_test=50
+
+[eval] wspt over 50 shifts:
+  mean composite_cost             = 1215.6961
+  mean service_failure_rate       = 0.1000
+  mean arrived                    = 767.0000
+  mean throughput                 = 743.3400
+  mean unserved                   = 23.6600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0977
+  mean sla_breach_rate_served     = 0.0755
+  mean spoilage_rate              = 0.0616
+  mean mean_tardiness             = 5.7958
+  mean mean_tardiness_served      = 2.3048
+  mean picker_utilization         = 0.9550
+  mean mean_interval_cost         = 37.9905
+  mean wall_clock_s               = 0.0129
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:56
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method fefo --n-jobs -1 ##########  14:23:56
+[eval] method=fefo  n_test=50
+
+[eval] fefo over 50 shifts:
+  mean composite_cost             = 1698.9586
+  mean service_failure_rate       = 0.2076
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.3400
+  mean unserved                   = 36.6600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.2076
+  mean sla_breach_rate_served     = 0.2045
+  mean spoilage_rate              = 0.0001
+  mean mean_tardiness             = 2.9080
+  mean mean_tardiness_served      = 2.8861
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 53.0925
+  mean wall_clock_s               = 0.0113
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  14:23:58
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ours --verbose ##########  14:23:58
+[eval] method=ours  n_test=50
+  [  1/50] seed=2051490765 cost=    9.45 fail=0.0028 served=709 unserved=15 wall=0.07s
+  [  2/50] seed=425018833  cost=   29.39 fail=0.0067 served=729 unserved=19 wall=0.04s
+  [  3/50] seed=768002776  cost=    9.98 fail=0.0026 served=745 unserved=14 wall=0.03s
+  [  4/50] seed=124666021  cost=   15.27 fail=0.0013 served=726 unserved=23 wall=0.03s
+  [  5/50] seed=3632654363 cost=   32.31 fail=0.0080 served=724 unserved=27 wall=0.04s
+  [  6/50] seed=703561134  cost= 1192.37 fail=0.2293 served=747 unserved=64 wall=0.04s
+  [  7/50] seed=3121521016 cost=  598.07 fail=0.1250 served=738 unserved=62 wall=0.04s
+  [  8/50] seed=2633462982 cost=    3.40 fail=0.0013 served=740 unserved=12 wall=0.03s
+  [  9/50] seed=3761640212 cost=   13.22 fail=0.0026 served=742 unserved=34 wall=0.04s
+  [ 10/50] seed=1285634449 cost=   24.49 fail=0.0052 served=733 unserved=35 wall=0.03s
+  [ 11/50] seed=1184822575 cost=   43.62 fail=0.0103 served=730 unserved=44 wall=0.04s
+  [ 12/50] seed=3115268231 cost= 1379.60 fail=0.2371 served=734 unserved=59 wall=0.04s
+  [ 13/50] seed=159930596  cost=   23.65 fail=0.0066 served=747 unserved=12 wall=0.04s
+  [ 14/50] seed=2990616242 cost=  275.75 fail=0.0636 served=735 unserved=51 wall=0.04s
+  [ 15/50] seed=188957523  cost=   18.88 fail=0.0053 served=725 unserved=33 wall=0.04s
+  [ 16/50] seed=481643049  cost=   22.39 fail=0.0042 served=712 unserved=0 wall=0.03s
+  [ 17/50] seed=2386476367 cost=   28.73 fail=0.0069 served=705 unserved=17 wall=0.04s
+  [ 18/50] seed=533239478  cost=   30.86 fail=0.0077 served=740 unserved=37 wall=0.03s
+  [ 19/50] seed=1781618497 cost=    6.81 fail=0.0028 served=699 unserved=19 wall=0.03s
+  [ 20/50] seed=3019699939 cost=  684.41 fail=0.1599 served=733 unserved=55 wall=0.04s
+  [ 21/50] seed=2541693149 cost=   22.52 fail=0.0040 served=729 unserved=30 wall=0.03s
+  [ 22/50] seed=2084280921 cost=   20.05 fail=0.0027 served=724 unserved=10 wall=0.04s
+  [ 23/50] seed=1270096408 cost=   17.39 fail=0.0053 served=743 unserved=12 wall=0.04s
+  [ 24/50] seed=386839995  cost=  645.00 fail=0.1285 served=732 unserved=54 wall=0.04s
+  [ 25/50] seed=1683487450 cost=   44.54 fail=0.0081 served=728 unserved=10 wall=0.04s
+  [ 26/50] seed=600956363  cost=   15.58 fail=0.0053 served=719 unserved=33 wall=0.04s
+  [ 27/50] seed=2578686602 cost= 2094.81 fail=0.2861 served=756 unserved=62 wall=0.04s
+  [ 28/50] seed=550025147  cost=  110.79 fail=0.0221 served=729 unserved=40 wall=0.03s
+  [ 29/50] seed=1509445469 cost=  309.91 fail=0.0750 served=731 unserved=42 wall=0.04s
+  [ 30/50] seed=552659270  cost=  235.75 fail=0.0498 served=770 unserved=34 wall=0.04s
+  [ 31/50] seed=3395655849 cost=  245.31 fail=0.0601 served=747 unserved=19 wall=0.04s
+  [ 32/50] seed=1961580372 cost=   15.42 fail=0.0026 served=735 unserved=25 wall=0.04s
+  [ 33/50] seed=3285284101 cost= 2162.62 fail=0.3194 served=748 unserved=63 wall=0.04s
+  [ 34/50] seed=1198512540 cost=   14.11 fail=0.0041 served=732 unserved=8 wall=0.04s
+  [ 35/50] seed=3013583232 cost= 2421.16 fail=0.3524 served=747 unserved=73 wall=0.04s
+  [ 36/50] seed=236571778  cost=  175.79 fail=0.0419 served=705 unserved=35 wall=0.04s
+  [ 37/50] seed=4101237787 cost=  614.29 fail=0.1356 served=716 unserved=36 wall=0.04s
+  [ 38/50] seed=3459630954 cost=   19.71 fail=0.0027 served=722 unserved=16 wall=0.04s
+  [ 39/50] seed=1119814818 cost=   18.13 fail=0.0040 served=741 unserved=4 wall=0.03s
+  [ 40/50] seed=342980811  cost=  832.92 fail=0.1667 served=737 unserved=73 wall=0.04s
+  [ 41/50] seed=3566514477 cost=  311.54 fail=0.0745 served=719 unserved=46 wall=0.05s
+  [ 42/50] seed=4025272107 cost=  175.39 fail=0.0489 served=722 unserved=34 wall=0.07s
+  [ 43/50] seed=1181857748 cost=  446.78 fail=0.0889 served=721 unserved=55 wall=0.07s
+  [ 44/50] seed=268707656  cost=    7.01 fail=0.0026 served=736 unserved=40 wall=0.07s
+  [ 45/50] seed=975960072  cost= 1085.35 fail=0.1985 served=740 unserved=71 wall=0.07s
+  [ 46/50] seed=2687390525 cost=  445.72 fail=0.1113 served=742 unserved=31 wall=0.07s
+  [ 47/50] seed=745340072  cost= 1068.00 fail=0.2083 served=731 unserved=61 wall=0.07s
+  [ 48/50] seed=2708790030 cost=    7.45 fail=0.0027 served=727 unserved=8 wall=0.07s
+  [ 49/50] seed=3867797169 cost=  295.83 fail=0.0674 served=741 unserved=30 wall=0.07s
+  [ 50/50] seed=2098479478 cost=  740.79 fail=0.1363 served=742 unserved=58 wall=0.07s
+  wrote C:\CAOR\results\ours.parquet (50 rows)
+
+[eval] ours over 50 shifts:
+  mean composite_cost             = 381.2460
+  mean service_failure_rate       = 0.0701
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.1000
+  mean unserved                   = 34.9000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0662
+  mean sla_breach_rate_served     = 0.0644
+  mean spoilage_rate              = 0.0421
+  mean mean_tardiness             = 0.8221
+  mean mean_tardiness_served      = 0.5399
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 11.9139
+  mean wall_clock_s               = 0.0430
+  mean decision_latency_ms_mean   = 0.9928
+  mean decision_latency_ms_p95    = 1.0700
+########## rc=0  14:24:02
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method rolling_mpc --verbose --n-jobs -1 ##########  14:24:02
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:   44.0s remaining:  3.3min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:   46.9s remaining:  1.2min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:   49.0s remaining:   30.0s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  1.2min remaining:   13.6s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  1.2min finished
+[eval] method=rolling_mpc  n_test=50
+  wrote C:\CAOR\results\rolling_mpc.parquet (50 rows)
+
+[eval] rolling_mpc over 50 shifts:
+  mean composite_cost             = 362.5789
+  mean service_failure_rate       = 0.0657
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.4600
+  mean unserved                   = 34.5400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0620
+  mean sla_breach_rate_served     = 0.0600
+  mean spoilage_rate              = 0.0401
+  mean mean_tardiness             = 0.8214
+  mean mean_tardiness_served      = 0.5228
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.3306
+  mean wall_clock_s               = 38.4807
+  mean decision_latency_ms_mean   = 1201.2186
+  mean decision_latency_ms_p95    = 1900.6826
+########## rc=0  14:25:16
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method greedy_mpc --n-jobs -1 ##########  14:25:16
+[eval] method=greedy_mpc  n_test=50
+
+[eval] greedy_mpc over 50 shifts:
+  mean composite_cost             = 356.1368
+  mean service_failure_rate       = 0.0624
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.5400
+  mean unserved                   = 34.4600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0586
+  mean sla_breach_rate_served     = 0.0563
+  mean spoilage_rate              = 0.0381
+  mean mean_tardiness             = 0.7770
+  mean mean_tardiness_served      = 0.4831
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.1293
+  mean wall_clock_s               = 34.6104
+  mean decision_latency_ms_mean   = 1080.2713
+  mean decision_latency_ms_p95    = 1772.9116
+########## rc=0  14:26:23
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method linucb ##########  14:26:23
+[eval] method=linucb  n_test=50
+
+[eval] linucb over 50 shifts:
+  mean composite_cost             = 583.5595
+  mean service_failure_rate       = 0.0954
+  mean arrived                    = 767.0000
+  mean throughput                 = 731.0800
+  mean unserved                   = 35.9200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0842
+  mean sla_breach_rate_served     = 0.0835
+  mean spoilage_rate              = 0.0809
+  mean mean_tardiness             = 0.8069
+  mean mean_tardiness_served      = 0.6601
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 18.2362
+  mean wall_clock_s               = 0.0219
+  mean decision_latency_ms_mean   = 0.4202
+  mean decision_latency_ms_p95    = 0.6680
+########## rc=0  14:26:25
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi hpsearch ##########  14:26:25
+[e9] logging transitions for 250 shifts under behaviour policy 'random'...
+[e9] 8000 transitions (20.0s) -> offline_fqi_transitions.npz
+[e9 hpsearch] fit on shifts 0..199 (6400 transitions); select on validation shifts 200..249
+  [ 1/12] gamma=0.90 depth=4 n_est=200 lr=0.05  val_cost=386.360 val_breach=0.0705 (11s)
+  [ 2/12] gamma=0.90 depth=4 n_est=500 lr=0.05  val_cost=375.708 val_breach=0.0686 (20s)
+  [ 3/12] gamma=0.90 depth=6 n_est=200 lr=0.05  val_cost=387.510 val_breach=0.0693 (15s)
+  [ 4/12] gamma=0.90 depth=6 n_est=500 lr=0.05  val_cost=379.227 val_breach=0.0681 (30s)
+  [ 5/12] gamma=0.95 depth=4 n_est=200 lr=0.05  val_cost=388.949 val_breach=0.0717 (11s)
+  [ 6/12] gamma=0.95 depth=4 n_est=500 lr=0.05  val_cost=390.912 val_breach=0.0714 (20s)
+  [ 7/12] gamma=0.95 depth=6 n_est=200 lr=0.05  val_cost=384.656 val_breach=0.0699 (15s)
+  [ 8/12] gamma=0.95 depth=6 n_est=500 lr=0.05  val_cost=385.644 val_breach=0.0690 (30s)
+  [ 9/12] gamma=0.99 depth=4 n_est=200 lr=0.05  val_cost=416.361 val_breach=0.0762 (11s)
+  [10/12] gamma=0.99 depth=4 n_est=500 lr=0.05  val_cost=429.720 val_breach=0.0778 (20s)
+  [11/12] gamma=0.99 depth=6 n_est=200 lr=0.05  val_cost=407.624 val_breach=0.0748 (15s)
+  [12/12] gamma=0.99 depth=6 n_est=500 lr=0.05  val_cost=403.392 val_breach=0.0728 (30s)
+
+[e9 hpsearch] selected on validation composite_cost (lower is better):
+ gamma  max_depth  n_estimators  learning_rate  val_service_failure_rate  val_composite_cost
+  0.90          4           500           0.05                  0.068628          375.708330
+  0.90          6           500           0.05                  0.068064          379.226914
+  0.95          6           200           0.05                  0.069930          384.655522
+  0.95          6           500           0.05                  0.069043          385.644293
+  0.90          4           200           0.05                  0.070549          386.360174
+  0.90          6           200           0.05                  0.069301          387.509756
+  0.95          4           200           0.05                  0.071702          388.948537
+  0.95          4           500           0.05                  0.071380          390.911599
+  0.99          6           500           0.05                  0.072780          403.392233
+  0.99          6           200           0.05                  0.074844          407.624362
+  0.99          4           200           0.05                  0.076158          416.360807
+  0.99          4           500           0.05                  0.077791          429.719730
+
+[e9 hpsearch] winner -> hp_winner.json: {'gamma': 0.9, 'n_iterations': 20, 'xgb_params': {'max_depth': 4, 'n_estimators': 500, 'learning_rate': 0.05}}
+########## rc=0  14:30:35
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi eval ##########  14:30:35
+[e9 eval] training FQI on all 250 shifts with hp={'gamma': 0.9, 'n_iterations': 20, 'xgb_params': {'max_depth': 4, 'n_estimators': 500, 'learning_rate': 0.05}}
+[e9 eval] trained + saved to C:\CAOR\runs\offline_fqi (14s)
+
+[e9 eval] offline_fqi over 50 test shifts:
+  service_failure_rate = 0.0731
+  composite_cost       = 389.9355
+  mean_tardiness  = 0.8641
+
+[e9 eval] context (frozen results/ parquets):
+  ours           sla_breach=0.0701  composite_cost=381.2460  mean_tardiness=0.8221
+  greedy_mpc     sla_breach=0.0624  composite_cost=356.1368  mean_tardiness=0.7770
+########## rc=0  14:30:54
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi robustness_grid ##########  14:30:54
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\CAOR\experiments\e9_offline_fqi.py", line 603, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\CAOR\experiments\e9_offline_fqi.py", line 599, in main
+    return int(args.func(args))
+               ^^^^^^^^^^^^^^^
+  File "C:\CAOR\experiments\e9_offline_fqi.py", line 441, in cmd_robustness_grid
+    e8 = pd.read_parquet(
+         ^^^^^^^^^^^^^^^^
+  File "C:\CAOR\.venv\Lib\site-packages\pandas\io\parquet.py", line 669, in read_parquet
+    return impl.read(
+           ^^^^^^^^^^
+  File "C:\CAOR\.venv\Lib\site-packages\pandas\io\parquet.py", line 258, in read
+    path_or_handle, handles, filesystem = _get_path_or_handle(
+                                          ^^^^^^^^^^^^^^^^^^^^
+  File "C:\CAOR\.venv\Lib\site-packages\pandas\io\parquet.py", line 141, in _get_path_or_handle
+    handles = get_handle(
+              ^^^^^^^^^^^
+  File "C:\CAOR\.venv\Lib\site-packages\pandas\io\common.py", line 882, in get_handle
+    handle = open(handle, ioargs.mode)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\CAOR\\results\\E8\\robustness_grid_summary.parquet'
+  arr1.40_tight        sla_breach=0.0536  composite_cost=206.913
+  arr1.40_default      sla_breach=0.0045  composite_cost=17.202
+  arr1.40_loose        sla_breach=0.0006  composite_cost=2.118
+  arr1.50_tight        sla_breach=0.1004  composite_cost=406.864
+  arr1.50_default      sla_breach=0.0044  composite_cost=18.915
+  arr1.50_loose        sla_breach=0.0007  composite_cost=3.003
+  arr1.65_tight        sla_breach=0.3044  composite_cost=1687.894
+  arr1.65_default      sla_breach=0.0731  composite_cost=389.936
+  arr1.65_loose        sla_breach=0.0229  composite_cost=120.040
+  arr1.80_tight        sla_breach=0.4566  composite_cost=4031.080
+  arr1.80_default      sla_breach=0.2914  composite_cost=2242.864
+  arr1.80_loose        sla_breach=0.1698  composite_cost=1156.974
+########## rc=1  14:31:41
+ABORTED AT: .venv/Scripts/python.exe -m experiments.e9_offline_fqi robustness_grid
