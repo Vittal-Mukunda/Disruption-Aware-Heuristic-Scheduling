@@ -1,0 +1,9 @@
+{
+  "ablation": "hard_labels",
+  "retrained": true,
+  "train_wall_clock_s": 1936.8479981000128,
+  "train_flags": [],
+  "decision_latency_ms_mean": 1.6416682498493174,
+  "decision_latency_ms_p95": 1.7965592000400648,
+  "eval_wall_clock_s_per_shift": 0.0720266860013362
+}

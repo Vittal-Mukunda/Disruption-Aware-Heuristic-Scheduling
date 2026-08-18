@@ -1,0 +1,12 @@
+{
+  "mean_slope_by_method": {
+    "COVERT": 18.691749690524937,
+    "offline_fqi": 22.432668381974405,
+    "ours": 22.783918635250124,
+    "rolling_mpc": 23.690065069148115,
+    "EEDD": 27.73160798230945
+  },
+  "most_robust": "COVERT",
+  "least_robust": "EEDD",
+  "note": "Slope is the relative rise in composite cost per unit of relative model error, averaged over axes. Static rules carry no model, so their slope is the environment's own difficulty gradient and is the reference against which the model-based methods should be read."
+}

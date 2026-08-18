@@ -1,0 +1,9 @@
+{
+  "ablation": "no_switching_controller",
+  "retrained": false,
+  "train_wall_clock_s": null,
+  "train_flags": [],
+  "decision_latency_ms_mean": 1.6160996875078126,
+  "decision_latency_ms_p95": 1.8155936000403017,
+  "eval_wall_clock_s_per_shift": 0.07075478199636563
+}

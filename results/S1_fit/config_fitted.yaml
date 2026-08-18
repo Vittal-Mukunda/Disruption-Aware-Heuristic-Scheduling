@@ -1,0 +1,13 @@
+sim:
+  arrivals:
+    arrival_mode: olist
+    base_rate_per_minute: 1.65
+  order_attrs:
+    sla_due_triangular:
+    - 1.405
+    - 10.17
+    - 138.425
+    processing_time_triangular:
+    - 2.0
+    - 5.0
+    - 12.0

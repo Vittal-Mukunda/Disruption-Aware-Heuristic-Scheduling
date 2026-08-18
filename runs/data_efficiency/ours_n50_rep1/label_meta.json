@@ -1,0 +1,66 @@
+{
+  "pool": [
+    "EEDD",
+    "COVERT",
+    "MS",
+    "ATC",
+    "MDD",
+    "EDD"
+  ],
+  "prob_columns": [
+    "p_EEDD",
+    "p_COVERT",
+    "p_MS",
+    "p_ATC",
+    "p_MDD",
+    "p_EDD"
+  ],
+  "tau": 4,
+  "n_rollout_samples": 20,
+  "observed_policy": "random",
+  "beta": 0.46975888167064916,
+  "beta_mode": "per_row",
+  "median_train_entropy": 0.6380676306739808,
+  "target_median_entropy": [
+    0.38702004535325985,
+    0.9048385319601677
+  ],
+  "entropy_in_band": true,
+  "theta_confidence": 0.3666666666666667,
+  "n_train_shifts": 50,
+  "n_test_shifts": 50,
+  "n_train_rows": 8000,
+  "n_test_rows_prefilter": 1600,
+  "n_test_rows": 1525,
+  "fefo_mask_threshold": 0.05,
+  "atc_lookahead_k": 3.0,
+  "covert_lookahead_k": 4.0,
+  "provisional_scales": false,
+  "rollout_precision_train": {
+    "mean_standard_error": 3.708930566977106,
+    "median_standard_error": 1.8143629989685186,
+    "max_standard_error": 38.39273617439481,
+    "frac_separation_below_1se": 0.3344761904761905,
+    "frac_separation_below_2se": 0.5603809523809524,
+    "median_separation": 1.6822866013152284
+  },
+  "simulated_interval_steps": 4401600,
+  "simulated_interval_steps_train": 3668000,
+  "simulated_interval_steps_test": 733600,
+  "budget_interval_steps": 4617600,
+  "wall_clock_s": {
+    "train": 751.4434618999949,
+    "test": 158.89273010002216
+  },
+  "objective_weights": {
+    "w_breach": 3.0,
+    "w_tardy": 0.2,
+    "w_spoil": 5.0,
+    "w_holding": 0.005,
+    "use_priority_weights": true
+  },
+  "derived_from": "C:\\CAOR\\data\\train.parquet",
+  "derivation": [
+    "shift subset: budget=50 rep=1"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "ablation": "random_ambiguity_filter",
+  "retrained": true,
+  "train_wall_clock_s": 2411.408462099993,
+  "train_flags": [],
+  "decision_latency_ms_mean": 1.688970187351515,
+  "decision_latency_ms_p95": 1.9403950006817468,
+  "eval_wall_clock_s_per_shift": 0.07365329599822872
+}

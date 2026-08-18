@@ -1,0 +1,125 @@
+{
+  "n_features": 26,
+  "near_constant": [],
+  "redundant_pairs_abs_r_ge_0.95": [
+    {
+      "a": "labor_utilization",
+      "b": "n_pickers_busy",
+      "r": 0.999999999999998
+    },
+    {
+      "a": "failure_rate_lag_1",
+      "b": "failure_rate_lag_2",
+      "r": 0.9950547943197697
+    },
+    {
+      "a": "failure_rate_lag_2",
+      "b": "failure_rate_lag_3",
+      "r": 0.9945569724370849
+    },
+    {
+      "a": "failure_rate_lag_1",
+      "b": "failure_rate_lag_3",
+      "r": 0.9848000873505425
+    },
+    {
+      "a": "n_orders_late_so_far",
+      "b": "failure_rate_lag_3",
+      "r": 0.98452315099746
+    },
+    {
+      "a": "n_orders_late_so_far",
+      "b": "failure_rate_lag_2",
+      "r": 0.983263218112794
+    },
+    {
+      "a": "n_orders_late_so_far",
+      "b": "failure_rate_lag_1",
+      "r": 0.976265456707065
+    },
+    {
+      "a": "queue_length_lag_1",
+      "b": "queue_length_lag_2",
+      "r": 0.968813180702344
+    },
+    {
+      "a": "queue_length_lag_2",
+      "b": "queue_length_lag_3",
+      "r": 0.968552679009718
+    },
+    {
+      "a": "mean_queue_age",
+      "b": "max_queue_age",
+      "r": 0.954379173867609
+    }
+  ],
+  "vif_ge_10": [
+    "queue_length",
+    "n_arrivals_last_interval",
+    "n_pickers_busy",
+    "labor_utilization",
+    "queue_length_lag_1",
+    "failure_rate_lag_2",
+    "failure_rate_lag_1",
+    "failure_rate_lag_3",
+    "mean_queue_age",
+    "n_orders_late_so_far",
+    "queue_length_lag_2",
+    "queue_length_lag_3",
+    "max_queue_age",
+    "mean_slack_minutes"
+  ],
+  "correlation_clusters": {
+    "max_queue_age": {
+      "members": [
+        "mean_queue_age",
+        "max_queue_age"
+      ],
+      "dropped": [
+        "mean_queue_age"
+      ]
+    },
+    "labor_utilization": {
+      "members": [
+        "labor_utilization",
+        "n_pickers_busy"
+      ],
+      "dropped": [
+        "n_pickers_busy"
+      ]
+    },
+    "n_orders_late_so_far": {
+      "members": [
+        "n_orders_late_so_far",
+        "failure_rate_lag_1",
+        "failure_rate_lag_2",
+        "failure_rate_lag_3"
+      ],
+      "dropped": [
+        "failure_rate_lag_1",
+        "failure_rate_lag_2",
+        "failure_rate_lag_3"
+      ]
+    },
+    "queue_length_lag_3": {
+      "members": [
+        "queue_length_lag_1",
+        "queue_length_lag_2",
+        "queue_length_lag_3"
+      ],
+      "dropped": [
+        "queue_length_lag_1",
+        "queue_length_lag_2"
+      ]
+    }
+  },
+  "recommended_drop": [
+    "failure_rate_lag_1",
+    "failure_rate_lag_2",
+    "failure_rate_lag_3",
+    "mean_queue_age",
+    "n_pickers_busy",
+    "queue_length_lag_1",
+    "queue_length_lag_2"
+  ]
+}

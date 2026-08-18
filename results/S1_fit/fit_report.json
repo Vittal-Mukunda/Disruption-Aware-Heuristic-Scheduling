@@ -1,0 +1,52 @@
+{
+  "inter_arrival_shape": {
+    "provenance": "fitted",
+    "source": "Olist Brazilian E-Commerce public dataset, within-day gaps",
+    "n": 98241,
+    "best_family": "lognorm",
+    "best_aic": 161983.61269380496,
+    "exponential_delta_aic": 34502.387306195014,
+    "cv": 2.676518866993428,
+    "skew": 11.040989951155556,
+    "deployed_as": "empirical bootstrap (arrival_mode: olist)"
+  },
+  "arrival_rate": {
+    "provenance": "operating point",
+    "note": "Load is the independent variable of the study and is swept in the robustness grid; it is not a distributional claim.",
+    "value": 1.65
+  },
+  "sla_due_triangular": {
+    "provenance": "fitted",
+    "source": "Olist purchase -> estimated delivery, shape only, rescaled to the shift time base",
+    "n": 99441,
+    "best_family": "lognorm",
+    "value": [
+      1.405,
+      10.17,
+      138.425
+    ]
+  },
+  "processing_time_triangular": {
+    "provenance": "literature",
+    "source": "Three-point time standard for manual picker-to-parts order picking (travel + search + pick), after de Koster, Le-Duc & Roodbergen (2007) and the time-standard decomposition in Tompkins et al., Facilities Planning. Not fitted: the Olist trace carries no warehouse pick-time field, and its purchase-to-approval latency is not a pick time.",
+    "value": [
+      2.0,
+      5.0,
+      12.0
+    ]
+  },
+  "shelf_life_triangular": {
+    "provenance": "design parameter",
+    "note": "No public trace carries product expiry. Swept in the sensitivity analysis; the binding rate is measured by experiments/perishability_diagnostic.py.",
+    "value": [
+      20.0,
+      60.0,
+      120.0
+    ]
+  },
+  "perishable_prob": {
+    "provenance": "design parameter",
+    "note": "Olist food/drink share is 0.0099, a property of that marketplace's product mix rather than of a perishable-goods warehouse. Varied across scenarios.",
+    "value": 0.2
+  }
+}

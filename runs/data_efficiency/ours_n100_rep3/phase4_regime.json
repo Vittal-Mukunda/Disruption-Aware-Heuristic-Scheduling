@@ -1,0 +1,32 @@
+{
+  "k_star": 12,
+  "bic": -83078.06462067066,
+  "mean_ari": 0.828048044599115,
+  "stable": false,
+  "ari_threshold": 0.85,
+  "bic_per_k": {
+    "2": 18555.232224079085,
+    "3": -11133.31770610544,
+    "4": -31383.31462243511,
+    "5": -29021.917688828857,
+    "6": -49166.79918163774,
+    "7": -47498.26098774125,
+    "8": -49614.90504781357,
+    "10": -72886.1193934018,
+    "12": -79732.35748028201
+  },
+  "extra_feature_cols": [
+    "regime_post_0",
+    "regime_post_1",
+    "regime_post_2",
+    "regime_post_3",
+    "regime_post_4",
+    "regime_post_5",
+    "regime_post_6",
+    "regime_post_7",
+    "regime_post_8",
+    "regime_post_9",
+    "regime_post_10",
+    "regime_post_11"
+  ]
+}

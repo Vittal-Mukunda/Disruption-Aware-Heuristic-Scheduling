@@ -1,0 +1,16 @@
+{
+  "ablation": "top5_features",
+  "retrained": true,
+  "train_wall_clock_s": 1360.671857600013,
+  "train_flags": [
+    "--feature-cols",
+    "f_queue_length",
+    "f_queue_length_lag_1",
+    "f_mean_slack_minutes",
+    "f_interval_index_in_shift",
+    "f_queue_length_lag_2"
+  ],
+  "decision_latency_ms_mean": 1.649525000484573,
+  "decision_latency_ms_p95": 1.8451362011255696,
+  "eval_wall_clock_s_per_shift": 0.07238059000170324
+}

@@ -1,0 +1,10 @@
+{
+  "top_k": 5,
+  "features": [
+    "f_queue_length",
+    "f_queue_length_lag_1",
+    "f_mean_slack_minutes",
+    "regime_post_6",
+    "f_interval_index_in_shift"
+  ]
+}

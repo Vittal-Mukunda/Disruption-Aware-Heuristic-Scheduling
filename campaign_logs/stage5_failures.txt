@@ -1,0 +1,2 @@
+rc=1  .venv/Scripts/python.exe -m experiments.fig_data_efficiency
+rc=1  .venv/Scripts/python.exe -m experiments.e4_sensitivity tau

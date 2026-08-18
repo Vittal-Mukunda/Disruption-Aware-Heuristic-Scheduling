@@ -1,0 +1,55 @@
+{
+  "witness": {
+    "rule": "ATC",
+    "tau": 4,
+    "n_pickers": 1,
+    "p_short": 4.0,
+    "p_long": 18.0,
+    "slack_tight": 0.0,
+    "slack_loose": 40.0,
+    "phi_max_abs_diff": 0.0,
+    "cost_A": 3.79,
+    "cost_B": -0.01,
+    "cost_gap": 3.8,
+    "found": true,
+    "interpretation": "Two queues indistinguishable to the controller incur different cost under the same rule. phi is therefore not a sufficient statistic, and no amount of training data can recover the difference from phi alone."
+  },
+  "witness_by_rule": {
+    "EEDD": {
+      "found": false,
+      "cost_gap": 0.0
+    },
+    "COVERT": {
+      "found": true,
+      "cost_gap": 0.7999999999999998
+    },
+    "MS": {
+      "found": false,
+      "cost_gap": 0.0
+    },
+    "ATC": {
+      "found": true,
+      "cost_gap": 3.8
+    },
+    "MDD": {
+      "found": false,
+      "cost_gap": 0.0
+    },
+    "EDD": {
+      "found": false,
+      "cost_gap": 0.0
+    }
+  },
+  "empirical": {
+    "n_states": 8000,
+    "k_neighbours": 5,
+    "radius_percentile": 10.0,
+    "radius_standardised": 1.0121381074015665,
+    "n_pairs": 1929,
+    "aliasing_rate": 0.14359771902540175,
+    "mean_regret": 0.2907150951572078,
+    "mean_regret_given_disagreement": 2.0245105363113867,
+    "mean_cost_spread_across_rules": 55.952943362163566,
+    "aliasing_share_of_achievable_benefit": 0.03618237781000094
+  }
+}
