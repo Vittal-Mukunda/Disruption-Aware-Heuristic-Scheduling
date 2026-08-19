@@ -82,7 +82,7 @@ Paired over 50 shifts, **composite cost**:
 
 | | ours | eedd | diff | 95% CI | ratio | Wilcoxon | wins |
 |---|---|---|---|---|---|---|---|
-| | 381.42 | 695.77 | 314.35 | **[138.50, 524.46]** | 1.82x | p=1.95e-03 | **21/50** |
+| | 381.42 | 695.77 | 314.35 | **[141.4, 528.8]** | 1.82x | p=1.95e-03 | **21/50** |
 
 Official BH-FDR stats on the **primary metric** (service-failure rate),
 `results/E2/default_stats.parquet`: diff **0.0253**, CI **[0.0105, 0.0434]**,
@@ -191,22 +191,27 @@ excluding zero), which bounds what §6.11's amortisation argument can claim.
 
 | method | composite cost | ratio | 95% CI of diff | wins |
 |---|---|---|---|---|
-| greedy_mpc | 356.14 | 0.93x | [−39.21, −12.96] | 19/50 |
-| rolling_mpc | 362.58 | 0.95x | [−28.10, −10.85] | 15/50 |
+| greedy_mpc | 356.14 | 0.93x | [−39.4, −12.8] | 19/50 |
+| rolling_mpc | 362.58 | 0.95x | [−28.1, −10.8] | 15/50 |
 | **ours (DAHS)** | **381.42** | — | — | — |
-| snapshot_xgb | 388.13 | 1.02x | [−4.05, 17.96] | 32/50 |
-| offline_fqi | 396.80 | 1.04x | [2.69, 29.72] | 31/50 |
-| covert | 454.36 | 1.19x | [60.91, 84.93] | 49/50 |
-| linucb | 551.55 | 1.45x | [95.32, 264.73] | 46/50 |
-| atc | 559.92 | 1.47x | [151.81, 205.91] | 50/50 |
-| ppo_fair | 610.93 | 1.60x | [113.13, 379.11] | 50/50 |
-| eedd | 695.77 | 1.82x | [138.50, 524.46] | 21/50 |
-| mdd | 733.15 | 1.92x | [200.21, 532.05] | 49/50 |
-| edd | 763.06 | 2.00x | [207.54, 583.05] | 49/50 |
-| ms | 789.82 | 2.07x | [226.91, 631.22] | 49/50 |
-| wspt | 1215.70 | 3.19x | [754.58, 912.39] | 50/50 |
-| fifo | 1485.97 | 3.90x | [891.36, 1335.15] | 50/50 |
-| fefo | 1698.96 | 4.45x | [1078.49, 1577.30] | 50/50 |
+| snapshot_xgb | 388.13 | 1.02x | [−3.6, 18.2] | 32/50 |
+| offline_fqi | 396.80 | 1.04x | [2.9, 29.8] | 31/50 |
+| covert | 454.36 | 1.19x | [60.9, 85.0] | 49/50 |
+| linucb | 551.55 | 1.45x | [94.7, 264.2] | 46/50 |
+| atc | 559.92 | 1.47x | [150.9, 206.6] | 50/50 |
+| ppo_fair | 610.93 | 1.60x | [114.0, 380.5] | 50/50 |
+| eedd | 695.77 | 1.82x | [141.4, 528.8] | 21/50 |
+| mdd | 733.15 | 1.92x | [200.9, 540.9] | 49/50 |
+| edd | 763.06 | 2.00x | [211.9, 594.5] | 49/50 |
+| ms | 789.82 | 2.07x | [225.1, 635.7] | 49/50 |
+| wspt | 1215.70 | 3.19x | [753.4, 911.9] | 50/50 |
+| fifo | 1485.97 | 3.90x | [895.5, 1342.4] | 50/50 |
+| fefo | 1698.96 | 4.45x | [1077.5, 1584.8] | 50/50 |
+
+Paired intervals are `experiments.stats` bootstrap percentile intervals of
+(method − DAHS) composite cost, seed 1337, 10,000 resamples (same as
+manuscript Table 6). An earlier draft of this table used a different draw
+(`[138.50, 524.46]` for EEDD); do not cite that draw.
 
 ---
 

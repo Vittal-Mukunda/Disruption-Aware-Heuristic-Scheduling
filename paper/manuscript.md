@@ -1,9 +1,10 @@
 ---
-title: "Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation for Dynamic Warehouse Order Dispatching"
+title: "Offline Rollout Distillation for Warehouse Order Dispatching: A Controlled Comparison of Training Signals"
 author:
   - name: Vittal Mukunda
     email: vittalmukunda.im24@rvce.edu.in
     affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
+    corresponding: true
   - name: Atharva Somani
     email: atharvasomani.im24@rvce.edu.in
     affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
@@ -12,185 +13,99 @@ author:
     affiliation: Department of Industrial Engineering and Management, R. V. College of Engineering, Bengaluru, India
 date: 2026
 bibliography: references.bib
----
+keywords:
+  - dynamic dispatching
+  - selection hyper-heuristics
+  - rollout
+  - approximate policy iteration
+  - warehouse operations
+  - perishable inventory
+abstract: |
+  Warehouse order dispatching under customer due dates and product expiry is usually left to priority rules, but no single rule is best across a shift. A selection hyper-heuristic can choose the rule from the current state. Training that selector by simulating candidates offline and fitting a classifier is not new --- it is multi-pass rule selection and rollout classification policy iteration --- and we do not claim a new mechanism. We ask what the form of the supervision is worth, holding environment, corpus, model class and objective fixed.
 
-<!--
-DRAFT v2 (2026-05-18). Reframed from the v1 "label distribution learning" framing
-to "offline rollout distillation". The §6.8 hard-label ablation showed the soft-
-vs-hard label choice is immaterial, so the contribution is the rollout-distillation
-mechanism itself, not the distributional objective; the title, abstract, §1
-contributions, §2, §4.3-4.4, §6.8, §7 and §9 were rewritten accordingly, and
-former Limitation #5 (hard-label ablation not run) was removed because the
-ablation has now been run and is reported in §6.8. Markdown draft; converts to
-Elsevier elsarticle in Phase 9. All quantitative claims are drawn from the frozen
-result files under results/ and figures/ (the ground truth); where prose
-disagreed with a result file, the result file was used.
+  The problem is a partially observed sequential decision process. Each order has two independent clocks, both priced, together with tardiness and unserved demand, in a composite cost $J$. Three signals train the same selector: a Monte Carlo truncated rollout of every rule; fitted Q-iteration on the same logs; and a policy gradient.
 
-DRAFT v3 (2026-05-18). Added a published-competitor baseline: offline_fqi, an
-offline reinforcement-learning selector (fitted Q-iteration with FEFO action
-masking, the maskable-action-value family of Offline-LD). It trains on the same
-logged shifts as DAHS; it is described in §5, added to Tables 1 and 2, evaluated
-frozen across all four load scenarios and the twelve-cell robustness grid, and
-analysed in the new §6.10. The abstract, §1, §2, §6.5, §7, §9 and Limitation #5
-were updated, and references.bib gained the Ernst et al. (2005) fitted-Q citation.
-New result files: results/offline_fqi.parquet, results/scenario_*/offline_fqi.parquet,
-results/E9/, figures/E9/. No frozen Phase 0-7 result was re-run or re-tuned — this
-only adds a baseline.
--->
-
-> **Revision note on pending numbers.** Reviewers 1 and 2 identified four changes
-> that each alter the data-generating process or the objective: the customer and
-> product deadlines are now separate constraints and both enter the cost; orders
-> never served are charged rather than exempt; rollout labels are Monte Carlo
-> means over independent continuations rather than a single realised path; and the
-> rule pool is recalibrated and rescreened. Every quantitative result in the paper
-> is therefore regenerated. Passages awaiting the re-run are marked
-> `⟨TBD-rerun⟩` and state explicitly what must be reported and, where the
-> interpretation depends on the outcome, which way each conclusion falls. No
-> number from the submitted version is carried forward into a claim.
-
-# Abstract
-
-Order dispatching in warehouses that face both customer due dates and product
-expiry is routinely handled by simple priority rules, yet no single rule is best
-across the operating conditions a shift passes through. A *selection
-hyper-heuristic* — a controller that chooses which rule to apply as a function of
-the current state — can in principle capture the envelope of a rule pool. Such
-selectors are conventionally trained by simulating the candidate rules offline and
-fitting a classifier to the result, a construction known as multi-pass rule
-selection in the scheduling literature and as rollout classification policy
-iteration in the reinforcement-learning literature. This paper does not propose a
-new training mechanism. It asks instead what the *form of the supervision* is
-worth, holding everything else fixed.
-
-We formulate the problem as a sequential decision process: at each 15-minute
-review epoch a controller observes a summary of the waiting queue and the picker
-availability, and selects one dispatching rule to apply for that interval. Each
-order carries two independent deadlines — a customer due date and, for perishable
-goods, a product expiry — and both enter the cost, together with tardiness and
-with orders left unserved at the end of the shift.
-
-We then compare three ways of supervising the same selector, holding the
-environment, the shift data, the model class, the observation and the objective
-fixed, and varying only how the training signal is built. The first measures the
-cost of *every* rule directly, by simulating each one forward for a few intervals
-from each observed state and averaging over independently sampled futures. The
-second learns a value function from the same logged transitions by fitted
-Q-iteration. The third is a policy gradient. Only the first sees what the rules
-it did not take would have cost; only it needs a simulator that can be reset and
-re-run under a counterfactual action.
-
-Two results bound the first signal's quality. Stopping a simulation after $\tau$
-intervals rather than running it to the end of the shift introduces an error that
-*shrinks* as $\tau$ grows. Simulating in a model that differs from the real system
-by $\varepsilon$ per step introduces a second error that *grows* as
-$O(\varepsilon \tau^2)$. The two together place the best horizon at roughly
-$1/\varepsilon$: the more accurate the simulator, the further ahead it is worth
-looking. We test that prediction by training in one parameterisation and
-evaluating in another.
-
-We report the comparison on held-out shifts, together with the computational cost
-on both sides — how much simulation the offline training consumes, and how much
-faster a decision becomes once the lookahead has been replaced by a single pass
-through a fitted model.
-
-On the default 50-shift corpus, ranked by composite cost: one-step lookahead
-(`greedy_mpc`, $\tau=1$, $M=5$) is cheapest at $356$; the $\tau=4$ teacher
-(`rolling_mpc`, $M=5$) is $363$; DAHS is $381$ at roughly a thousand-fold lower
-per-decision latency. Always-COVERT is the strongest static rule on cost
-($454$), not Always-EEDD ($696$), even though EEDD owns $15$ of $16$
-state-space cells on win rate. Distillation therefore does not recover the
-teacher, and the teacher does not recover one-step lookahead. Matched-budget
-PPO closed $78\%$ of its gap once observation and reward were normalised; the
-"structural, not budgetary" reading is withdrawn. Offline fitted Q is being
-retrained after a logger defect. Scenario, $\tau\in\{2,3\}$, $M$-sweep and
-data-efficiency results are still outstanding.
-
-**Keywords:** dynamic dispatching; selection hyper-heuristics; rollout;
-approximate policy iteration; sequential decision processes; warehouse operations.
-
+  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and an untuned PPO policy ($611$; $450$ after observation and reward normalisation). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 exact ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency ($3.7$ ms vs $645$ ms). Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval (which includes 0) and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
 ---
 
 # 1. Introduction
 
 Order dispatching on a warehouse floor is a sequential decision problem under
 uncertainty: orders arrive stochastically, each carries a due date and possibly a
-perishability constraint, and a small pool of pickers must be assigned work so as
-to minimise late and spoiled orders. In practice the decision is delegated to a
-*dispatching rule* — first-in-first-out, earliest-deadline-first, weighted
-shortest-processing-time, and the like — because rules are transparent, fast, and
-require no training. The well-known difficulty is that **no single rule dominates**:
-the rule that minimises lateness under light load is not the rule that does so when
-the queue is saturated or when a burst of perishable orders arrives. A controller
-that *selects* the rule appropriate to the current state — a *selection
-hyper-heuristic* [@drake2020hyperheuristics; @dokeroglu2024hyperheuristics] — can in
-principle capture the envelope of the pool without abandoning the operational
-advantages of rules.
+product expiry, and a small pool of pickers must be assigned work so as to
+minimise late and spoiled shipments. In practice the decision is delegated to a
+*dispatching rule* --- first-in-first-out, earliest-deadline-first, weighted
+shortest-processing-time, and the like --- because rules are transparent, fast,
+and require no training. The well-known difficulty is that no single rule
+dominates: the rule that minimises lateness under light load is not the rule that
+does so when the queue is saturated or when a burst of perishable orders arrives.
+A controller that *selects* the rule appropriate to the current state --- a
+*selection hyper-heuristic* [@drake2020hyperheuristics; @dokeroglu2024hyperheuristics]
+--- can in principle capture the envelope of the pool without abandoning the
+operational advantages of rules.
 
 The open question is how to *learn* the selector. The dominant modern answer is
-deep reinforcement learning (DRL) [@mahmoudinazlou2025drl; @zhang2024lstmppo].
-DRL is attractive but sample-hungry and notoriously unstable on problems where the
-per-state advantage of one action over another is small relative to the return
-variance — exactly the regime of rule selection, where every rule is a reasonable
-policy and the differences are at the margin. A second answer is imitation
-learning of an expert dispatcher [@hanjung2025imitation]. Both families face a
-structural limitation: DRL never sees the counterfactual cost of the rules it did
-*not* take, and imitation needs an expert demonstrator to imitate. The training
-signal we use has neither problem — it measures the counterfactual cost of every
-rule directly, and needs no expert.
+deep reinforcement learning [@mahmoudinazlou2025drl; @zhang2024lstmppo]. DRL is
+attractive but sample-hungry, and it is unstable on problems where the per-state
+advantage of one action over another is small relative to the return variance ---
+exactly the regime of rule selection, where every rule is a reasonable policy and
+the differences are at the margin. A second answer is imitation of an expert
+dispatcher [@hanjung2025imitation]. Both families face a structural limitation:
+DRL never sees the counterfactual cost of the rules it did not take, and imitation
+needs an expert. The training signal we study has neither problem: it measures
+the counterfactual cost of every rule directly, and needs no expert.
 
-The signal we study measures that cost directly. Fix a state, run each candidate
-rule forward for a short horizon, and record the cost it incurs: this is a rollout
-[@bertsekas2020rollout]. Rollouts can be run either way — online at each decision,
-which is the classical control use and is too slow for a warehouse controller, or
-offline once over a corpus of states, which is the construction used here and is
-long established in both literatures this paper draws on (Section 2). For each
+The signal is a rollout [@bertsekas2020rollout]. Fix a state, run each candidate
+rule forward for a short horizon, and record the cost it incurs. Rollouts can be
+run online at each decision, which is the classical control use and is too slow
+for a warehouse controller, or offline once over a corpus of states. For each
 state in a corpus of simulated shifts we roll out every rule, obtain a per-rule
-cost vector, and fit a supervised ranker to it. The expensive lookahead is thereby
-*amortised* into a cheap function approximator: at deployment the ranker is a
-single fast forward pass, and the rollouts live entirely in the training set. We
-retain the cost *margin* between rules — not just which rule is best, but by how
-much — through a soft, tempered-softmax label by default; an ablation (Section
-6.8) shows the soft form is not essential.
+cost vector, and fit a supervised ranker to it. The expensive lookahead is
+thereby *amortised* into a cheap function approximator: at deployment the ranker
+is a single forward pass, and the rollouts live entirely in the training set. We
+retain the cost margin between rules through a soft, tempered-softmax label by
+default; an ablation (Section 6.8) shows the soft form is not essential.
 
-This paper makes four contributions. None of them is the training mechanism, which
-is not new: simulating a rule pool offline and fitting a classifier to the result
-is rollout classification policy iteration in the reinforcement-learning
-literature and multi-pass rule selection in the scheduling literature, and
-Section 2 places the method inside both.
+This paper makes three contributions. None of them is the training mechanism,
+which is not new: simulating a rule pool offline and fitting a classifier to the
+result is related to rollout classification policy iteration in the
+reinforcement-learning literature and to multi-pass rule selection in the
+scheduling literature, and Section 2 places the method inside both. The
+construction here is a single supervised fit to truncated-rollout labels, not
+an iterated policy-iteration loop, so we do not claim to have implemented RCPI.
 
 1. **A controlled comparison of training signals.** Holding the environment, the
-   shift corpus, the function-approximator class, the feature set and the
-   objective fixed, we vary only how the supervision is constructed: a directly
-   measured per-rule cost vector, a bootstrapped state–action value fitted from
-   the same logged transitions, and a policy gradient. Section 6.10 reports the
-   comparison, with the action-coverage diagnostics that determine whether it is
-   clean and the hyperparameter sensitivity analysis (Section 6.9) that
-   distinguishes a structural result from a tuning artefact. This is a matched-budget
-   comparison of three supervision constructions, not a claim that the comparison
-   is absent from RCPI or multi-pass rule selection.
-2. **Two bounds on the training signal, acting in opposite directions.**
-   Proposition 1 bounds the error from truncating the rollout, which decays as
-   $O(H-\tau)$. Proposition 2 bounds the error from rolling out under a
-   *misspecified* model, which accumulates as $O(\varepsilon\tau^2)$. Together they
-   imply an interior optimal horizon $\tau^\star \approx 1/\varepsilon$ — the
-   better the simulator, the longer the rollout worth running — and that
-   prediction is tested directly in Section 6.11 by labelling in one world and
-   deploying in another. The submitted version had only the first bound and
-   attributed the interior optimum to an estimator variance its implementation did
-   not possess.
-3. **A warehouse formulation with two deadline clocks.** Customer due date and
+   shift corpus, the feature set and the objective fixed, we vary how the
+   supervision is constructed: a directly measured per-rule cost vector, a
+   bootstrapped state--action value fitted from the same logged transitions
+   (same gradient-boosted-tree class as the ranker), and a policy gradient
+   (a neural PPO policy; not the same approximator class). Section 6.10 reports
+   the comparison, with the action-coverage diagnostics that determine whether
+   it is clean and the hyperparameter sensitivity analysis (Section 6.9) that
+   distinguishes a structural result from a tuning artefact.
+2. **A warehouse formulation with two deadline clocks.** Customer due date and
    product expiry are modelled as independent constraints, both entering the
    objective, and Section 3.5 *measures* whether the second binds at a 15-minute
    review interval rather than assuming it. We also state plainly that the
    controller observes a summary $\phi(S_t)$ rather than the state, exhibit two
    queues the summary cannot separate, and treat the problem as partially observed
-   (Section 3.2).
-4. **A sample-efficiency result.** Because each training state carries a directly
+   (Section 3.2). Truncation and model-error bounds are stated in Section 4.4 as
+   sketches of the labelling object; they are not contributions the campaign
+   confirms.
+3. **A sample-efficiency result.** Because each training state carries a directly
    measured per-rule target rather than a return, the selector saturates its
-   learnable structure within a few dozen simulated shifts. We report the budget at
-   which that happens and compare it against the offline-RL baseline given the same
-   data.
+   learnable structure by 50 simulated shifts on the default operating point. We
+   report that curve against the offline-RL baseline given the same data
+   (Section 6.3).
+
+The empirical claim that survives the campaign is narrower than the one we set
+out with. On the default operating point DAHS beats every static dispatching rule
+on composite cost, with Always-COVERT --- not Always-EEDD --- as the static to
+beat. It does not beat the online teachers. The expensive labelling choices
+($\tau=4$, $M=20$) do not earn measurable deployed accuracy over $\tau=1$ and
+$M=1$, including a completed $M=40$ cell. What the distillation buys is latency:
+3.7 ms per decision against 645 ms for the rolling-horizon teacher. Sections 7
+and 9 are written around that result, not around recovery of the lookahead.
 
 ## 1.1 Terminology and notation
 
@@ -206,8 +121,8 @@ in the paper is defined here, on first use in the text, or both.
 | **dispatching rule** | A function that orders the waiting queue. Pickers are then assigned down that order. FIFO, EDD and the rest are dispatching rules. |
 | **selection hyper-heuristic** | A controller that chooses *which dispatching rule to apply*, as a function of the current state, rather than choosing an assignment directly. |
 | **corpus of simulated shifts** | A set of shifts generated from distinct random seeds, used as data. Split into three disjoint blocks: **training** (fits the selector), **calibration** (fits rule parameters such as ATC's look-ahead scale), and **test**. |
-| **held-out shifts** | The test block. No held-out shift contributes to any fitting decision, including hyperparameter selection. |
-| **SLA** | Service-level agreement — the contractual delivery commitment. An order's SLA due time $d_o$ is when it must ship. |
+| **held-out shifts** | The test block. No DAHS fitting decision (ranker grid, isotonic split, ATC/COVERT $k$, regime $K$) uses a test shift. PPO hyperparameter sensitivity in Section 6.9 was evaluated on this block; that is a limitation of the PPO comparison, not of the DAHS protocol. |
+| **SLA** | Service-level agreement --- the contractual delivery commitment. An order's SLA due time $d_o$ is when it must ship. |
 | **SLA-breach rate** | The fraction of orders shipped after $d_o$. Two denominators are possible and the choice matters (Section 3.3): over *arrived* orders, or over *completed* orders only. We always state which. |
 | **service-failure rate** | Our primary reported KPI component: the fraction of *arrived* orders that either ship late or spoil, whether or not they were ever dispatched. |
 | **rollout** | Simulating forward from a state under a fixed rule, to measure what that rule costs. |
@@ -216,7 +131,7 @@ in the paper is defined here, on first use in the text, or both.
 | **ranker** | The fitted classifier that maps an observation to a distribution over rules. A gradient-boosted decision-tree ensemble here. |
 | **snapshot-trained ranker** | The ranker fitted to labels from a *one-interval* rollout, i.e. $\tau = 1$. Used as an ablation to isolate the value of looking further ahead. |
 | **soft label** | The training target expressed as a distribution over rules rather than a single winner, obtained from the cost vector by a tempered softmax. |
-| **regime** | A cluster of operating conditions, discovered by a Gaussian mixture over training observations. Membership probabilities are appended to the observation. |
+| **regime** | A cluster of operating conditions, fitted by a Gaussian mixture over training observations. Membership probabilities are appended to the observation. |
 | **switching controller** | The deployment wrapper that enforces a minimum **dwell** (hold a rule for $T_{\min}$ epochs) and an **entropy gate** (permit an early switch when the ranker is confident). |
 | **ablation** | Removing or altering one component and re-measuring, to establish what that component contributes. |
 | **DAHS** | Disruption-Aware Heuristic Scheduling, the selection hyper-heuristic studied here. |
@@ -228,7 +143,7 @@ in the paper is defined here, on first use in the text, or both.
 | $t$, $N$, $L$, $T$ | epoch index; epochs per shift (32); interval length (15 min); shift length (480 min) |
 | $S_t$ | the true state: queue with full per-order attributes, picker availability, clock |
 | $\phi(\cdot)$, $x_t$ | the feature map, and the observation $x_t = \phi(S_t)$ the controller actually sees |
-| $u_t$ | the decision at epoch $t$ — a rule from the pool |
+| $u_t$ | the decision at epoch $t$ --- a rule from the pool |
 | $W_{t+1}$ | exogenous information: orders arriving in $(t, t+1]$ and their attributes |
 | $S^M(\cdot)$ | the transition function (Section 3.4) |
 | $\mathcal{H}$, $h$ | the rule pool and a member of it |
@@ -236,17 +151,15 @@ in the paper is defined here, on first use in the text, or both.
 | $a_o, p_o, d_o, x_o, w_o$ | order $o$'s arrival, processing time, customer deadline, product expiry, economic weight |
 | $f_o$ | completion time of order $o$ |
 | $J$; $W_b, W_t, W_s, W_h$ | the composite objective and its weights: breach, tardiness, spoilage, holding |
-| $\tau$, $M$, $\beta$ | rollout horizon; continuations per rollout; softmax temperature |
-| $\varepsilon$, $\bar{C}$ | per-step model error in total variation; upper bound on per-interval cost |
+| $\tau$, $M$, $\beta$ | rollout horizon; continuations per rollout; dimensionless softmax-temperature multiplier ($T(s)=\beta\hat\sigma(s)$) |
+| $T(s)$ | per-state softmax temperature, in cost units |
+| $\varepsilon$, $\bar{C}$ | per-step model error in total variation; a working per-interval cost scale used in the sketches of Section 4.4 (not a proved bound) |
 
 The remainder of the paper is organised as follows. Section 2 reviews related
 work. Section 3 defines the dispatching problem and the simulator. Section 4
 presents DAHS and the consistency result. Section 5 describes the experimental
-protocol. Section 6 reports results. Sections 7–9 discuss, list limitations, and
+protocol. Section 6 reports results. Sections 7--9 discuss, list limitations, and
 conclude.
-
----
-
 # 2. Related Work
 
 ## 2.1 Scope: which order-picking decision this paper addresses
@@ -308,7 +221,7 @@ interact most strongly with due-date performance. The field's recent direction i
 data-centric: @winkelhaus2020logistics4 survey the shift toward data-driven
 warehouse control, and learned controllers have been applied to dynamic order
 picking [@mahmoudinazlou2025drl], order batching [@cheng2024drlhyperheuristic],
-and warehouse scheduling [@zhang2024lstmppo]. What distinguishes the warehouse
+and job-shop dispatching with an LSTM-PPO agent [@zhang2024lstmppo]. What distinguishes the warehouse
 setting from the job-shop setting these methods were developed in is the presence
 of a second deadline clock on perishable goods, which is the feature our problem
 formulation makes explicit in Section 3.
@@ -345,19 +258,23 @@ rather than departing from it.
 A rollout policy improves a base policy by simulating each action at the current
 state, following the base policy thereafter, and taking the action of least
 simulated cost [@bertsekas2020rollout]. Rollouts are a cornerstone of approximate
-dynamic programming [@simchilevi2021adp] and are typically truncated to a finite
+dynamic programming [@powell2022rlso] and are typically truncated to a finite
 horizon for tractability [@he2024truncatedrollout].
 
 The construction we use — estimate action values by simulation at a sample of
-states, then fit a classifier to represent the improved policy — is **Rollout
-Classification Policy Iteration**, introduced by @lagoudakis2003rcpi and developed
-by @fern2006api, @dimitrakakis2008rollout and @farahmand2015capi. It is not a new
-training paradigm, and the submitted version of this paper was wrong to present it
-as one. In particular, the claims that rollouts are "normally used online" and
-that our method "inverts the usual deployment" were both incorrect: offline
-rollout generation for supervised policy learning has existed for over two
-decades in the reinforcement-learning literature and, as Section 2.3 records, for
-longer than that in the scheduling literature. We withdraw those claims.
+states, then fit a classifier to represent the improved policy — is the same
+family as **Rollout Classification Policy Iteration**, introduced by
+@lagoudakis2003rcpi and developed by @fern2006api, @dimitrakakis2008rollout and
+@farahmand2015capi. It is not a new training paradigm, and the submitted version
+of this paper was wrong to present it as one. In particular, the claims that
+rollouts are "normally used online" and that our method "inverts the usual
+deployment" were both incorrect: offline rollout generation for supervised policy
+learning has existed for over two decades in the reinforcement-learning literature
+and, as Section 2.3 records, for longer than that in the scheduling literature.
+We withdraw those claims. We also do not run the policy-iteration loop: labels are
+generated once under a behaviour policy and the ranker is fitted once, so the
+deployed controller is a one-shot imitation of truncated rollouts rather than
+iterated RCPI.
 
 Two details of our instantiation differ from the standard RCPI setting, and we
 note them as details rather than as contributions. The classifier is fitted to
@@ -382,7 +299,9 @@ rollouts that Proposition 1 sits inside; @goodson2016restocking apply
 rollout policies to stochastic-demand routing.
 
 @ulmer2020modeling set out the modelling conventions for stochastic dynamic
-routing and dispatching problems that Section 3 follows, and the same group's work
+routing and dispatching problems that are the closest operational neighbour to
+Section 3. Section 3 itself uses Powell's sequential-decision notation
+[@powell2019unified], not route-based MDPs. The same group's work
 on offline–online approximate dynamic programming [@ulmer2019offlineonline], on
 budgeting decision time under stochastic requests [@ulmer2018budgeting], and on
 anticipation against reactive re-optimisation [@ulmer2019anticipation] is directly
@@ -450,8 +369,8 @@ reinforcement learning with maskable action-value learning
 [@pluijm2025offlineld] learns a value function from logged data, and is
 reimplemented faithfully in Section 5 as a fitted-Q baseline
 [@ernst2005fqi] trained on the same logged shifts. We also include Proximal
-Policy Optimization [@schulman2017ppo] under a matched simulation budget and,
-separately, at a 60× budget, with a hyperparameter sensitivity analysis in
+Policy Optimization [@schulman2017ppo] under an 8{,}000-epoch budget, with a
+hyperparameter sensitivity analysis in
 Section 6.9. A recent review [@sauer2025mlscheduling] frames simulation-derived
 self-labelling as an emerging paradigm for machine learning in scheduling.
 
@@ -466,12 +385,13 @@ an **empirical study**, with three components.
 1. **A controlled comparison of training signals at matched data budgets.** The
    question we can answer, and which the prior literature has not answered
    directly, is what the *supervision* buys. We hold the environment, the shift
-   corpus, the function-approximator class and the objective fixed, and vary only
-   how the training signal is constructed: a directly measured per-action cost
-   vector, a bootstrapped state-action value fitted from the same logged
-   transitions, and a policy gradient. Section 6.10 reports that comparison, and
-   Section 6.9 supports it with the hyperparameter sensitivity analysis needed to
-   distinguish a structural result from a tuning artefact.
+   corpus and the objective fixed, and vary how the training signal is
+   constructed: a directly measured per-action cost vector, a bootstrapped
+   state-action value fitted from the same logged transitions on the same
+   gradient-boosted-tree class, and a policy gradient (neural PPO). Section 6.10
+   reports that comparison, and Section 6.9 supports it with the hyperparameter
+   sensitivity analysis needed to distinguish a structural result from a tuning
+   artefact.
 
 2. **A warehouse instantiation with two deadline clocks.** We model the customer
    due date and the product expiry as independent constraints, both entering the
@@ -732,12 +652,17 @@ is spoiled with near certainty, which is the intended behaviour: abandoning
 perishable stock is the most expensive thing this objective can do.
 
 **How the reported rates are calculated**. Writing $\mathcal{A}$ for the set of
-orders that arrived during the shift, $\mathcal{S} \subseteq \mathcal{A}$ for
-those dispatched, and $\mathcal{P} \subseteq \mathcal{A}$ for the perishable ones:
+orders admitted by the last review epoch (Section 3.4), $\mathcal{S} \subseteq \mathcal{A}$ for
+those dispatched, and $\mathcal{P} \subseteq \mathcal{A}$ for the perishable ones.
+The composite cost uses $f_o = T + p_o$ for any order still waiting at the
+reference horizon $T$. The reported *rates* do not: an unserved order is late or
+spoiled in the KPI only if the relevant clock has already passed at $T$, with no
+$+p_o$. That split is deliberate. Adding $p_o$ to the KPI would count an unserved
+order whose due date is still in the future as a service failure.
 
-$$ \text{service-failure rate} = \frac{|\{o \in \mathcal{A} : f_o > d_o \ \text{ or } \ f_o > x_o\}|}{|\mathcal{A}|}, \qquad \text{spoilage rate} = \frac{|\{o \in \mathcal{P} : f_o > x_o\}|}{|\mathcal{P}|}, $$
+$$ \text{service-failure rate} = \frac{|\{o \in \mathcal{A} : \text{overdue or expired at } T\}|}{|\mathcal{A}|}, \qquad \text{spoilage rate} = \frac{|\{o \in \mathcal{P} : \text{expired at } T\}|}{|\mathcal{P}|}, $$
 
-$$ \text{breach rate}_{\text{arrived}} = \frac{|\{o \in \mathcal{A} : f_o > d_o\}|}{|\mathcal{A}|}, \qquad \text{breach rate}_{\text{served}} = \frac{|\{o \in \mathcal{S} : f_o > d_o\}|}{|\mathcal{S}|} . $$
+$$ \text{breach rate}_{\text{arrived}} = \frac{|\{o \in \mathcal{A} : \text{overdue at } T\}|}{|\mathcal{A}|}, \qquad \text{breach rate}_{\text{served}} = \frac{|\{o \in \mathcal{S} : \text{overdue at } T\}|}{|\mathcal{S}|} . $$
 
 The last of these is the metric the submitted paper reported, under the
 unqualified name "SLA-breach rate". Its denominator excludes every order the
@@ -746,7 +671,11 @@ so did the objective. Both are reported here, under names that make the
 denominator explicit, so the two versions of the paper remain comparable.
 $\mathcal{A}$ includes orders rejected at the door when the queue was at
 capacity; they are real demand that went unmet, and excluding them would reopen
-the same gap in a different place.
+the same gap in a different place. $\mathcal{A}$ does **not** include arrivals in
+the last open interval $(T-L, T]$: admission runs at review epochs, the last
+review is at $t=T-L$, and there is no terminal admit at $T$. Mean $|\mathcal{A}|=767$
+against a Poisson mean of $1.65\times 480=792$. Those late arrivals are never
+eligible for dispatch and are shared across every method.
 
 ## 3.4 The simulator and its parameters
 
@@ -779,7 +708,7 @@ grounded in a cited source, or declared a design choice; none is left unexplaine
 |---|---|---|
 | Shift, review interval, pickers | 8 h, 15 min, 10 | Operating point |
 | Queue capacity | 200 orders | Operating point |
-| Inter-arrival **shape** | Empirical bootstrap of the Olist trace | **Fitted** (Section 6.7) |
+| Inter-arrival **shape** | Poisson (exponential inter-arrivals) | Operating point. Olist shape is lognormal; Section 6.7 and Appendix C report the fit and a frozen-ranker replay under empirical bootstrap arrivals |
 | Arrival **rate** | 1.65 orders/min nominal | Operating point; swept in Section 6.5 |
 | Processing time $p_o$ | Triangular$(2, 5, 12)$ min | **Literature**: three-point time standard for manual picker-to-parts picking [@tompkins2010facilities; @dekoster2007orderpicking] |
 | Customer window $d_o - a_o$ | Triangular$(15, 45, 90)$ min | **Fitted** to the Olist purchase-to-estimated-delivery distribution, shape only, rescaled to the shift time base |
@@ -1065,37 +994,38 @@ here and treat the label's form as a design choice rather than as a contribution
 
 ## 4.4 A consistency result for truncated rollouts
 
-The deployed model truncates the rollout at $\tau = 4$ of up to 32 intervals. Does
-the truncated rollout approximate the cost one would obtain from a full-horizon
-rollout? It does, with a controllable bias.
+The deployed model truncates the rollout at $\tau = 4$ of up to 32 intervals. The
+two statements below are sketches of the labelling object, not theorems the
+campaign confirms. The implemented window cost is the potential difference
+$\Phi(t+\tau L)-\Phi(t)$ of Section 4.3, which can be negative when the queue
+drains. Arrivals are Poisson, so the number of orders that can be refused in an
+interval is unbounded and a finite deterministic $\bar{C}$ is not proved; we treat
+$\bar{C}$ as a working scale.
 
 **Proposition 1 (truncation remainder).**
-*Let $\bar{C}$ be an upper bound on the composite cost incurred in any single
-interval. Such a bound exists and is finite, because the queue capacity and the
-fixed picker count bound the per-interval breach count, total tardiness, and
-unfinished-order count. Fix a decision state $s_t$ with $H_t$ intervals remaining
+*Let $\bar{C}$ be a working upper scale on the absolute per-interval contribution
+to the window cost. Fix a decision state $s_t$ with $H_t$ intervals remaining
 in the shift. For rule $h$, let $J_h(s_t)$ be the full-horizon cost of holding $h$
 fixed for the remaining $H_t$ intervals and
-$\hat{J}^{\tau}_h(s_t)$ the $\tau$-truncated cost of holding $h$ fixed, $\tau \le H_t$. Then, if per-interval contributions are non-negative:*
+$\hat{J}^{\tau}_h(s_t)$ the $\tau$-truncated cost of holding $h$ fixed, $\tau \le H_t$. Then*
 
-*(i) the truncation error is non-negative and bounded,*
-$$ 0 \;\le\; J_h(s_t) - \hat{J}^{\tau}_h(s_t) \;\le\; (H_t - \tau)\,\bar{C} \;=:\; \Delta_\tau, \qquad \forall h; $$
+*(i) the truncation remainder is bounded in absolute value by the unsimulated tail,*
+$$ \big| J_h(s_t) - \hat{J}^{\tau}_h(s_t) \big| \;\le\; (H_t - \tau)\,\bar{C} \;=:\; \Delta_\tau, \qquad \forall h; $$
 
-*(ii) consequently the truncated tempered-softmax label converges to the
-full-horizon label as $\tau \to H_t$, with*
-$$ \mathrm{KL}\!\left(p^{\infty}(s_t)\,\|\,p^{\tau}(s_t)\right) \;\le\; \frac{2\,\Delta_\tau}{\beta}. $$
+*(ii) writing the label as a softmax of energies $-J_h/T(s_t)$ with the deployed
+temperature $T(s_t)=\beta\hat\sigma(s_t)>0$,*
+$$ \mathrm{KL}\!\left(p^{\infty}(s_t)\,\|\,p^{\tau}(s_t)\right) \;\le\; \frac{2\,\Delta_\tau}{T(s_t)}. $$
 
-*Proof sketch.* (i) If the composite cost is a sum of non-negative per-interval
-contributions, truncating the rollout removes a non-negative tail; that tail
-spans $H_t - \tau$ intervals, each contributing at most $\bar{C}$. The holding
-term $W_{\mathrm{hold}}|Q|$ in the potential can make a window cost negative when
-the queue drains, so the lower bound $0 \le J - \hat J$ need not hold pathwise;
-the upper bound on the remainder still does. (ii) Write the
-label as a softmax of energies $-J_h/\beta$. The truncated energies differ from
-the full-horizon energies by at most $\Delta_\tau/\beta$ in absolute value
-(part i). The log-sum-exp normaliser is 1-Lipschitz in the supremum norm of its
-arguments, so each log-probability shifts by at most $2\Delta_\tau/\beta$; summing
-the KL contribution over the distribution gives the stated bound. $\square$
+*Proof sketch.* (i) The unsimulated tail spans $H_t - \tau$ intervals. If each
+contributes at most $\bar{C}$ in absolute value, the remainder is at most
+$\Delta_\tau$. The holding term can make a realised window cost negative, so the
+older lower bound $0 \le J - \hat J$ need not hold pathwise. (ii) The truncated
+energies differ from the full-horizon energies by at most $\Delta_\tau/T(s_t)$ in
+absolute value. The log-sum-exp normaliser is 1-Lipschitz in the supremum norm of
+its arguments, so each log-probability shifts by at most $2\Delta_\tau/T(s_t)$;
+summing the KL contribution over the distribution gives the stated bound. Using
+the dimensionless multiplier $\beta$ in place of $T(s_t)$ would give a quantity
+with the units of cost, which is not a KL bound. $\square$
 
 Although part (ii) is phrased for the tempered-softmax label, part (i) bounds the
 rollout *cost vector* itself; the consistency therefore transfers to any label
@@ -1118,45 +1048,54 @@ accurate to $\varepsilon$ per step in total variation,
 
 $$ \sup_{s,\,u}\; \big\| P(\cdot \mid s, u) \;-\; \tilde{P}(\cdot \mid s, u) \big\|_{\mathrm{TV}} \;\le\; \varepsilon . $$
 
-**Proposition 2 (model-error accumulation).** *Under the conditions of
-Proposition 1, the $\tau$-truncated rollout cost computed under $\tilde{P}$
-differs from the same quantity under $P$ by at most*
+The implemented $\hat{J}^{\tau}$ is a function of the simulated trajectory over
+the window, so the first interval already depends on the kernel.
 
-$$ \Big| \hat{J}^{\tau,\tilde{P}}_h(s_t) - \hat{J}^{\tau,P}_h(s_t) \Big| \;\le\; \bar{C}\,\varepsilon\,\frac{\tau(\tau-1)}{2} \;=:\; \Gamma_\tau^{\varepsilon} . $$
+**Proposition 2 (model-error accumulation).** *Under the conditions of
+Proposition 1, and treating the window cost as an expectation of a bounded
+per-interval function of the post-transition state, the $\tau$-truncated rollout
+cost computed under $\tilde{P}$ differs from the same quantity under $P$ by at
+most*
+
+$$ \Big| \hat{J}^{\tau,\tilde{P}}_h(s_t) - \hat{J}^{\tau,P}_h(s_t) \Big| \;\le\; \bar{C}\,\varepsilon\,\frac{\tau(\tau+1)}{2} \;=:\; \Gamma_\tau^{\varepsilon} . $$
 
 *Proof sketch.* Let $d_k$ and $\tilde{d}_k$ be the state distributions after $k$
-steps under $P$ and $\tilde{P}$ from the common initial state $s_t$, under the
-same rule. Transition kernels are non-expansive in total variation, so one step
-adds at most $\varepsilon$ and $\|d_k - \tilde{d}_k\|_{\mathrm{TV}} \le k\varepsilon$
-by induction, with $\|d_0 - \tilde d_0\| = 0$. The per-interval cost lies in
-$[0, \bar{C}]$, so $|\mathbb{E}_{d_k}[c] - \mathbb{E}_{\tilde{d}_k}[c]| \le
-\bar{C}\,k\varepsilon$. Summing over $k = 0, \dots, \tau-1$ gives
-$\bar{C}\varepsilon\sum_{k<\tau} k = \bar{C}\varepsilon\,\tau(\tau-1)/2$. $\square$
+transitions under $P$ and $\tilde{P}$ from the common initial state $s_t$, under
+the same rule. Transition kernels are non-expansive in total variation, so
+$\|d_k - \tilde{d}_k\|_{\mathrm{TV}} \le k\varepsilon$ by induction, with
+$\|d_0 - \tilde d_0\| = 0$. The cost of interval $k=1,\ldots,\tau$ is a function
+of the state after that transition, so it differs by at most
+$\bar{C}\,k\varepsilon$. Summing $k = 1, \dots, \tau$ gives
+$\bar{C}\varepsilon\,\tau(\tau+1)/2$. The older sum that started at $k=0$ gave
+$\tau(\tau-1)/2$ and was identically zero at $\tau=1$, which cannot be right for a
+window cost that already simulates one interval. $\square$
 
 **The three error terms, and what they imply for $\tau$ and $M$.** Collecting
 Propositions 1 and 2 with the Monte Carlo error of the estimator in Section 4.3,
 the deviation of a computed label from the ideal full-horizon cost under the true
 dynamics is bounded by
 
-$$ \underbrace{(H_t - \tau)\,\bar{C}}_{\text{truncation, } \downarrow \text{ in } \tau} \;+\; \underbrace{\bar{C}\,\varepsilon\,\tfrac{\tau(\tau-1)}{2}}_{\text{model error, } \uparrow \text{ in } \tau} \;+\; \underbrace{O_p\!\big(\hat{\sigma}_h / \sqrt{M}\big)}_{\text{estimator, } \downarrow \text{ in } M} . $$
+$$ \underbrace{(H_t - \tau)\,\bar{C}}_{\text{truncation, } \downarrow \text{ in } \tau} \;+\; \underbrace{\bar{C}\,\varepsilon\,\tfrac{\tau(\tau+1)}{2}}_{\text{model error, } \uparrow \text{ in } \tau} \;+\; \underbrace{O_p\!\big(\hat{\sigma}_h / \sqrt{M}\big)}_{\text{estimator, } \downarrow \text{ in } M} . $$
 
-Three things follow, and the first two are new relative to the submitted paper.
+Three things follow. They organise the labelling knobs; they are not confirmed by
+deployed $J$.
 
-First, **the optimal horizon is interior for a reason that has nothing to do with
-estimator variance**. Truncation bias falls linearly in $\tau$ while model error
-grows quadratically, so the sum is minimised at
-$\tau^\star \approx 1/\varepsilon + 1/2$ — the better the model, the longer the
-rollout that is worth running, and a badly misspecified simulator should be rolled
-out for only one or two intervals. The submitted paper attributed the interior
-optimum entirely to estimator variance, which, as Section 4.3 explains, its
+First, **the envelope in $\tau$ is interior**. Truncation bias falls linearly in
+$\tau$ while model error grows quadratically, so the sum of those two terms is
+minimised at $\tau^\star \approx 1/\varepsilon$ under the working scale
+$\bar{C}$. The better the model, the longer the rollout that the envelope says is
+worth running. The submitted paper attributed an interior optimum entirely to
+estimator variance, which, as Section 4.3 explains, its
 implementation did not actually possess.
 
-Second, **this is a falsifiable prediction and Section 6.11 tests it**. If we
+Second, **this is a falsifiable prediction**. If we
 degrade the model deliberately by evaluating under perturbed dynamics while
 labelling under nominal ones, the horizon that minimises realised cost should
-shorten as the perturbation grows. That is a sharper test than reporting
-robustness, because it predicts the *direction and mechanism* of the degradation
-rather than only its size.
+shorten as the perturbation grows. Section 6.11 runs that labelling-in-one-world
+protocol and reports degradation slopes. It does not retrain $\tau$ as a
+function of $\varepsilon$, so the predicted shortening of $\tau^\star$ is
+untested. That is a sharper test than reporting robustness only when the
+horizon is swept under misspecification; we did not run that sweep.
 
 Third, **the two knobs are separable**. $\tau$ trades truncation against model
 error and is bounded by how much we trust the simulator; $M$ controls only the
@@ -1167,20 +1106,20 @@ invisible at the same time.
 Both bounds are stated for the rollout *cost vector*, so — as with Proposition 1
 part (ii) — they transfer to any label derived from it, including the hard arg-max
 of Section 6.8, via $\mathrm{KL}(p^\infty \| p^\tau) \le 2(\Delta_\tau +
-\Gamma^\varepsilon_\tau)/\beta$.
+\Gamma^\varepsilon_\tau)/T(s_t)$.
 
 **What these bounds are, and are not.** Both are worst-case and both are loose,
-and we would rather say so than let a reader discover it. $\bar{C}$ is an upper
-bound on the cost of *any* single interval, so it is attained only when every
-order in a full queue breaches and spoils at the highest priority weight: with a
-capacity of 200, $w_o \le 4$, $W_b = 3$ and $W_s = 5$, that is
+and we would rather say so than let a reader discover it. $\bar{C}$ is a working
+scale, not a proved bound: Poisson arrivals can overflow a full queue without
+limit. Taken as a numerical plug-in with a full queue of 200 orders at the highest
+priority weight, $w_o \le 4$, $W_b = 3$ and $W_s = 5$, one obtains
 $\bar{C} \ge 6.4 \times 10^{3}$, and hence $\Delta_\tau \approx 1.8 \times
 10^{5}$ at $\tau = 4$ — against realised shift costs three orders of magnitude
-smaller. Taken as numerical guarantees the propositions are vacuous. Their content
+smaller. Taken as numerical guarantees the sketches are vacuous. Their content
 is the *direction and rate* of each term in $\tau$: truncation falls linearly,
 model error grows quadratically, and the estimator term falls as $M^{-1/2}$. That
-is what makes the optimum interior, and it is a statement about shape rather than
-size. We use them for nothing else.
+shape is what the envelope uses; the horizon sweep in Section 6.4 does not recover it in deployed $J$. We
+use them for nothing else.
 
 **What the deployed horizon implies.** We cannot measure $\varepsilon$ for a real
 warehouse, so $\tau^\star \approx 1/\varepsilon$ cannot be evaluated forward. It
@@ -1208,7 +1147,7 @@ opening, a saturated mid-shift, a perishable burst. DAHS makes this explicit. A
 Gaussian mixture model is fit to the training-state features; the number of
 components is chosen by BIC over $K \in \{2,3,4,5,6,7,8,10,12\}$ with five EM
 restarts per $K$. On the regenerated corpus BIC selects $K^\star = 12$, the
-**upper endpoint of the grid** (mean pairwise ARI $0.969$, above the $0.85$
+**upper endpoint of the grid** (mean pairwise ARI $0.970$, above the $0.85$
 stability threshold). Because the selected $K$ sits on the boundary, the grid —
 not a turning point in the data — chose the number of regimes; we report that
 rather than treating twelve as a discovered structure. The twelve soft
@@ -1275,9 +1214,11 @@ Scenario parameters were fixed before evaluation and are not tuned per method.
 **Baselines**. We compare DAHS against the static rules retained by the screen of
 Section 3.6; **snapshot_xgb**, an ablation identical to DAHS but with the rollout
 horizon collapsed to $\tau = 1$, isolating the value of the horizon; **LinUCB**
-[@li2010linucb], a contextual bandit, with features standardised; **PPO**
-[@schulman2017ppo] at a budget matched to DAHS's and, separately, at a 60× budget,
-with the hyperparameter sensitivity analysis of Section 6.9; and **offline_fqi**,
+[@li2010linucb], a contextual bandit, with features standardised (LinUCB updates
+on the test shifts and is therefore not a frozen peer); **PPO**
+[@schulman2017ppo] at 8{,}000 training epochs, with the hyperparameter
+sensitivity analysis of Section 6.9 (not a matched simulation budget: labelling
+uses millions of interval-steps); and **offline_fqi**,
 a faithful offline reinforcement-learning competitor — fitted Q-iteration
 [@ernst2005fqi] with FEFO action masking, an instance of the maskable-action-value
 family of Offline-LD [@pluijm2025offlineld]. It trains on the same logged shifts
@@ -1297,11 +1238,12 @@ comparison that determines what the distillation costs or gains was absent
 entirely. We add **rolling_mpc**: at each epoch it evaluates every rule over
 $\tau$ intervals, averaged over independent continuations drawn exactly as in
 Section 4.3, commits the arg-min rule for one interval, discards the remainder of
-the plan, and replans. Labelling uses $M=20$ continuations; the online teacher uses
-$M=5$ so that a 50-shift evaluation is affordable. The scoring rule is the same
-potential difference, but the Monte Carlo budget is not, so a gap between
-rolling_mpc and DAHS mixes function-approximation error with estimator noise.
-The one-step
+the plan, and replans. Labelling uses $M=20$ continuations; the online teachers
+use $M=5$ so that a 50-shift evaluation is affordable. The scoring rule is the
+same potential difference, but the Monte Carlo budget is not, so a gap between
+rolling_mpc and DAHS mixes function-approximation error with estimator noise and
+cannot be read as a pure distillation gap. greedy_mpc beating rolling_mpc on
+default $J$ is consistent with a noisy $M=5$ arg-min at $\tau=4$. The one-step
 controller is retained as its $\tau = 1$ special case.
 
 This baseline is what makes the paper's central claim falsifiable, and it answers
@@ -1309,20 +1251,12 @@ four questions the submitted version could only assert answers to. *How much doe
 distillation lose?* The gap between rolling_mpc and DAHS at the same $\tau$ is the
 price of replacing a lookahead with a forward pass. *What does it buy?* We report
 per-decision latency for both, so the amortisation appears as a measured ratio
-rather than an argument. *Can the student beat the teacher?* It can in principle —
-a fitted selector regularises across states where the rollout estimate is noisy,
-and DAHS also carries a calibration layer and a switching guardrail the raw
-lookahead lacks — and Section 6.2 reports whether it does here. *And is the
+rather than an argument. *Can the student beat the teacher?* Section 6.2
+reports that it does not: both online lookaheads are cheaper, with paired
+intervals excluding zero. A fitted selector could in principle regularise
+noisy rollouts; that is not what happens here. *And is the
 horizon the mechanism?* Comparing rolling_mpc at $\tau = 1$ against $\tau = 4$
 separates the value of lookahead depth from the value of learning.
-
-⟨TBD-rerun: the reviewer's statement of this request ends mid-sentence in the
-copy we received — "Including this benchmark would answer several critical
-questions:" with the list truncated. The four questions above are our reading of
-what the benchmark settles. If the intended list differs, we will report against
-it directly; the experiment as implemented produces per-decision cost, latency and
-KPIs for every $\tau$, so most reasonable extensions are already covered by the
-logged output.⟩
 
 **Objective and metrics**. Every learned method optimises the composite cost $J$
 of Section 3.3, and $J$ is the primary metric of comparison. This is a correction
@@ -1347,11 +1281,12 @@ whether or not they were ever dispatched — together with mean tardiness, spoil
 rate, throughput, unserved and rejected demand, and picker utilisation. For
 comparability with the submitted version we also report the breach rate computed
 over completed orders only, under that explicit name. Uncertainty is quantified by
-10,000-resample bootstrap 95% confidence intervals; pairwise comparisons use the
-Wilcoxon signed-rank test with Benjamini–Hochberg control of the false discovery
-rate.
-
----
+10,000-resample bootstrap 95% confidence intervals. **Confirmatory test for
+paired composite cost.** A method is declared different from DAHS on $J$ when the
+paired 95% bootstrap interval of the mean difference excludes zero. Wilcoxon
+signed-rank $p$-values with Benjamini--Hochberg control are reported as a
+sensitivity analysis and are not the confirmatory rule. Service-failure rate uses
+the same interval rule when it is the claim being tested.
 
 # 6. Results
 
@@ -1379,12 +1314,14 @@ the rule is removed from the pool at that $k$.
 | COVERT | 4.0 | 404.3 | 4.0 | 3.21 | **4.0** |
 
 The portfolio value is deployed, because the pool is what ships; both are reported
-because ATC is also a standalone benchmark and benchmarking an uncalibrated rule
-understates it.
+because ATC is also a standalone benchmark. The Always-ATC row of the default
+comparison (Section 6.2) uses the portfolio scale $k=3.0$, not the standalone
+$k^\star=1.5$. A standalone Always-ATC at $k=1.5$ was not re-evaluated on the 50
+test shifts.
 
 **This settles the WSPT/ATC inversion.** ATC's standalone cost is U-shaped in $k$
 with a minimum of 459.2 at $k^\star = 1.5$, and rises monotonically thereafter to
-1004.2 at $k = 20$ — a factor of 2.19. Since WSPT is exactly the $k \to \infty$
+1004.2 at $k = 20$ --- a factor of 2.19. Since WSPT is exactly the $k \to \infty$
 limit (Section 3.6), that curve *is* the ATC-to-WSPT interpolation, and it says
 a fitted ATC beats WSPT by more than two-fold on this problem. The submitted
 finding that WSPT won 32% of decisions against ATC's 10% was therefore an artefact
@@ -1396,31 +1333,30 @@ the scale that makes ATC best *alone* is not the scale that makes it most useful
 
 ### Screening
 
-**Table 3**. Pool screening on the same corpus. Marginal contribution is the
-increase in achievable cost when the rule is removed, with a percentile bootstrap
-interval; a rule is retained when that interval excludes zero.
+**Table 3**. Pool screening on the same corpus. Screening is by marginal contribution
+to composite cost. Marginal contribution is the increase in achievable cost when
+the rule is removed, with a percentile bootstrap interval; a rule is retained when
+that interval excludes zero.
 
 | Rule | win rate | marginal contribution | 95% CI | retained |
 |---|---:|---:|---|:--:|
-| **EEDD** | 0.650 | 5.403 | [4.840, 5.991] | ✓ |
-| COVERT | 0.145 | 2.047 | [1.613, 2.527] | ✓ |
-| MS | 0.070 | 0.248 | [0.119, 0.412] | ✓ |
-| ATC | 0.055 | 0.086 | [0.032, 0.155] | ✓ |
-| MDD | 0.011 | 0.039 | [0.014, 0.070] | ✓ |
-| EDD | 0.068 | 0.007 | [0.000, 0.021] | ✓ |
-| FIFO | 0.001 | 0.000 | [0.000, 0.000] | — |
-| WSPT | 0.000 | 0.000 | [0.000, 0.000] | — |
-| FEFO | 0.000 | 0.000 | [0.000, 0.000] | — |
-
-Four findings, three of them answering questions put to the submitted version.
+| **EEDD** | 0.650 | 5.403 | [4.840, 5.991] | yes |
+| COVERT | 0.145 | 2.047 | [1.613, 2.527] | yes |
+| MS | 0.070 | 0.248 | [0.119, 0.412] | yes |
+| ATC | 0.055 | 0.086 | [0.032, 0.155] | yes |
+| MDD | 0.011 | 0.039 | [0.014, 0.070] | yes |
+| EDD | 0.068 | 0.007 | [0.000, 0.021] | yes |
+| FIFO | 0.001 | 0.000 | [0.000, 0.000] | no |
+| WSPT | 0.000 | 0.000 | [0.000, 0.000] | no |
+| FEFO | 0.000 | 0.000 | [0.000, 0.000] | no |
 
 **FIFO earns nothing.** It is the cost-minimising rule at 0.1% of decisions and
 its marginal contribution is identically zero. As the zero-information control in
 a due-date-driven setting that is the expected result, and it is the direct answer
 to the question of what FIFO was doing in the pool: nothing, and it is dropped.
-Note that FIFO's flattering position in the submitted results (Table 4) is
-separately explained by the admission defect of Section 6.2, which penalised every
-arrival-agnostic rule and never penalised FIFO.
+Note that FIFO's flattering position in the submitted results, reproduced in
+Section 6.2, is separately explained by the admission defect of that section,
+which penalised every arrival-agnostic rule and never penalised FIFO.
 
 **WSPT earns nothing either, and that is consistent rather than surprising.** A
 calibrated ATC dominates it by construction, so once ATC is fitted, WSPT is a
@@ -1429,7 +1365,7 @@ strictly worse member of the same family and contributes nothing at the margin.
 **FEFO's failure is not evidence against expiry-awareness.** FEFO ranks on $x_o$,
 which is infinite for the 80% of orders that are not perishable, so it sorts every
 non-perishable order behind every perishable one. It contributes nothing because it
-is a bad rule on this order mix, not because the product clock is uninformative —
+is a bad rule on this order mix, not because the product clock is uninformative ---
 and reading its zero as "expiry-awareness buys nothing" would have been the wrong
 inference. EEDD, which reads $\min(d_o, x_o)$, settles it: it wins 65% of decisions
 with a marginal contribution of 5.403, two and a half times COVERT's and by far the
@@ -1448,13 +1384,13 @@ Section 6.2 measures, and the per-cell oracle gap below bounds it.
 
 The submitted Figure 1 reported win rate per shift and per interval. That varies
 the *instance*, not the state, and so cannot establish that the rules cover
-different operating regions — which is what "complementary" has to mean for a
+different operating regions --- which is what "complementary" has to mean for a
 state-conditioned selector. Figure 1 is replaced by win rate over a grid of the two
 state dimensions that govern the decision: queue length and deadline pressure (mean
 slack), in quantile bins. A pool is complementary when different rules own
 different cells.
 
-**Table 5**. Cell ownership and the oracle gap over the 4x4 grid (960 decision
+**Table 4**. Cell ownership and the oracle gap over the 4x4 grid (960 decision
 epochs from the calibration corpus).
 
 | Quantity | Value |
@@ -1471,7 +1407,7 @@ this resolution the pool is not complementary in the way the submitted Figure 1
 was taken to show, and a selector that reads only queue length and deadline
 pressure could beat "always EEDD" on at most 7.29 percentage points of win rate.
 That is a much smaller opening than the submitted four-rule pool appeared to
-offer, and it is the correct place to say so — before Section 6.2 rather than
+offer, and it is the correct place to say so --- before Section 6.2 rather than
 after it.
 
 Two qualifications matter for reading it, and neither rescues the number so much
@@ -1486,18 +1422,14 @@ is that *this projection* of the state space does not by itself justify selectio
 
 *Win rate is not the objective.* A rule can win rarely and still be worth its slot
 if the states it wins are expensive ones, which is exactly why Table 3 screens on
-marginal contribution rather than on win rate — and the two orderings differ:
+marginal contribution rather than on win rate --- and the two orderings differ:
 COVERT wins 14.5% of decisions but carries a marginal contribution of 2.047,
 while EDD wins 6.8% and carries 0.007. The quantity that decides whether selection
-pays is composite cost, and Section 6.2 measures it.
-
-⟨TBD-rerun: report the oracle gap in *composite cost* rather than win rate, on the
-same grid, and report DAHS's realised share of it. If DAHS captures little of an
-already-small gap, the paper's empirical claim reduces to the sample-efficiency and
-amortisation results and should be written that way; the training-signal comparison
-of Section 6.10 is a relative result and survives either outcome, but the
-"selection beats any single rule" framing does not survive a small gap poorly
-captured.⟩
+pays is composite cost, and Section 6.2 measures it. We did not compute a
+composite-cost oracle on the same 4x4 grid. What we can say from the test set is
+that the static champion on $J$ is Always-COVERT, not Always-EEDD, and that DAHS
+beats Always-COVERT on 49 of 50 shifts (Section 6.2). Win-rate concentration on
+EEDD therefore overstates how little room there is on the objective.
 
 ![Figure 1. Rule complementarity over the state space: win rate of each retained
 rule across a grid of queue length (quantile bins) against deadline pressure (mean
@@ -1505,6 +1437,8 @@ slack, quantile bins). Complementarity means different rules own different cells
 The submitted Figure 1 plotted win rate per shift and per interval, which varies
 the instance rather than the state and cannot establish
 this.](../figures/S1_calibration/diversity_state_grid.png)
+
+Figure 1 is the state-space win-rate grid described above.
 
 ## 6.2 Main comparison
 
@@ -1516,13 +1450,10 @@ one purpose only: the two corrections diagnosed in this subsection are visible i
 it, and the argument that they are corrections rather than tuning is easier to
 follow with the symptomatic numbers in view.
 
-Table 4 (revised) is reported after the two diagnoses, ranked by composite
-cost. The method ranking changes under the corrected metric: one-step lookahead
-leads, Always-COVERT is the strongest static, and Always-EEDD — the win-rate
-champion of Section 6.1 — is expensive. Sample-efficiency (Section 6.3) has not
-yet been regenerated.
+Rank the table by composite cost. Table 5 is the submitted scoreboard, retained
+only as a diagnosis; Table 6 is the live comparison.
 
-**Table 4 (superseded)**. The submitted results: default scenario, 50 test
+**Table 5 (superseded)**. The submitted results: default scenario, 50 test
 shifts, under the *old* objective, the *old* completed-orders-only breach metric
 and the *old* four-rule pool. Retained solely as the evidence for the two
 diagnoses below. No claim in this paper rests on these figures.
@@ -1549,45 +1480,31 @@ selecting it (Section 6.9).
 
 ### The corrected accounting, and what it costs the headline
 
-The submitted paper's main table, reproduced above as Table 4, ranked methods
+The submitted paper's main table, reproduced above as Table 5, ranked methods
 by a breach rate whose denominator was *completed* orders. That leaves an
-opening — a controller can lower the reported rate by declining to touch
-difficult orders — and the submitted table carries the
+opening --- a controller can lower the reported rate by declining to touch
+difficult orders --- and the submitted table carries the
 direct evidence: DAHS completed 721.6 orders on average against basic FIFO's
 750.6. The correct accounting counts every overdue order as a failure, whether it
 was completed late or abandoned in the queue.
 
 We regard this as the most important correction in the revision, so we state its
-consequence before reporting the new numbers rather than after. The submitted
-repository ships per-order event logs for ten shifts under the frozen model, and
-recomputing the corrected metric on those logs — counting every arrived order,
-served or not — gives:
-
-| | breach rate over completed orders | failures over *arrived* orders |
-|---|---:|---:|
-| DAHS | 3.10% | 15.00% |
-| FIFO | 11.75% | 17.97% |
-| PPO (matched budget) | 9.40% | 16.44% |
-
-DAHS's advantage over FIFO narrows from roughly 3.8× to 1.20×, and over PPO from
-3.0× to 1.10×; on individual shifts the ordering against PPO inverts. The
-qualitative ranking survives the correction. The margin does not, and the
-submitted paper's headline overstated it.
-
-Those ten shifts are the demonstration corpus, not the evaluation corpus, so the
-figures above are indicative rather than the result. But they establish the sign
-and the order of magnitude, and we would rather put that in front of the reader
-immediately than let it emerge from a table. Section 3.3 rebuilds the objective so
-that unserved orders are charged, Section 3.4 reports the full outcome partition,
-and the primary metric throughout this section is the composite cost with the
-service-failure rate as its headline component.
+consequence before reporting the new numbers rather than after. Recomputing the
+corrected metric on the submitted demonstration logs (ten shifts, frozen model)
+--- counting every arrived order, served or not --- gave DAHS 15.00% failures
+over arrived orders against a 3.10% completed-only breach rate, and FIFO 17.97%
+against 11.75%. That arithmetic narrowed the FIFO gap from roughly 3.8 times to
+about 1.20 times *on those logs*. Those logs still used the admission defect of
+Cause 2 below, which uniquely favoured FIFO. After causal admission, utilisation
+is 0.956 for every method including FIFO, and Table 6's FIFO gap is 3.90 times
+on composite cost (50/50 shifts). The 1.20 figure is a diagnosis of the submitted
+metric, not a target for the regenerated campaign.
 
 ### Two anomalies in the submitted results, and their causes
 
 The submitted version of this table contained two results that are hard to
-reconcile with scheduling theory, and we were right to be asked about them rather
-than allowed to narrate around them. WSPT — a shortest-processing-time rule, which
-should *maximise* the number of orders completed — recorded the **lowest**
+reconcile with scheduling theory. WSPT --- a shortest-processing-time rule, which
+should *maximise* the number of orders completed --- recorded the **lowest**
 throughput of any method (574.5 against FIFO's 750.6) and a picker utilisation of
 0.686 while its queue sat near the 200-order capacity. And FIFO, which uses no
 deadline information at all, placed fourth of eleven on composite cost. Both are
@@ -1597,7 +1514,7 @@ both are corrected in this revision.
 **Cause 1: the objective did not measure what the rules optimise**. WSPT and ATC
 rank by $w_o/p_o$, using the priority weights of Section 3.1. The submitted
 objective weighted every order equally. Those two rules were therefore being
-graded against a criterion they were not designed for — they were correctly
+graded against a criterion they were not designed for --- they were correctly
 maximising weighted throughput while the scoreboard counted unweighted breaches.
 Section 3.3 puts $w_o$ into the objective, so rule and objective now agree.
 
@@ -1611,8 +1528,8 @@ picker utilisation of 0.686 alongside a queue of roughly 180 waiting orders was
 recording: a picker cannot be idle a third of a shift with that much work
 available unless the dispatch model idles it. It also explains FIFO's flattering
 composite cost, since FIFO was the only rule the mechanism never penalised.
-Section 3.4 replaces this with a properly causal periodic-review admission rule —
-only orders that have arrived by $t$ are eligible at $t$ — which removes the
+Section 3.4 replaces this with a properly causal periodic-review admission rule ---
+only orders that have arrived by $t$ are eligible at $t$ --- which removes the
 handicap and, incidentally, removes fifteen minutes of undisclosed look-ahead from
 the observed state.
 
@@ -1620,1030 +1537,583 @@ Together these mean the submitted rule comparison was not measuring rule quality
 All results in this section are regenerated under the corrected environment and
 objective, with the recalibrated pool of Section 3.6.
 
-**Table 4 (revised).** Default scenario, 50 test shifts, corrected objective and
-causal admission. Ranked by composite cost, the quantity every learned method
-optimises. Arrived $=767$ on every method (the arrival process is independent of
-the policy). Dropped $=0$. Composite cost uses the potential (unserved orders
-assessed at $t_{\mathrm{end}}+p_o$). Service-failure in this table is from the
-Stage-4 parquets, which used that same unserved rule; current code censors
-unserved orders at $t_{\mathrm{end}}$ without adding $p_o$, so a cheap re-eval
-will change **only** the service-failure column. Rank by cost until then.
+**Table 6.** Default scenario, 50 test shifts, corrected objective and causal
+admission. Ranked by composite cost, the quantity every learned method
+optimises. Arrived $=767$ on every method. Dropped $=0$. Paired 95% intervals
+are bootstrap percentile intervals of (method $-$ DAHS) composite cost over the
+50 aligned shifts, 10,000 resamples.
 
-| Method | Composite cost | Service failure | Spoil | Mean tardiness | Throughput | Picker util. | Latency (ms) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| greedy_mpc ($\tau{=}1$, $M{=}5$) | **356.1** | 0.0624 | 0.0381 | 0.777 | 732.5 | 0.956 | 1080 |
-| rolling_mpc ($\tau{=}4$, $M{=}5$) | 362.6 | 0.0657 | 0.0401 | 0.821 | 732.5 | 0.956 | 1201 |
-| DAHS | 381.2 | 0.0701 | 0.0421 | 0.822 | 732.1 | 0.956 | 0.99 |
-| snapshot_xgb ($\tau{=}1$)$^\dagger$ | 388.8 | 0.0691 | — | — | — | — | — |
-| offline_fqi$^\ddagger$ | 389.9 | 0.0731 | 0.0445 | 0.864 | 732.3 | 0.956 | 0.96 |
-| COVERT | 454.4 | 0.0855 | 0.0872 | 0.863 | 732.1 | 0.956 | $<0.01$ |
-| ATC ($k{=}3.0$) | 559.9 | 0.1133 | 0.0962 | 1.233 | 734.3 | 0.956 | $<0.01$ |
-| LinUCB | 583.6 | 0.0954 | 0.0809 | 0.807 | 731.1 | 0.956 | 0.42 |
-| ppo_fair (8k, untuned) | 610.9 | 0.0982 | 0.0936 | 0.922 | 730.5 | 0.956 | 0.23 |
-| EEDD | 695.8 | 0.0977 | 0.0375 | 0.825 | 729.8 | 0.956 | $<0.01$ |
-| MDD | 733.2 | 0.1035 | 0.1042 | 0.691 | 730.5 | 0.956 | $<0.01$ |
-| EDD | 763.1 | 0.1049 | 0.1056 | 0.785 | 729.8 | 0.956 | $<0.01$ |
-| MS | 789.8 | 0.1076 | 0.1081 | 0.821 | 729.1 | 0.956 | $<0.01$ |
-| WSPT | 1215.7 | 0.1000 | 0.0616 | 5.796 | **743.3** | 0.955 | $<0.01$ |
-| FIFO | 1486.0 | 0.1938 | 0.0761 | 2.090 | 730.2 | 0.956 | $<0.01$ |
-| FEFO | 1699.0 | 0.2076 | 0.0001 | 2.908 | 730.3 | 0.956 | $<0.01$ |
+| Method | Composite cost | SFR | Spoil | Tardiness | Thru. | Util. | Latency (ms) | Cost vs DAHS | DAHS wins |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| greedy_mpc ($\tau{=}1$, $M{=}5$) | 356.14 | 0.0607 | 0.0372 | 0.725 | 732.5 | 0.956 | 588 | 0.93$\times$ [$-$39.4, $-$12.8] | 19 |
+| rolling_mpc ($\tau{=}4$, $M{=}5$) | 362.58 | 0.0642 | 0.0392 | 0.770 | 732.5 | 0.956 | 645 | 0.95$\times$ [$-$28.1, $-$10.8] | 15 |
+| **DAHS** | **381.42** | **0.0689** | **0.0395** | **0.775** | **731.9** | **0.956** | **3.66** | --- | --- |
+| snapshot_xgb ($\tau{=}1$) | 388.13 | 0.0671 | 0.0337 | 0.734 | 732.0 | 0.956 | 3.30 | 1.02$\times$ [$-$3.6, 18.2] | 32 |
+| offline_fqi | 396.80 | 0.0724 | 0.0466 | 0.802 | 732.0 | 0.956 | 3.19 | 1.04$\times$ [2.9, 29.8] | 31 |
+| COVERT | 454.36 | 0.0836 | 0.0857 | 0.811 | 732.1 | 0.956 | $<$0.01 | 1.19$\times$ [60.9, 85.0] | 49 |
+| LinUCB | 551.55 | 0.0863 | 0.0694 | 0.773 | 731.2 | 0.956 | --- | 1.45$\times$ [94.7, 264.2] | 46 |
+| ATC ($k{=}3.0$) | 559.92 | 0.1108 | 0.0945 | 1.167 | 734.3 | 0.956 | $<$0.01 | 1.47$\times$ [150.9, 206.6] | 50 |
+| ppo_fair (untuned) | 610.93 | 0.0951 | 0.0916 | 0.876 | 730.5 | 0.956 | 0.17 | 1.60$\times$ [114.0, 380.5] | 50 |
+| EEDD | 695.77 | 0.0943 | 0.0357 | 0.784 | 729.8 | 0.956 | $<$0.01 | 1.82$\times$ [141.4, 528.8] | 21 |
+| MDD | 733.15 | 0.0999 | 0.1019 | 0.653 | 730.5 | 0.956 | $<$0.01 | 1.92$\times$ [200.9, 540.9] | 49 |
+| EDD | 763.06 | 0.1014 | 0.1033 | 0.746 | 729.8 | 0.956 | $<$0.01 | 2.00$\times$ [211.9, 594.5] | 49 |
+| MS | 789.82 | 0.1040 | 0.1058 | 0.782 | 729.1 | 0.956 | $<$0.01 | 2.07$\times$ [225.1, 635.7] | 49 |
+| WSPT | 1215.70 | 0.0987 | 0.0611 | 5.554 | 743.3 | 0.955 | $<$0.01 | 3.19$\times$ [753.4, 911.9] | 50 |
+| FIFO | 1485.97 | 0.1894 | 0.0743 | 2.023 | 730.2 | 0.956 | $<$0.01 | 3.90$\times$ [895.5, 1342.4] | 50 |
+| FEFO | 1698.96 | 0.2032 | 0.0001 | 2.821 | 730.3 | 0.956 | $<$0.01 | 4.45$\times$ [1077.5, 1584.8] | 50 |
 
-$^\dagger$ Evaluated on the E8 default cell (`arr1.65_default`); the dedicated
-`results/snapshot_xgb.parquet` was not written by Stage 4. $^\ddagger$ Logged
-with a double-`observe()` bug that zeroed `n_arrivals_last_interval` on 31 of
-32 states per shift. Retrain before citing. Tuned PPO (obs+reward
-normalisation) attains cost $450$ and is the PPO baseline going forward
-(Section 6.9); it is not a row here because that sweep did not emit a full KPI
-record.
+Wins are shifts on which DAHS is strictly cheaper. Under the confirmatory paired
+interval, every static rule, both teachers, offline_fqi, LinUCB and Table 6's
+`ppo_fair` row reject equality with DAHS on composite cost. snapshot_xgb does
+not: the interval includes zero ($[-3.6, 18.2]$). Wilcoxon+BH on the same 15
+comparisons rejects snapshot_xgb ($p_{\mathrm{adj}}=0.029$; 32 wins, 14 losses, 4
+ties, zeros discarded). On service-failure rate the snapshot pair is a null
+($p_{\mathrm{adj}}=0.34$). We treat $\tau=1$ as not demonstrably different from
+deployed DAHS on $J$ under the confirmatory rule, and as a null on SFR.
+
+![Figure 2. Default-scenario composite cost by method, 50 held-out shifts.
+Paired against DAHS.](../figures/E2/default_forest_composite_cost.png)
+
+Figure 2 is that forest plot.
 
 Three facts that rewrite the submitted story:
 
 1. **The teacher does not beat one-step lookahead**, and DAHS does not recover
    the teacher. Distillation is an amortisation of a *worse* scoring rule at
    $M=5$, not of an oracle. Per-decision latency is the quantity DAHS wins
-   (1 ms vs ~1.1 s).
+   (3.7 ms vs 645 ms for rolling_mpc; Section 6.12).
 2. **Always-COVERT, not Always-EEDD, is the static to beat on cost.** Win rate
-   on the Section 6.1 grid is the wrong proxy for the objective.
+   on the Section 6.1 grid is the wrong proxy for the objective. Against COVERT,
+   DAHS wins 49 of 50 shifts at 1.19 times; against EEDD the mean ratio is 1.82
+   times but DAHS is strictly cheaper on only 21 shifts, EEDD on 7, and they tie
+   on 22. The EEDD mean is tail-driven (worst shift 5281 against DAHS 2421). DAHS
+   also wins the median (44.1 against 57.6).
 3. **WSPT now has the highest throughput** (743 vs FIFO 730) and every method
    sits at picker utilisation $\approx 0.956$. The submitted utilisation of
    $0.686$ is gone. Cause 2 was the mechanism.
 
-**The multi-scenario picture.** The submitted comparison across four load
-scenarios is reproduced below under the same marking as Table 4, because one cell
-of it sets up the boundary-condition analysis that follows. In the
-high-load-perishable scenario DAHS's breach rate (0.1943) was edged by greedy_mpc
-(0.1884) by 0.59 percentage points — the one cell where DAHS did not lead the
-breach metric — while DAHS retained the lower composite cost there (100.1 against
-104.8) and the lower mean tardiness (20.7 against 22.3). Whether that pattern
-survives the corrected objective is an open question, not a claim: the corrected
-objective charges the unserved orders that saturation produces most of, which is
-precisely the regime in which the old and new metrics diverge furthest.
+**Table 7.** Composite cost and service-failure rate across four scenarios, 50
+shifts each. Best static is the cheapest always-on rule in that scenario.
 
-**Table 6 (superseded)**. Submitted SLA-breach rate by scenario, over completed
-orders only, 50 test shifts. Superseded for the same reasons as Table 4.
+| Scenario | DAHS $J$ / SFR | Best static | Teachers ($J$) | FQI $J$ | PPO $J$ |
+|---|---|---|---|---:|---:|
+| default | 381.42 / 0.0689 | COVERT 454.36 | greedy 356.14; rolling 362.58 | 396.80 | 610.93 |
+| high-load-perish | 11427 / 0.559 | **WSPT 11169** | greedy 11464; rolling 11339 | 11468 | 23223 |
+| balanced | 17.05 / 0.00384 | EEDD 16.95 | greedy 17.24; rolling 16.65 | 17.82 | 34.98 |
+| low load | 9.04 / 0.00337 | COVERT (13-way tie at 9.04) | 9.04 | 9.04 | 9.04 |
 
-| Scenario | DAHS | greedy_mpc | snapshot_xgb | offline_fqi | Best static rule |
-|---|---:|---:|---:|---:|---:|
-| low load | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
-| balanced | 0.00039 | 0.00546 | 0.00576 | 0.00342 | FIFO 0.00261 |
-| default | 0.0133 | 0.0313 | 0.0373 | 0.0718 | FIFO 0.0660 |
-| high-load-perishable | 0.1943 | 0.1884 | 0.1949 | 0.6192 | WSPT 0.1965 |
-
-⟨TBD-rerun: regenerate Table 6 on composite cost and service-failure rate across
-all four scenarios. Report whether DAHS still loses the high-load-perishable cell
-and on which metric; whether any method Pareto-dominates DAHS in any scenario; and
-whether the offline-RL baseline still collapses under saturation once its
-behaviour-policy coverage is fixed (Section 6.10). The saturation attribution
-below is written to be settled by measurement, not asserted.⟩
+DAHS does not dominate across regimes. Under high-load-perishable WSPT is
+cheaper (paired cost difference $-258$, interval $[-332,-187]$, BH-reject).
+Under balanced, EEDD is cheaper by $0.10$ with a null test (interval
+$[-0.31, 0.00]$). Under low load thirteen methods, including DAHS and both
+teachers, return identical $J=9.04$. The default-scenario ranking is therefore
+not a licence to write that selection beats any single rule in every operating
+region.
 
 ### Boundary conditions: what the selector actually does under saturation
 
-Calling the one lost cell "a saturation effect" is an attribution, not an
-analysis, and a practitioner deciding whether to deploy this controller needs to
-know *which* boundary condition bites. There are two candidate explanations and
-they have different remedies, so we distinguish them rather than assert one.
+Calling a lost cell "a saturation effect" is an attribution, not an analysis.
+There are two candidate explanations and they have different remedies.
 
-The first is that the selector stops selecting. If, as load rises, the ranker
-collapses onto a single rule, then the scenario KPI is really that rule's KPI and
-the method has quietly degenerated into a static policy. We measure this as the
+The first is that the selector stops selecting. We measure this as the
 **exponentiated entropy of the deployed-rule distribution**, which equals
 $|\mathcal{H}|$ when the selector spreads across the pool and 1.0 when it has
-collapsed.
+collapsed. On 1,600 default epochs the EEDD share is 0.849 and the COVERT share
+is 0.138 (switch rate 0.039). Under high-load-perishable those shares invert:
+COVERT 0.828, EEDD 0.173. Under balanced and low load the selector is
+effectively Always-EEDD (shares 0.995 and 0.999). Collapse onto a specialist is
+the mechanism in the light-load cells; a switch into COVERT is the mechanism
+under perishable saturation.
 
 The second is that the guardrail binds. The minimum dwell holds a rule for
-$T_{\min}$ epochs, and under saturation the queue state changes fastest — exactly
+$T_{\min}$ epochs, and under saturation the queue state changes fastest --- exactly
 when a stale rule is most costly. We measure this as the **blocked-switch rate**:
 the share of epochs at which the ranker's arg-max differed from the deployed rule
-*because the dwell was still active*. The controller now records every decision it
-takes, so this is read off a run rather than inferred.
+*because the dwell was still active*. A $T_{\min}$ sweep *within*
+high-load-perishable finds the cost-minimising dwell at the deployed value
+$T_{\min}=2$ (cost 11426.95); $T_{\min}\in\{0,1\}$ is 11427.04 and $T_{\min}=4$ is
+11429.34. The guardrail is not the boundary condition in that scenario.
 
-⟨TBD-rerun: report both statistics across all four scenarios, plus the switch rate
-and the entropy-gate firing rate. If the selection entropy falls sharply toward
-saturation, the selector is collapsing and the pool needs a rule suited to that
-regime. If the blocked-switch rate rises, the dwell is the binding constraint.
-These are not mutually exclusive.⟩
+## 6.3 Sample efficiency
 
-⟨TBD-rerun: report the causal test — a sweep of $T_{\min}$ *within* the
-high-load-perishable scenario alone. If the cost-minimising dwell there is shorter
-than the deployed one, then the guardrail is the boundary condition, and the
-honest response is to report the trade explicitly (KPI against switching
-frequency) and consider a load-dependent dwell, rather than to defend a fixed
-default. Section 4.7 already concedes that removing the controller improves KPIs
-slightly at the default operating point; if that penalty grows with load, it
-should be stated as a deployment caveat with a threshold attached.⟩
+Figure 3.
 
-## 6.3 Sample efficiency (the central result)
+![Figure 3. Sample efficiency. DAHS mean composite cost versus the number of
+simulated training shifts, five independent labelling-and-training replicates
+except $n=250$ (one replicate, the deployed model). Source
+`figures/data_efficiency/data_efficiency_curve.png`.](../figures/data_efficiency/data_efficiency_curve.png)
 
-The breach margin of Section 6.2 is, on its own, a modest empirical win. The
-result we ask the reader to weight is *how little data DAHS needs to reach it*. We
-retrain DAHS from scratch on training budgets of 25, 50, 100, 150 and 250 shifts —
-five independent replications each for the budgets below 250; the 250-shift budget
-draws the full corpus and is a single deterministic run — and evaluate on the same
-50 test shifts.
+**Table 8.** DAHS data-efficiency, composite cost. Budgets
+$\{25,50,100,150,250\}$; five replicates except $n=250$ (one replicate by
+design).
 
-The mechanism claimed for this result does not depend on the objective, and it is
-worth separating from the numbers that do. Every training state carries a
-*directly measured* per-rule target — the rollout cost vector — rather than the
-shift-level return an RL agent must learn from. The supervision is therefore dense
-and its variance is controlled by $M$ rather than by episode length, so the ranker
-saturates its learnable structure quickly. That is a statement about the training
-signal, and it is what Section 6.10's comparison against the offline-RL baseline
-at matched budgets is designed to test.
+| $n$ shifts | Replicates | Mean $J$ | Mean SFR | Notes |
+|---:|---:|---:|---:|---|
+| 25 | 5 | 448.32 | 0.0738 | One of five collapsed to Always-EEDD ($J=695.77$) |
+| 50 | 5 | 382.61 | 0.0686 | Already at the deployed level |
+| 100 | 5 | 383.03 | 0.0690 | |
+| 150 | 5 | 381.95 | 0.0685 | |
+| 250 | 1 | 381.42 | 0.0689 | Deployed model |
 
-The magnitude is a different matter and is regenerated. Under the submitted
-objective the curve was essentially flat from 25 to 250 shifts, which put roughly
-90% of the training corpus in the redundant column. Two changes in this revision
-push in opposite directions and we cannot say a priori which wins: the pool
-changed from the submitted four rules to six screened from nine candidates
-(Section 6.1), a different classification problem; and the labels became
-$M$-sample means
-rather than single-path realisations (Section 4.3), which makes each training
-state more informative. The saturation budget is therefore a measurement, not a
-carried-forward figure.
-
-⟨TBD-rerun: report the sample-efficiency curve — service-failure rate and
-composite cost against training budget, mean and standard deviation over
-replications — with the snapshot ranker and the rolling-horizon controller as
-reference lines. State the budget at which the curve flattens under the corrected
-objective and the screened pool, and convert it to simulator wall-clock. If
-saturation now needs materially more than the submitted 25 shifts, say so and
-restate the claim at the measured budget; the claim is that the signal is
-sample-efficient relative to the alternatives at matched budgets (Section 6.10),
-not that any particular number holds.⟩
-
-![Figure 2. Sample efficiency. DAHS performance versus the number of simulated
-training shifts (mean ± standard deviation over 5 replications; at the 250-shift
-budget all five replications draw the identical full training corpus, so the
-plotted standard deviation there is zero by construction). Dashed and dotted lines
-are the snapshot ranker and the analytic lookahead controller.](../figures/data_efficiency/data_efficiency_curve.png)
+The selector saturates by 50 shifts. The $n=25$ collapse is a real failure mode
+--- not every short corpus yields a working ranker --- but it is one replicate in
+five, not the typical outcome. Fitted Q-iteration on the same budgets is slower
+to saturate (mean $J$: 580, 483, 456, 412, 397 at $n=25,50,100,150,250$;
+Section 6.10).
 
 ## 6.4 Rollout horizon, and the number of continuations
 
-Sections 4.4 and 4.5 make two predictions about the rollout that pull in opposite
-directions. Truncating at $\tau$ leaves a bias that *shrinks* as $\tau$ grows
-(Proposition 1); rolling out in a misspecified model accumulates an error that
-*grows* as $O(\varepsilon\tau^2)$ (Proposition 2). Together they place the optimum
-at an interior $\tau^\star \approx 1/\varepsilon$.
+Proposition 1 predicts that truncation bias shrinks as $\tau$ grows. The
+operational test is a sweep over $\tau \in \{1,2,3,4\}$, each arm labelled at
+$M=20$ and used to train an otherwise identical ranker, evaluated on the same 50
+test shifts. Cross-validated soft cross-entropy on the training labels is  not
+the deployment criterion; we report it alongside $J$ because it is what the
+ranker actually fits.
 
-**This is a corrected explanation, not only corrected numbers.** The submitted
-version reported an interior optimum at $\tau = 3$ and attributed it to *estimator
-variance*: longer rollouts accumulate more stochastic intervals, so at a fixed
-rollout count the cost estimate is noisier. That explanation was unavailable to
-it. The submitted labeller replayed a single pre-sampled future for every rule, so
-the rollout variance was identically zero (Section 4.3) and there was no variance
-term anywhere in the implementation to produce the effect being claimed. Whatever
-produced that U-shape, it was not the mechanism given for it. With $M$-sample
-labels the variance term now exists and is measured; with Proposition 2 there is
-also a model-error term the submitted analysis lacked entirely. The sweep is
-therefore re-run as a test of a prediction rather than re-described.
+**Table 9.** Rollout-horizon sweep. Cost intervals are 95% bootstrap intervals of
+the 50-shift mean. $\tau=1$ is byte-identical to snapshot_xgb; $\tau=4$ is
+byte-identical to Table 6's DAHS.
 
-**Table 7 (superseded)**. Submitted rollout-horizon sensitivity, under the old
-objective, the old metric and single-path labels.
+| $\tau$ | $J$ | 95% CI of mean | SFR | Median label entropy | Test rows kept |
+|---:|---:|---|---:|---:|---:|
+| 1 | 388.13 | [235.8, 566.3] | 0.0671 | 0.693 | 915 / 1600 |
+| 2 | **372.31** | [225.1, 545.4] | **0.0653** | 0.649 | 1273 / 1600 |
+| 3 | 373.38 | [225.5, 547.5] | 0.0657 | 0.638 | 1444 / 1600 |
+| 4 | 381.42 | [232.7, 555.1] | 0.0689 | 0.638 | 1525 / 1600 |
 
-| $\tau$ | CV soft cross-entropy | SLA breach (completed only) | Composite cost (old) |
-|---:|---:|---:|---:|
-| 1 (snapshot) | 0.817 | 0.0373 | 8.77 |
-| 2 | 0.764 | 0.0136 | 2.72 |
-| 3 | 0.709 | 0.0105 | 2.31 |
-| 4 (deployed) | 0.677 | 0.0133 | 3.09 |
+Every cost interval overlaps every other. $\tau=2$ is the best point estimate;
+deployed $\tau=4$ is third. On SFR, $\tau=1$ versus $\tau=4$ is a null
+($p_{\mathrm{adj}}=0.34$). Longer rollouts do not buy measurable accuracy on the
+default simulator. We do not read Table 9 as confirming an interior
+$\tau^\star$ of the kind Proposition 1's worst-case bound would suggest.
+Figure 4.
 
-⟨TBD-rerun: re-run the sweep over $\tau \in \{1,2,3,4\}$ and report cross-validated
-soft cross-entropy alongside composite cost and service-failure rate. Report
-whether the label-fit column still falls monotonically in $\tau$ — that is the
-truncation-bias prediction of Proposition 1 — and where the *operational* optimum
-now sits. If the operational optimum is interior, Section 6.11's misspecification
-sweep is what distinguishes the estimator-variance explanation from the
-model-error one, and the two must be reported together rather than one asserted.
-The deployed horizon was fixed at $\tau = 4$ before any sweep and is not
-retro-fitted; if a different $\tau$ wins, report it as such and say which was
-deployed.⟩
+![Figure 4. Composite cost versus rollout horizon $\tau$. Source
+`results/E4/tau_summary.parquet`.](../figures/E4/tau_composite_cost.png)
 
-⟨TBD-rerun: report the companion sweep over the number of continuations
-$M \in \{1, 5, 10, 20, 40\}$, which the submitted version could not run at all.
-Report the per-cell rollout standard error and `frac_separation_below_1se` — the
-share of decision epochs whose best and second-best rules are separated by less
-than one pooled standard error — at each $M$. That statistic decides whether the
-labels carry a usable signal: if it stays high at the deployed $M$, the soft label
-is mostly noise and both the temperature search and the ambiguity filter are
-operating on noise, which must be reported rather than absorbed.⟩
+The companion sweep is $M \in \{1,5,10,20,40\}$. All five cells completed.
+Figure 5 plots composite cost against $M$.
 
-![Figure 3. Performance versus rollout horizon.](../figures/E4/tau_sla_breach_rate.png)
+**Table 10.** Number of continuations. $M=20$ is the deployed model. Entropy is
+in-band at every $M$. $M=1$ has identically zero rollout SE, so the
+fraction of labels with separation below one SE is zero by construction.
+$M=1$ post-calibration ECE $0.067$ misses the $0.05$ bar.
+
+| $M$ | $J$ | SFR | Median entropy | frac $<1$ SE | Test kept | ECE pre$\to$post |
+|---:|---:|---:|---:|---:|---:|---|
+| 1 | 380.24 | 0.0685 | 0.641 | 0 | 1150 / 1600 | 0.077$\to$0.067 |
+| 5 | 380.44 | 0.0680 | 0.644 | 0.567 | 1384 / 1600 | 0.123$\to$0.034 |
+| 10 | 382.40 | 0.0691 | 0.649 | 0.455 | 1457 / 1600 | 0.155$\to$0.027 |
+| 20 | 381.42 | 0.0689 | 0.638 | 0.334 | 1525 / 1600 | 0.170$\to$0.021 |
+| 40 | 382.78 | 0.0686 | 0.652 | 0.215 | 1526 / 1600 | 0.189$\to$0.018 |
+
+Paired against $M=20$, $M=1$ differs by $-1.18$ in $J$ (95% CI $[-7.83, 5.18]$,
+Wilcoxon $p=0.91$); $M=5$, $M=10$ and $M=40$ likewise include zero ($M=40$:
+$+1.36$, $[-3.05, 5.99]$, $p=0.35$). The five-cell span on mean $J$ is about
+$0.7\%$. Multi-sample labels improve calibration ECE and keep more test rows
+through the ambiguity filter. They do not improve deployed cost. Why $M > 1$
+remains the argument of
+Section 4.3 --- the submitted labels were hindsight-optimal on one path, not
+estimates of expected cost --- not a claim that $M=20$ is an accuracy lever.
+
+![Figure 5. Composite cost versus number of continuations $M$. Source
+`results/E4/n_samples_summary.parquet`.](../figures/E4/n_samples_composite_cost.png)
 
 ## 6.5 Robustness across untuned configurations
 
-It is natural to ask whether DAHS's advantage is an artefact of the one operating
-point at which the simulator was calibrated. We therefore evaluate DAHS, the
-rolling-horizon controller, the snapshot ranker, the offline-RL baseline and the
-best static rule across a 12-cell grid of configurations — four arrival rates
-crossed with three deadline-tightness levels — of which only one cell was ever used
-for calibration. No re-tuning is performed on any cell.
+![Figure 6. Robustness grid across 12 untuned configurations (4 arrival rates
+$\times$ 3 SLA tightnesses). Heat map of composite cost. The outlined cell is
+the Table 6 default and matches it to machine precision.](../figures/E8/robustness_grid_heatmap_composite_cost.png)
 
-Under the submitted objective the relative ranking was stable across the grid:
-DAHS was no worse than the snapshot ranker in all 12 cells and no worse than the
-analytic controller in 10 of 12, degradation under heavier load was graceful, and
-the best static rule degraded catastrophically in the hardest cell.
+Figure 6 is that heat map.
 
-**A defect in the submitted grid, and how it is prevented from recurring.** One
-cell of that grid — arrival rate 1.65 at default tightness — is byte-identical in
-configuration to the default scenario and uses the same 50 seeds, so it must
-reproduce the submitted main table (Table 4) exactly. It did not: it read 0.0048
-for DAHS and 0.0956 for the best static rule against that table's 0.0133 and
-0.1181. A static rule carries no
-learned artefact and is deterministic given a seed, so the discrepancy isolates to
-the simulator or the seed stream rather than to any model. The rebuild resolves it
-by construction, and a regression test now pins the static rules' KPIs on fixed
-seeds so the two paths cannot silently diverge again.
-
-⟨TBD-rerun: regenerate the grid on composite cost and service-failure rate.
-Confirm first that the calibrated cell reproduces the Table 4 row for every static
-rule to within floating-point tolerance — if it does not, stop and fix that before
-reading anything else off the grid. Then report the ranking stability, the
-degradation profile with load, and the cells where DAHS does not lead.⟩
-
-![Figure 4. Robustness grid across 12 untuned configurations (4 arrival rates x 3
-deadline-tightness levels). The calibrated cell is
-outlined.](../figures/E8/robustness_grid_heatmap_sla_breach_rate.png)
+Four methods are frozen across the grid: DAHS, greedy_mpc, snapshot_xgb, Always-EEDD.
+Always-COVERT is not on the grid. Teachers replan with each cell's true arrival
+rate and tightness; DAHS and snapshot_xgb are the default-trained rankers with no
+retraining. Among those four, greedy_mpc wins 8 of 12 cells and EEDD wins the four
+light-load default/loose cells. DAHS wins none. The `arr1.65_default` cell
+reproduces Table 6 exactly on every non-timing column for the four methods. The
+grid is a stress test of transfer, not a second evaluation of the default ranking,
+and it says the one-step teacher --- not the distilled student --- is the most
+robust of the four under load and tightness changes the ranker was not retrained
+on.
 
 ## 6.6 Calibration and interpretability
 
-The ranker emits a distribution over rules and the switching controller's entropy
-gate acts on it (Section 4.7), so the probabilities have to mean something;
-isotonic post-processing is fitted on a held-out shift split for that reason.
-Under the submitted model it improved the expected calibration error from 0.063 to
-0.028 and the Brier score from 0.130 to 0.107, while the soft cross-entropy rose
-from 0.298 to 0.387 — the known sharpness-versus-calibration trade-off, which we
-report rather than suppress.
+Isotonic calibration on a 20% held-out shift split improves expected calibration
+error from 0.1700 to 0.0213 (acceptance threshold 0.05) and Brier score from
+0.1730 to 0.1240, and *degrades* soft cross-entropy from 0.828 to 2.358. EDD
+never wins a label on the calibration split and is passed through uncalibrated.
+The reliability diagrams are Figure 7.
 
-Those figures are also the subject of a reproducibility defect we record rather
-than quietly repair. They come from a *different fitted model* than the one whose
-KPIs Table 4 reports: they match the 250-shift replication of the data-efficiency
-sweep, not the deployed run. Those two runs share their data, their seed and their
-hyperparameters and should be identical; their cross-validated soft cross-entropy
-differs in the sixth decimal place. The rebuild pins library versions and adds a
-determinism test, so a divergence of that kind fails loudly instead of surfacing
-as two slightly different numbers in two sections.
-
-On the deployed Stage-3 run, isotonic regression moved expected calibration error
-from $0.171$ to $0.020$ (clears the pre-registered $0.05$) and Brier from $0.174$
-to $0.126$; soft cross-entropy rose from $0.828$ to $2.388$. The
-sharpness-versus-calibration trade-off is larger than in the submitted model.
-
-⟨TBD-rerun: reliability diagram and SHAP over the 26-feature observation,
-including the three expiry features. Read alongside Appendix A.3 and the
-`top5_features` ablation.⟩
-
-![Figure 5. Reliability diagrams before and after isotonic
+![Figure 7. Reliability diagrams before and after isotonic
 calibration.](../figures/E5/reliability_pre_post.png)
 
-![Figure 6. Global SHAP feature importance for the ranker.](../figures/E5/shap_summary.png)
+Global SHAP values [@lundberg2017shap] on the 38-dimensional ranker input
+(26-feature observation plus 12 regime posterior coordinates) rank
+`queue_length` (0.370), `queue_length_lag_1` (0.152), `mean_slack_minutes`
+(0.120), `interval_index_in_shift` (0.053) and `queue_length_lag_2` (0.052).
+The sixth coordinate is a regime one-hot (`regime_post_9`, 0.040).
+Congestion and slack dominate; the product-clock features do not. That is
+consistent with Section 3.5: perishability binds, but the customer clock is the
+more frequent pivot, and EEDD already reads both clocks inside the action.
+Figure 8.
+
+![Figure 8. Global SHAP feature importance for the
+ranker.](../figures/E5/shap_summary.png)
 
 ## 6.7 Real-data grounding
 
 **Fitting, not validating**. The submitted version set the simulator's input
-parameters by choice and then checked them against a public trace. That is the
-wrong order of operations wherever a trace exists: a distribution that can be
-fitted should be fitted, and the comparison then reports residual error rather
-than serving as the justification. Appendix C gives the fitting procedure, the
-candidate families, and the two fields the Olist Brazilian e-commerce trace
-[@olist2018dataset] can and cannot speak to — it carries no warehouse pick-time
-field and no product expiry, so processing time and shelf life remain declared
-design parameters with their provenance stated rather than fitted quantities.
+parameters by choice and then compared them to a public trace. Fitting is the
+right operation wherever a trace exists. Appendix C reports the candidate
+families, the AIC table, and the selected family. Inter-arrivals are lognormal
+(Olist, $n=98{,}241$); the exponential alternative is worse by $\Delta$AIC
+$=34{,}502$. Customer windows are the closest shape match (KS $D=0.039$).
+Processing time is not fitted: the trace's purchase-to-approval delay is not pick
+time. Perishable fraction 0.20 is a design choice (Olist food/drink share is
+0.0099). The operating arrival rate 1.65 / min is an operating point, not a fit.
+Figure 9.
 
-⟨TBD-rerun: report the fitted inter-arrival and customer-window distributions with
-their selected families, parameters and post-fit goodness of fit, and say for each
-whether the fit supersedes or corroborates the Appendix B design value.⟩
+![Figure 9. Simulator input distributions against the Olist order trace
+(mean-normalised).](../figures/A/olist_validation.png)
 
-![Figure 7. Simulator input distributions against the Olist order trace
-(mean-normalised; QQ plots and densities).](../figures/A/olist_validation.png)
+A frozen-ranker replay under empirical Olist arrivals (burstiness CV $2.68$,
+against Poisson CV $1.00$) preserves the ranking: greedy_mpc 1783, DAHS 1815,
+snapshot_xgb 1839, Always-EEDD 3806. Absolute costs inflate; the teacher still
+leads and EEDD still trails. Figure 10.
 
-**Active robustness test**. A distributional comparison is passive: it reports
-*how* the simulator differs from the trace, not what that difference costs. We
-convert it into an active test. The chief discrepancy is arrival burstiness — the
-real stream is far more dispersed and heavy-tailed than a homogeneous Poisson
-process, with a coefficient of variation of 2.68 against 1.00 and skewness 11.0
-against 2.0 — so we replace the simulator's Poisson arrivals with a bootstrap of
-the empirical Olist inter-arrival distribution, rescaled so the mean arrival rate
-is unchanged, and re-run the full method comparison. Load is held fixed; only the
-burstiness changes. No model is retrained: the frozen ranker is evaluated as-is.
-
-Under the submitted model every method degraded under the bursty stream while DAHS
-held rank one, and its *paired* advantage over the snapshot ranker — which cancels
-common per-shift noise — widened rather than shrank. That is the result to
-reproduce, and it is a stronger test under the corrected objective than it was
-under the old one: bursts drive the queue to capacity, and it is exactly the
-orders that go unserved in those bursts that the submitted metric excluded from
-its denominator and the submitted objective priced at $0.005$.
-
-⟨TBD-rerun: report the paired advantage of DAHS over the snapshot ranker and over
-the rolling-horizon controller, in composite cost and service-failure rate, under
-Poisson and under bootstrapped-Olist arrivals, with bootstrap confidence
-intervals. State whether the margin widens, holds or shrinks under burstiness. It
-widened in the submitted results; if it shrinks under the corrected accounting,
-that is the more informative outcome and it must be reported as the finding rather
-than as an anomaly — it would mean the submitted margin was partly an artefact of
-not charging for abandoned orders during bursts.⟩
-
-![Figure 8. Method KPIs under Poisson against empirical-Olist bursty arrivals
-(95% bootstrap CIs).](../figures/A2/olist_arrivals_compare.png)
+![Figure 10. Method KPIs under Poisson against empirical-Olist bursty arrivals
+(frozen rankers).](../figures/A2/olist_arrivals_compare.png)
 
 ## 6.8 Ablations
 
-Each ablation retrains or reconfigures a single component and re-evaluates on the
-held-out shifts; paired differences against the full model use the Wilcoxon
-signed-rank test with Benjamini–Hochberg correction.
+**Table 11.** Retrain and inference ablations versus DAHS, 50 paired shifts.
+Composite cost is the column that decides. No ablation rejects equality with
+DAHS after BH control on cost, SFR, or tardiness (7-arm family, including
+`single_sample_rollout`). `random_ambiguity_filter` is per-shift identical to
+DAHS by construction --- the deployed filter is never applied at evaluation ---
+and is omitted from the table. Non-rejection is not an equivalence test.
+The training wall-clock to convergence is reported for
+retrain arms; inference-only arms do not retrain.
 
-**What is reported per ablation, and why it changed**. The submitted version
-reported one number per ablation — the SLA-breach rate — which says whether a
-component helps but nothing about what it costs to have. A component that improves
-the objective by a hair while tripling training time or adding milliseconds to
-every decision is a different engineering proposition from one that is free, and a
-practitioner choosing which parts of this pipeline to adopt needs both. Every
-ablation row now carries three columns:
+| Ablation | $J$ | $J$ vs DAHS [95% CI] | $p_{\mathrm{adj}}$ | SFR | Train wall (s) |
+|---|---:|---|---:|---:|---:|
+| hard_labels | 382.43 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0685 | 1302 |
+| no_calibration | 381.46 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0685 | --- |
+| no_regime | 383.56 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0691 | 1124 |
+| no_switching_controller | 380.43 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0687 | --- |
+| `single_sample_rollout` ($M{=}1$) | 380.24 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0685 | --- |
+| `top5_features` | 383.14 | $+$1.72 [$-$3.44, 6.59] | 0.83 | 0.0691 | 897 |
+| DAHS | 381.42 | --- | --- | 0.0689 | --- |
 
-| column | what it answers |
-|---|---|
-| composite cost, and its decomposition | does the component improve the objective? |
-| training wall-clock to convergence | what does it cost to *fit*? |
-| per-decision inference latency (mean, p95) | what does it cost to *run*? |
+The hard-label comparison is a null on both composite cost and service-failure
+rate. Soft labels remain the default because they are the deployed configuration,
+not because they outperform one-hot arg-max. Removing the switching controller
+slightly *improves* point-estimate cost; the wrapper is a deployability guardrail
+paid in KPI, not a performance component. The `top5_features` arm, trained on the
+SHAP top five only, is likewise a null: the remaining 33 ranker coordinates are not earning
+their dimensionality on this test set.
 
-Latency is measured by the evaluation harness around the policy call alone, with
-the environment step excluded, so it is the controller's own cost rather than the
-simulator's.
-
-**The ablation set**. Two of the six ablations declared in the submitted
-configuration were never actually run — `no_regime` and `random_ambiguity_filter`
-— and `no_regime` matters, because the regime layer is a named component of the
-method (Section 4.5) whose contribution was therefore never established. Both are
-run here. Three further ablations are added:
-
-- **`top5_features`**. The state representation is
-  hand-crafted and the SHAP analysis shows a small number of features dominating,
-  so we retrain on only the five most important and report the gap. This tests
-  whether the full set earns its dimensionality, and a parsimonious selector is
-  materially easier to deploy and to audit. Appendix A reports the correlation
-  and variance-inflation analysis that motivates the question, including the two
-  degenerate features removed outright in this revision.
-- **`single_sample_rollout`** ($M = 1$), which is the submitted labelling scheme,
-  so the value of turning the label into an estimator is measured rather than
-  assumed.
-- **`round_robin_behaviour`**, which regenerates the corpus under the submitted
-  behaviour policy, isolating the effect of its degenerate conditional action
-  coverage on the offline-RL comparison (Section 6.10).
-
-⟨TBD-rerun: report the full ablation table with all three column groups. Order
-rows by effect on composite cost, and state for each whether the component is
-load-bearing, neutral, or a deployability guardrail paid for in KPI — the last
-category currently contains the switching controller and should be labelled as
-such rather than defended.⟩
-
-**Removing the soft label**. DAHS converts each rollout cost vector into a soft
-training target by a tempered softmax (Section 4.3). To isolate whether the
-*distributional form* of that target matters, we retrain an otherwise identical
-pipeline — same rollout costs, same horizon, same 18-configuration hyperparameter
-search, same isotonic calibration — on a *hard* label: the one-hot arg-max of the
-same cost vector. Under the submitted model the choice was immaterial: the two
-were statistically indistinguishable on the primary metric and the hard label was
-marginally ahead on cost. That finding is why this paper does not claim the
-distributional form of the label as a contribution.
-
-The ablation is more consequential now than it was then, and its outcome is less
-predictable. The temperature is per-row rather than global (Section 4.3), and the
-labels are $M$-sample means whose per-cell standard error is recorded — so if a
-large share of epochs separate their best and second-best rules by less than one
-standard error, a hard label commits to a winner the rollout did not actually
-resolve, and a soft label is the honest encoding of that. The submitted
-implementation could not have detected the difference: with single-path labels its
-rollout variance was zero by construction.
-
-⟨TBD-rerun: report the hard-label comparison in composite cost and service-failure
-rate with paired confidence intervals, alongside `frac_separation_below_1se` from
-Section 6.4. If the two labels remain equivalent, say so and keep the soft label as
-a design choice rather than a claim. If the soft label now wins where the rollout
-is unresolved, that is a finding about when the distributional form earns its
-place, and it should be reported as conditional rather than promoted to a
-contribution.⟩
-
-**Removing isotonic calibration, and removing the switching controller**. Under the
-submitted model these two ablations pointed in opposite directions. Dropping
-isotonic post-processing degraded both KPIs substantially, which is coherent: the
-switching controller's entropy gate acts on the predicted probabilities, so an
-uncalibrated ranker mis-times its switches. Disabling the dwell and the entropy
-gate — following the ranker's arg-max directly —
-*improved* both KPIs slightly, at conventional significance.
-
-We retain the controller deliberately and record that price rather than defend it.
-As Section 4.7 states, its role is to bound rule-switching frequency and to enforce
-the perishability constraint — to make the policy operationally deployable — not to
-win the comparison. It belongs in the "guardrail paid for in KPI" row of the
-ablation table, and Section 6.2's saturation analysis asks the sharper version of
-the same question: whether the dwell that costs a little at the default operating
-point costs materially more under load.
-
-⟨TBD-rerun: report both ablations against the corrected objective, with paired
-Wilcoxon tests under Benjamini–Hochberg correction. For the switching controller,
-report the KPI cost *and* the switching frequency it buys, at the default operating
-point and in the high-load-perishable scenario, so the trade is legible rather than
-asserted.⟩
+A single-sample rollout ablation ($M=1$ relabel and retrain) is the $M=1$ cell of
+Table 10 and the `single_sample_rollout` row of Table 11 (byte-identical
+parquets). It matches $M=20$ on $J$. The $\tau=1$ snapshot is Table 9.
 
 ## 6.9 On the PPO baseline
 
-A weak baseline proves nothing, so the first question about the deep-RL
-comparison is whether the baseline was configured competently. The submitted
-version of this paper did not establish that it was. It varied exactly one thing —
-the training budget, 8k against 500k environment steps — and concluded from that
-alone that PPO's deficit was "structural, not budgetary". That conclusion did not
-follow. No hyperparameter was ever tuned, and the implementation used **no
-observation normalisation and no reward normalisation**, on a feature vector whose
-columns span queue lengths in the hundreds and utilisations in $[0,1]$.
-Unnormalised observations are among the most common causes of a policy-gradient
-method failing to learn at all, and a tree ensemble is scale-invariant where a
-multilayer perceptron is not — so the submitted evidence could not distinguish
-*policy gradients are the wrong instrument here* from *this run was
-misconfigured*.
+Untuned PPO at 8{,}000 epochs (`ppo_baseline`, `n_steps`$=64$) collapses to a
+constant EEDD policy: its 50-shift cost is $695.770797$, identical to Always-EEDD
+to machine precision. That is not the Table 6 `ppo_fair` row ($J=610.93$), which
+is a separately trained stock Stable-Baselines3 policy with a full KPI record.
+Sensitivity analysis: a 12-configuration grid was run on the same 50 test
+shifts, so the winning configuration is not a train-split selection.
 
-**Sensitivity analysis**. We therefore report a one-factor-at-a-time sweep around
-the submitted configuration over the discount factor $\gamma$, the GAE parameter
-$\lambda$, the rollout horizon `n_steps`, and the entropy coefficient, together
-with the full $2\times2$ over observation and reward normalisation. Normalisation
-is swept jointly rather than marginally because observation scaling changes the
-effective gradient magnitude while reward scaling changes the advantage scale, and
-a marginal sweep would miss the interaction. Every configuration is trained at the
-matched budget and evaluated on the same held-out shifts. Table ⟨TBD-rerun⟩
-reports the grid; the summary statistic is the fraction of the submitted
-PPO-to-DAHS gap that the best configuration recovers.
+**Table 12.** PPO sensitivity grid. `gap_closed_fraction` $=$
+$(\text{baseline}-\text{best})/(\text{baseline}-\text{DAHS}) = 0.783$. Factor
+spreads: normalisation $313.5$; `n_steps` $22.5$; $\gamma$, GAE $\lambda$ and
+entropy coefficient $0$.
 
-On the regenerated campaign the sweep recovered **78.2\%** of the submitted
-PPO-to-DAHS composite-cost gap. The best cell was observation *and* reward
-normalisation (composite cost $450$ vs untuned $696$ vs DAHS $381$). The
-"structural, not budgetary" claim is therefore withdrawn. The tuned PPO remains
-worse than DAHS on this grid, but it is no longer evidence that policy gradients
-are the wrong instrument. Tuned PPO is the PPO baseline going forward.
-⟨TBD-rerun: paste the full 12-row grid from `results/E11_rl_sensitivity/ppo_sensitivity.json` into a table.⟩
+| Configuration | $J$ |
+|---|---:|
+| 8 of 12 (including the untuned default) | 695.77 |
+| `n_steps`$=256$ | 673.29 |
+| obs-norm only | 540.66 |
+| **obs-norm and reward-norm** | **449.60** |
+| reward-norm only | 763.06 (Always-EDD) |
 
-**Interpretation, conditional on the sweep**. If PPO's deficit survives the sweep,
-the mechanism is the one policy-gradient theory predicts for this class of
-problem. The per-state advantage of one rule over another is small relative to the
-variance of the shift return, so the gradient signal that distinguishes rules is
-weak; the policy drifts toward whichever rule has the highest *unconditional*
-expected return and, with more updates, commits to it — which is consistent with
-the observed collapse onto a single rule at the larger budget. A directly measured
-per-rule cost vector sidesteps this because it is not a noisy return: it is dense,
-per-state, and its variance is controlled by the number of rollout samples rather
-than by the length of an episode. That is the comparison this paper is about, and
-it is only interesting if the baseline is competently configured — hence the
-sweep. The PPO comparison is thus not a horse-race DAHS wins on
-tuning; it illustrates why a supervised rollout-distilled signal is the more
-suitable instrument for this class of problem.
+Tuning closes a substantial share of the gap. The reading that PPO's deficit is
+structural rather than budgetary is withdrawn. The tuned configuration
+(`norm(obs=True, rew=True)`, $J=449.60$) is the PPO baseline going forward; it
+still trails DAHS ($381.42$). Table 6 reports the untuned `ppo_fair` row because
+that is the policy evaluated with a full KPI record; quoting 450 without that
+record would mix a sweep cost with a table of decompositions.
 
 ## 6.10 On the offline reinforcement-learning baseline
 
-The closest published competitor to DAHS is offline reinforcement learning from
-logged data [@pluijm2025offlineld]. Section 5 makes that comparison concrete with
-*offline_fqi*: fitted Q-iteration [@ernst2005fqi] with FEFO action masking,
-trained on the *same* 250 logged shifts as DAHS, under the same round-robin
-behaviour policy, the same per-interval reward, and the same gradient-boosted-tree
-model class as the DAHS ranker. The only thing that differs is the training
-signal — a single bootstrapped value at each visited state–action pair, rather
-than the directly measured cost of *every* rule. Its discount and tree
-hyperparameters were selected by a 12-configuration search on validation shifts
-disjoint from both training and test.
+**Action coverage, and a correction.** The submitted behaviour policy was
+round-robin over the pool. The interval index is an observed feature, so
+$a = t \bmod |\mathcal{H}|$ is a deterministic function of the observation and
+conditional coverage is one action per state by construction. The revision logs
+under `random`. On 8,000 training states the effective number of actions is
+5.999 of 6 overall and 5.995 of 6 on the breach-prone quartile; the
+interval-conditional mean is 5.937. Coverage is adequate: the offline-RL deficit
+cannot be attributed to unsupported actions in the hard region.
 
-**Action coverage, and a correction**. Whether a fitted-Q baseline is a fair
-representative of the offline-RL family depends on whether the logged data
-actually support the value estimates it needs, so we quantify coverage rather than
-argue for it. The submitted version argued for it, and argued wrongly. It stated
-that because the behaviour policy was a uniform round robin, "every action is
-covered at every state, so the distribution-shift pathologies that motivate
-conservative offline RL (CQL, IQL) do not arise". That is false, and the error is
-instructive. The behaviour policy was $a_t = \mathcal{H}[\,t \bmod |\mathcal{H}|\,]$
-— and the interval index $t$ is itself one of the observed state features.
-The logged action was therefore a **deterministic function of an observed
-feature**: marginally each rule was taken equally often, but *conditional on the
-state* exactly one action was ever observed, and $Q(s,a)$ for every other action
-was pure extrapolation. Marginal uniformity concealed conditional degeneracy.
+After an observe-once logger retrain (the previous logger called `observe()`
+twice per interval and zeroed `n_arrivals_last_interval` on 31 of 32 states),
+DAHS beats fitted Q on composite cost, $381.42$ versus $396.80$ (ratio $1.04$,
+paired interval $[2.90, 29.83]$, confirmatory interval excludes 0). The margin is
+small. It is real. Figure 11.
 
-This affects only the value-learning baseline. The rollout labels are
-counterfactual by construction — every rule is simulated at every state regardless
-of what the behaviour policy did — so the supervised selector is untouched. But it
-means the submitted comparison was not the clean test of *training signal* it
-claimed to be: part of the gap could have been coverage.
+![Figure 11. Sample efficiency: DAHS versus the offline reinforcement-learning
+baseline (fitted Q-iteration) at matched shift budgets.](../figures/E9/data_efficiency_offline_fqi.png)
 
-We therefore make three changes. The corpus is regenerated under a seeded random
-behaviour policy, breaking the dependence between the logged action and the state.
-Coverage is measured and reported, both overall and restricted to breach-prone
-states — defined from the labels as those whose best achievable rollout cost lies
-in the top quartile, which is exactly where a value function most needs data — using
-the exponentiated entropy of the action distribution, which equals $|\mathcal{H}|$
-under uniform coverage and 1 under degeneracy. And both corpora are reported, so
-the effect of the behaviour policy on the offline-RL baseline can be read directly
-rather than assumed away. Under the regenerated `random` behaviour policy,
-effective actions are $6.00$ overall and $5.94$ conditional on interval index
-($n=8000$ training epochs; min action share $0.161$). Restricted to the top
-quartile of rollout cost the figure is still $6.00$. Coverage is adequate: an
-offline-RL deficit cannot be blamed on unsupported actions. The submitted
-round-robin conditional statistic is $1.0$ by construction.
-
-Under the submitted model offline_fqi was not a weak baseline: it tied DAHS on
-mean tardiness and attained a lower composite cost than both the snapshot ranker
-and the analytic lookahead controller, while losing decisively on the breach
-metric. It was a competent controller that lost on the metric that mattered.
-
-The Stage-4 offline_fqi row (cost $390$ vs DAHS $381$) was trained with a logger
-that called `observe()` twice per epoch, zeroing the arrival feature. That
-comparison is void until retraining.
-
-⟨TBD-rerun: after the observe-once retrain, report the DAHS-to-offline_fqi
-comparison in composite cost and service-failure rate, with paired bootstrap
-intervals, on the `random` corpus — and separately on round-robin, so the effect
-of fixing conditional coverage is visible.⟩
-
-The mechanism we expect to survive is structural, and
-it is the one Section 6.9 gives for PPO: an SLA breach is a rare, expensive
-event, and a scalar bootstrapped value smears that signal across the bulk cost of
-tardiness and queue volume. offline_fqi minimises the bulk cost well — hence its
-low tardiness and competitive composite cost — but does not sharply avoid the rare
-breach. DAHS's per-rule rollout-cost vector measures the breach-laden cost of each
-rule directly, at every state, and the ranker fits it without bootstrapping.
-
-The sample-efficiency comparison is the sharper one (Figure 9), because it varies
-the data budget rather than the tuning. Under the submitted model offline_fqi
-improved with the budget but was still descending at the largest one, while DAHS
-was flat from the smallest; and offline_fqi's cross-replication spread at the
-smallest budget was an order of magnitude wider — the instability of value
-bootstrapping on little data. This is the comparison a reader of the offline-RL
-scheduling literature [@pluijm2025offlineld] will ask for, and the one this paper
-is organised around.
-
-⟨TBD-rerun: report both methods' sample-efficiency curves on the same axes, mean
-and cross-replication standard deviation, under the corrected objective and the
-random behaviour policy. Report the budget at which each saturates and the spread
-at the smallest budget. State whether DAHS at its smallest budget still matches or
-beats offline_fqi at the full budget; if it no longer does, report the crossing
-point instead of the headline.⟩
-
-![Figure 9. Sample efficiency: DAHS versus the offline reinforcement-learning
-baseline. SLA-breach rate (mean ± standard deviation over five replications)
-versus the number of simulated training shifts. DAHS is flat near 1.3% from 25
-shifts onward; offline_fqi descends from 11.6% but is still well above DAHS at the
-full 250-shift budget.](../figures/E9/data_efficiency_offline_fqi.png)
-
-The out-of-distribution behaviour is the third comparison, and under the submitted
-model it was the most striking: evaluated frozen across the stress scenarios and
-the twelve untuned grid cells, offline_fqi did not merely lose under
-high-load-perishable conditions but collapsed, while DAHS degraded in step with the
-analytic and static baselines. A value function fit to default-load logged shifts
-transfers poorly to a saturation regime it never saw; a ranker fit to the same
-shifts, but supervised by counterfactual rollouts at each state, has less to
-extrapolate.
-
-⟨TBD-rerun: report both methods frozen across all four scenarios and all twelve
-grid cells, on composite cost and service-failure rate. Report whether the collapse
-under saturation reproduces once the behaviour policy is fixed — the submitted
-corpus had degenerate conditional coverage, and an extrapolating value function is
-exactly the failure mode that produces. If it does not reproduce, the robustness
-claim is withdrawn and the coverage defect was its cause.⟩
-
----
+Frozen across the four scenarios and the twelve-cell grid, FQI tracks DAHS
+rather than collapsing. Under high-load-perishable both sit near 11,450--11,470
+while PPO reaches 23,223 and Always-EEDD 24,062. Under default, FQI is the fifth
+method in Table 6, between snapshot_xgb and Always-COVERT.
 
 ## 6.11 Model misspecification: labelling in one world, deploying in another
 
-Every result so far shares a simulator between labelling and evaluation. That is
-intrinsic to the method and we list it as a limitation, but it also means none of
-those results speak to the error an operator actually faces, which is that the
-model is wrong. Proposition 2 predicts the shape of that error: it accumulates as
-$O(\varepsilon\tau^2)$ while truncation bias decays as $O(H-\tau)$, so a
-misspecified model should be rolled out over a shorter horizon, with
-$\tau^\star \approx 1/\varepsilon$.
+Proposition 2 bounds the accumulation of per-step model error as
+$O(\varepsilon \tau^2)$ and predicts that the operationally best horizon
+shortens as $\varepsilon$ grows. The experiment labels once under the nominal
+simulator and evaluates frozen controllers --- DAHS, rolling_mpc, offline_fqi,
+Always-EEDD, Always-COVERT --- under perturbed dynamics: arrival rate
+$\times\{0.8,0.9,1.0,1.1,1.25\}$, processing time on the same grid, SLA
+$\times\{0.8,1.0,1.25\}$, shelf life $\times\{0.8,1.0,1.25\}$, and picker count
+$\Delta \in \{-2,-1,0,1,2\}$. The online teacher is pinned to the *nominal*
+model, so it replans with a wrong model rather than with the truth.
 
-We test this by labelling once under the nominal configuration and then evaluating
-the frozen controllers under perturbed dynamics along four axes an operator would
-have to estimate and would estimate imperfectly: arrival rate, processing-time
-scale, due-window scale, and picker headcount. Nothing is retrained.
+**Table 13.** Mean relative-degradation slope of composite cost against the
+perturbation, averaged over axes.
 
-Two design points make the comparison informative rather than rhetorical. The
-online lookahead controller is pinned to the **nominal** model, so it plans with
-exactly the same wrong dynamics DAHS's labels were built from; allowing it to roll
-out under the perturbed dynamics would hand it a model nobody has and would make
-the experiment meaningless. And the static rules are included as the
-misspecification-free reference: they carry no model at all, so their degradation
-measures the environment getting harder rather than any method getting worse. The
-model-based methods should be read against that baseline, not against zero.
+| Method | Mean slope | Rank (slower degradation first) |
+|---|---:|---|
+| COVERT | 18.7 | most robust (model-free) |
+| offline_fqi | 22.0 | |
+| DAHS | 22.8 | |
+| rolling_mpc | 23.7 | |
+| EEDD | 27.7 | least robust |
 
-⟨TBD-rerun: report the degradation slope — relative rise in composite cost per
-unit of relative model error — for DAHS, the rolling-horizon controller, the
-offline-RL baseline, and the static reference, on each axis. Then report the
-horizon sweep: does the realised-cost-minimising $\tau$ shorten as the perturbation
-grows, as Proposition 2 predicts? Read it against the detection floor derived in
-Section 4.4 — $\tau^\star$ enters the swept range $\{1,2,3,4\}$ only once
-$\varepsilon \gtrsim 0.29$, so a monotone curve in the mildly perturbed cells is
-uninformative rather than contrary, and only the strongly perturbed cells can show
-the optimum moving inward. If it fails to move even there, say so; the bound is
-loose enough that other effects may dominate at these perturbation sizes. Also report whether the amortised controller or the online one
-degrades faster, which is not obvious a priori: the online controller re-plans
-every epoch but re-plans with a wrong model, while the amortised one cannot
-re-plan at all but was fitted across many states and may generalise more
-smoothly.⟩
+DAHS is not the most robust model-based method; FQI's mean slope is slightly
+shallower. Always-COVERT, which carries no model, degrades slowest. Always-EEDD
+degrades fastest on load, capacity and processing time. On the SLA axis DAHS has
+the *steepest* slope of the five. Shelf-life slopes are near zero.
+
+This experiment does not retrain at $\tau \in \{1,2,3,4\}$ as $\varepsilon$
+grows, so it does not test the prediction that $\tau^\star$ shortens. Section 4.4
+already noted that $\tau^\star$ enters the swept grid only once
+$\varepsilon \gtrsim 0.29$; mild cells cannot show the optimum moving inward.
+We report the slopes and that the $\tau$--$\varepsilon$ interaction is unmeasured.
 
 ## 6.12 Computational cost, and scaling in the size of the rule pool
 
-The method's operational argument is that an expensive lookahead is paid once,
-offline, and amortised over deployment. That is a claim about two numbers, and the
-submitted paper reported neither. It is also a claim that weakens as the rule pool
-grows, which the submitted paper did not discuss.
-
 ### Offline cost
-
-The submitted labeller reconstructed each decision state by replaying the shift
-from $t = 0$, separately for every candidate rule, costing
-
-$$ \sum_{t<N} |\mathcal{H}|\,(t + \tau) \;=\; |\mathcal{H}|\left(\tfrac{N(N-1)}{2} + N\tau\right) \quad \text{interval-steps per shift.} $$
-
-For the submitted setup — $N = 32$ epochs, $|\mathcal{H}| = 4$ rules,
-$\tau = 4$, 250 shifts — that is $4 \times (496 + 128) = 2{,}496$ steps per shift
-and **624,000 interval-steps** in total. The dominant term is the replay, and it
-buys nothing: it re-derives a state the shift walk has already passed through.
 
 Walking each shift forward once and branching at each epoch (Section 4.3) costs
 
-$$ N \;+\; N \cdot |\mathcal{H}| \cdot M \cdot \tau \quad \text{interval-steps per shift,} $$
+$$ N + N \cdot |\mathcal{H}| \cdot M \cdot \tau \quad \text{interval-steps per shift,} $$
 
-linear in $N$ rather than quadratic. Removing the $O(N^2)$ term is what pays for
-the $M$ independent continuations that make the label an estimator at all. The
-comparison is computed rather than asserted by
-`experiments/compute_budget.py analytic`.
+linear in $N$ rather than quadratic in the submitted labeller, which replayed
+each shift from $t=0$ for every candidate. For the deployed setup --- $N=32$,
+$|\mathcal{H}|=6$, $\tau=4$, $M=20$, 250 training shifts --- labelling consumed
+$4{,}401{,}600$ interval-steps ($3{,}668{,}000$ train, $733{,}600$ test) in
+$758$ s train and $164$ s test wall-clock on the campaign machine (Intel Core
+i9-14900K, 24 cores / 32 threads, 64 GB, Windows 11, Python 3.12.10). Rule
+calibration, which sweeps $k$ under $M=5$, consumed $2{,}966{,}400$ additional
+interval-steps. A separate single-thread `compute_budget measure` pass on three
+shifts recorded $389.3$ interval-steps per second ($2.75$ h single-core for the
+$3{,}848{,}000$-step corpus formula used by that driver). Labelling wall-clock
+above is the labeller's own multi-core measurement and remains the campaign
+figure.
 
-⟨TBD-rerun: report measured interval-steps and wall-clock for rule screening,
-calibration and labelling separately, on named hardware with the core count, plus
-the same figures for the offline-RL baseline's transition logging so the two
-training budgets are directly comparable. `compute_budget.py measure` produces the
-per-core rate; labelling is embarrassingly parallel over shifts.⟩
+### Online cost, and per-decision inference latency
 
-### Online cost, and the break-even
+**Table 14.** Mean per-decision inference latency, 50 default shifts.
+The p95 column is the mean, across shifts, of each shift's per-decision p95
+(so DAHS can have mean 3.66 ms and p95 3.60 ms). It is not a pooled p95 over
+all decisions.
 
-A DAHS decision is one pass through the regime mixture and the ranker. A
-rolling-horizon decision is $|\mathcal{H}| \cdot M \cdot \tau$ simulated
-interval-steps, at *every* epoch, indefinitely. The evaluation harness records
-per-decision latency for both. ⟨TBD-rerun: report mean and 95th-percentile
-latency for each, and the break-even — the number of decisions after which the
-one-off labelling cost is repaid by the per-decision saving. That expresses the
-amortisation claim as a quantity an operator can check against their own
-deployment horizon rather than take on trust.⟩
+| Method | Mean (ms) | p95 (ms) | Wall-clock s / shift |
+|---|---:|---:|---:|
+| DAHS | 3.66 | 3.60 | 0.141 |
+| snapshot_xgb | 3.30 | 3.13 | 0.129 |
+| offline_fqi | 3.19 | 3.38 | 0.124 |
+| ppo_fair | 0.17 | 0.25 | 0.014 |
+| greedy_mpc | 588 | 866 | 18.8 |
+| rolling_mpc | 645 | 900 | 20.7 |
+| COVERT / EEDD / FIFO | $<10^{-3}$ | $<10^{-3}$ | 0.01 |
+
+DAHS is $176$ times faster per decision than rolling_mpc (3.66 ms vs 645 ms) and
+$161$ times faster than greedy_mpc. Static rules remain three orders of magnitude
+faster still. The amortisation claim is this ratio, on named hardware, not an
+argument that a forward pass is faster than a tree of simulations. At a
+15-minute review interval, 645 ms is $0.07\%$ of the epoch, so the latency
+product is real and operationally unused unless a tighter review is required.
+
+Labelling the $M=20$, $\tau=4$ corpus took $922$ s ($15.4$ min) of wall-clock.
+Ranker training (Stage 3) took $1.25$ h on the same machine. At
+$20.7-0.14=20.6$ extra seconds per shift of online lookahead, labelling alone
+is repaid after about $45$ shifts; labelling plus training is repaid after
+about $250$ shifts. Both figures are hardware-specific and ignore that the
+teacher is also the better policy.
 
 ### Scaling in $|\mathcal{H}|$
 
-Two distinct costs grow with the pool, and they grow differently.
+Labelling cost is linear in $|\mathcal{H}|$ under uniform allocation of $M$
+continuations to every rule. Two mechanisms in the labeller address that.
 
-**Labelling cost is linear in $|\mathcal{H}|$**, since every rule is rolled out at
-every state. Going from four rules to twenty multiplies the offline budget by
-five, with no change to the online cost of the deployed selector — the ranker
-emits one more logit and nothing else moves.
+Adaptive sample allocation (successive halving) discards clearly dominated rules
+part-way through the $M$ continuations and spends the remaining budget on the
+survivors. Hierarchical selection first screens a cheap one-step score and only
+then rolls the shortlist to depth $\tau$. Successive halving is implemented
+(`costs_at_epoch_successive_halving`). A 50-shift diagnostic at the deployed
+$(M,\tau)$ produced arg-max agreement $0.856$ against uniform allocation, mean
+label KL $0.185$, and a $1.1\%$ step saving (`successive_halving.json`); the
+verdict is unsuccessful, so production labels stay uniform. Hierarchical
+selection is described here and is not implemented. We did not
+retrain DAHS at pool sizes $2$, $4$ and $8$.
+The statement we can support is the complexity: uniform labelling is
+$\Theta(N|\mathcal{H}|M\tau)$ interval-steps per shift; successive halving
+replaces $|\mathcal{H}|M$ with $|\mathcal{H}|\log M$ in the usual approximation
+when gaps are large relative to rollout SE. At $M=20$, $33\%$ of training epochs
+have a best-versus-second gap below one pooled SE (Section 4.3), which is
+exactly the regime in which early discarding is least safe.
 
-**Statistical cost is worse than linear.** A pool of $|\mathcal{H}|$ rules is an
-$|\mathcal{H}|$-class problem, so the corpus must support estimating that many
-decision boundaries. Sample efficiency therefore degrades in $|\mathcal{H}|$ even
-though the per-state supervision remains dense, and the shift budget at which the
-selector saturates is the quantity to watch, not the step budget.
-⟨TBD-rerun: report the sample-efficiency curve at pool sizes 2, 4, 8, so the
-degradation is measured rather than argued.⟩
-
-Two mitigations are available and we implement and evaluate the first.
-
-**Adaptive sample allocation.** Uniform allocation spends $M$ continuations on
-every rule, including rules that are clearly inferior after two samples.
-Successive halving spends the same total budget adaptively — a cheap round over
-all rules, discard the worst fraction, reallocate to the survivors — so precision
-concentrates on the contenders. This is compatible with the soft label rather than
-in tension with it: the tempered softmax maps a clearly inferior rule to
-near-zero probability however precisely its cost was estimated, so a rule
-eliminated in round one loses nothing it would have contributed. The rules whose
-label mass is materially non-zero are exactly the ones the allocation keeps
-sampling. ⟨TBD-rerun: report arg-max agreement and label KL against uniform
-allocation, and the step saving, from `compute_budget.py scaling`. If agreement is
-high and the saving material, recommend it as the default for pools materially
-larger than the six deployed here; if not, report the mitigation as unsuccessful.⟩
-
-**Hierarchical selection.** The rules partition naturally by information source
-(Section 3.6): arrival-driven, customer-deadline-driven, product-deadline-driven,
-and processing-composite. A two-stage selector could choose a family and then a
-member, reducing the effective branching factor from $|\mathcal{H}|$ to
-$\sqrt{|\mathcal{H}|}$-ish at each stage and allowing rollouts to be spent per
-family rather than per rule. We do not implement this — with six screened rules
-the flat selector is not the bottleneck — but it is the natural next step for a
-pool of twenty, and we record it in Section 9.
+---
 
 # 7. Discussion
 
-The results support a narrow but well-grounded claim. On deadline-constrained
-warehouse dispatching, a selector trained by offline multi-pass simulation is
-*sample-efficient* (Section 6.3), uses a truncated-rollout training signal whose
-error terms have the expected *sign* in $\tau$ (Section 4.4, Section 6.4) even
-though the numerical bounds are vacuous, *robust* across untuned operating points (Section 6.5),
-and *real-data-grounded* in the sense that its advantage is tested against a
-realistically bursty arrival stream (Section 6.7). We have been explicit
-throughout that the contribution is the *comparison of training signals and the
-data efficiency it reveals*, not the size of the headline margin — and Section 6.2
-shows why that distinction is load-bearing rather than modest: charging the orders
-a controller never touches compresses the margin substantially, and the submitted
-paper's headline overstated it. A faithful offline reinforcement-learning
-baseline, given identical data and a fair hyperparameter search, is the comparison
-that carries the claim (Section 6.10), and it is a *relative* result at matched
-budgets rather than a larger headline number.
-⟨TBD-rerun: state the measured margins here, on composite cost and service-failure
-rate, once the campaign completes — and if the margin over the strongest learned
-baseline is not statistically distinguishable from zero, say that, and rest the
-discussion on the sample-efficiency and cost-of-deployment results, which do not
-depend on it.⟩
+The campaign supports a smaller claim than the one we started with, and that is
+the claim we are willing to defend.
 
-DAHS helps most where rule selection is genuinely contested: moderate-to-high load
-with tight deadlines, where the queue state swings the best rule from interval to
-interval. It helps least at the extremes — under light load every rule is adequate,
-and under extreme saturation the rules converge and an exhaustive analytic
-controller can edge it on the breach metric (Section 6.2). The composite cost tells
-a more stable story than the breach rate alone: DAHS leads on cost in every
-scenario, because the rollout-cost training signal weighs tardiness and unfinished
-work, not only outright breaches.
+On the default operating point, a rollout-trained selector beats every static
+dispatching rule we screened, with Always-COVERT as the static to beat
+($J=454$ against DAHS $381$, $49/50$ shifts) rather than Always-EEDD ($J=696$,
+but only $21$ strict wins and $22$ exact ties). It beats fitted Q-iteration
+($397$) and an 8{,}000-epoch PPO policy ($611$ in Table 6; $450$ once observations and
+rewards are normalised; $696$ for the `n_steps`$=64$ collapse). It does not beat the teachers that generate its labels
+($356$ and $363$). Distillation therefore loses $5$--$7\%$ of composite cost
+against online truncated lookahead and returns a $176$-fold reduction in
+per-decision latency.
 
-Two deployment properties reinforce the operational case. The first is a **cost
-asymmetry**. DAHS runs no simulation at deployment — a decision is a deterministic
-forward pass of the regime mixture and the gradient-boosted ranker over the
-26-feature observation plus $K^\star$ regime posteriors — whereas the analytic controller greedy_mpc simulates every rule
-for one interval at *every* decision. DAHS instead pays that lookahead cost once,
-offline, at labelling time and amortises it over the deployment. Relative to a
-deep-reinforcement-learning policy the asymmetry is one of training data: DAHS
-reaches a deployable controller from 25 simulated shifts (Section 6.3), where PPO
-does not converge to a useful policy even at 500k environment steps (Section 6.9).
-The second property is **auditability of the action**: DAHS emits, each interval,
-one of six *named* rules — EEDD, COVERT, MS, ATC, MDD, EDD — that a supervisor already
-understands and can check against the visible queue state, rather than an opaque
-assignment. We scope this claim carefully: the *selector* is itself a tree ensemble,
-interpreted only post hoc through the SHAP attribution of Section 6.6 — it is the
-selector's *output*, not its internals, that is transparent by construction. That
-is nonetheless a handle on the decision that an end-to-end policy emitting raw
-picker assignments cannot offer.
+The expensive parts of the method do not earn that $5$--$7\%$. $\tau=1$ matches
+$\tau=4$ on service-failure rate and is not demonstrably worse on cost; $M=1$
+matches $M=20$ on cost; every retrain ablation is a null; a random ambiguity
+filter is identical to the deployed filter. WSPT, screened out of the default
+pool, beats DAHS under high-load-perishable ($J=11{,}169$ against $11{,}427$,
+interval excludes 0). What moves the default table is the
+*existence* of a counterfactual per-rule cost vector, not the Monte Carlo
+refinement of that vector past a single continuation or a single interval. A
+practitioner who already has a resettable simulator and who can afford 645 ms
+per decision should run the one-step teacher. A practitioner who needs a
+millisecond decision can distil it, and should not expect the student to catch
+the teacher.
 
-The broader methodological point is that an expensive online computation — rollout
-— can be paid *once*, offline, and amortised into a cheap learned approximation,
-provided the offline computation is turned into a supervised target rather than a
-reinforcement signal. Section 6.10 supplies controlled evidence for that proviso:
-an offline reinforcement-learning baseline given the *same* logged shifts, the
-*same* model class and a fair hyperparameter search, but trained to bootstrap a
-value rather than to regress the measured cost, loses on the primary objective
-⟨TBD-rerun: by how much, with a paired interval⟩. The rollout yields a per-rule
-cost vector; a supervised ranker fit to that vector reproduces the lookahead at a
-fraction of the deployment cost. Whether the cost vector reaches the ranker as a
-soft distribution or as its hard arg-max was immaterial under the submitted model
-and is re-tested here (Section 6.8); the ingredients we expect to matter are the
-multi-step rollout, the number of continuations it averages, and the choice of its
-horizon.
+Two comparisons that looked structural are not. PPO's deficit was a missing
+normalisation wrapper (`gap_closed_fraction`$=0.783$). FQI's coverage under
+round-robin was degenerate by construction; under a random behaviour policy
+coverage is adequate and a 4% cost gap remains. Both baselines belong in the
+table. Neither is a demonstration that value-based or policy-gradient methods
+cannot do this task.
+
+Perishability binds at this horizon (Table 1): 35.5% of decision epochs carry
+an expiry-pivotal order in queue (7.3% of queued perishables; 1.4% of all
+orders), against 95.1% of epochs carrying a due-pivotal order. FEFO --- the
+true expiry-only rule --- drives spoilage essentially to zero at catastrophic
+cost (Table 6). EEDD is the rule that reads both clocks. That does not
+imply that a selector over those rules will win every regime: WSPT wins
+high-load-perishable, and Always-EEDD is statistically tied with DAHS under
+balanced load.
 
 ---
 
 # 8. Limitations
 
-We state the limitations of this study plainly.
-
-1. **Partial observability, and an irreducible regret floor.** The controller acts
-   on $\phi(S_t)$, which is an observation and not a sufficient statistic
-   (Section 3.2). Two queues that differ in *which* order carries the tight
-   deadline can be identical under $\phi$ and yet evolve differently under the
-   same rule, and Section 3.2 exhibits such a pair explicitly. Any policy in our
-   class must therefore assign both the same action, so some regret is
-   unrecoverable regardless of data or model capacity. We measure it rather than
-   note it: over the training corpus we locate mutual near-neighbours in
-   standardised $\phi$-space and report how often their cost-minimising rules
-   differ and what acting on the wrong one costs, as a share of the total benefit
-   available from rule selection. ⟨TBD-rerun: report the aliasing rate and that
-   share; it upper-bounds the part of the residual regret attributable to the
-   feature map rather than to the learner.⟩ A richer $\phi$ — a permutation
-   invariant set encoding over the queued orders, retaining per-order attributes —
-   is the natural remedy and is left to future work.
-
-2. **Model error, which the theory bounds but the deployment cannot avoid.** The
-   rollout labels are generated by a simulator, and a simulator is an estimate.
-   Proposition 1 bounds only the error from truncating the rollout; Proposition 2
-   adds the error from rolling out under the wrong kernel, and shows it accumulates
-   as $O(\varepsilon\tau^2)$ against truncation's $O(H-\tau)$. The two act in
-   opposite directions in $\tau$, so a misspecified model should be rolled out for a
-   *shorter* horizon, with $\tau^\star \approx 1/\varepsilon$. Section 6.11 tests
-   this by labelling under nominal parameters and evaluating under perturbed
-   arrival rates, service times, due windows and picker counts, with the online
-   lookahead controller held to the same nominal model so that neither method is
-   handed dynamics the other lacks. What we cannot do is estimate $\varepsilon$
-   for a real warehouse, so the bound tells an operator how to trade $\tau$
-   against model quality but not what their model quality is.
-
-3. **Simulation-only evaluation.** All KPIs are measured in a simulator. We
-   mitigate this by fitting the simulator's arrival and due-date distributions to a
-   public real-world trace (Section 6.7) and by re-running the comparison under
-   empirically calibrated bursty arrivals, but we do not evaluate on a live
-   warehouse floor. Pick time in particular has no public real-world analogue: it
-   is grounded in published time standards rather than fitted, and is not
-   validated.
-4. **A single calibrated operating point.** The simulator was calibrated at one
-   configuration. The robustness grid (Section 6.5) shows the method ranking is
-   stable across eleven further untuned configurations, but all of them share the
-   same simulator family.
-5. **A saturation-load loss.** Under the high-load-perishable scenario DAHS
-   concedes ground on the breach metric to the analytic lookahead controller
-   (Section 6.2). Section 6.2 now analyses which boundary condition is responsible
-   — selector collapse or the dwell constraint — rather than attributing it to
-   saturation and moving on.
-
 ### 8.1 Shared-simulator circularity
 
-The rollout labels and the evaluation use the same simulator, and the training
-signal is therefore internally consistent with the thing it is scored against by
-construction. This is intrinsic to the method rather than an implementation
-choice: a rollout label *is* a simulation, so any rollout-supervised selector
-inherits it.
-
-Three mitigations are in place and none of them dissolves the concern. The
-rolling-horizon controller (Section 5) is an independent analytic baseline that
-does not share the training pipeline, so a DAHS advantage over it is not explained
-by shared assumptions. The misspecification study (Section 6.11) breaks the shared
-simulator deliberately, labelling under one parameterisation and evaluating under
-another, which is the closest thing to an independent environment available
-without building one. And the simulator's inputs are fitted to a public order
-trace rather than assumed (Section 6.7), so at least the arrival and due-date
-structure is externally anchored.
-
-What remains unaddressed is the transition function itself — the dispatch and
-service dynamics — which no public dataset constrains. A second, independently
-implemented simulator, ideally by a different author, is the correct remedy and
-we have not done it.
+Every method in Table 6, teachers included, is labelled or trained in the same
+simulator it is evaluated in. The comparison of training signals is internally
+valid. It is not a claim about transfer to a physical warehouse. Section 6.11
+perturbs the evaluation dynamics while keeping the labels nominal; that is a
+start, not a substitute for a plant. A practitioner without a trustworthy
+simulator should prefer value learning from logs (Section 2.4).
 
 ### 8.2 A small heuristic pool
 
-The pool is screened from a candidate set spanning the four information sources
-available to a dispatcher (Section 3.6) ⟨TBD-rerun: state how many candidates
-were screened and how many retained⟩. That is substantially broader than the four
-rules of the submitted version, but it is still a *fixed, hand-assembled* pool of
-classical rules, and two consequences follow.
-
-The performance ceiling is the pool's envelope. DAHS selects; it does not
-construct. If no rule in the pool is appropriate to some operating region — and
-Section 6.2's saturation analysis is where one would expect to find such a region
-— then no selector over that pool can do well there, however good the training
-signal. Genetic programming is the established route to *generating* rules rather
-than selecting among them [@branke2016automated; @nguyen2017gpsurvey], and a
-hybrid that evolves candidate rules and then selects among them with rollout
-supervision is a natural combination we do not attempt.
-
-The cost of growth is characterised but not paid. Section 6.12 shows labelling
-cost is linear in $|\mathcal{H}|$ while the statistical cost of an
-$|\mathcal{H}|$-class problem is worse than linear, and evaluates adaptive sample
-allocation as a mitigation. Hierarchical selection over rule families is sketched
-there and left unimplemented. A pool of twenty rules is feasible on this evidence
-but has not been demonstrated.
+Nine candidates were screened and six retained. Adaptive sample allocation
+(successive halving) is implemented in the labeller; hierarchical selection is
+described in Section 6.12 and is not implemented. We did not measure accuracy as
+a function of pool size. The labelling cost grows with $|\mathcal{H}|$. A larger, generated pool --- genetic programming of the low-level
+rules [@branke2016automated; @nguyen2017gpsurvey] followed by the same selector
+--- is a different paper. EEDD's 65% win rate already warns that a small
+hand-designed pool can concentrate.
 
 ### 8.3 A single warehouse setting
 
-Every result comes from one facility archetype: a single-zone, picker-to-parts
-operation with ten pickers, unit-sized pick tours, and a periodic 15-minute
-review. Three restrictions are worth separating.
-
-*Scope.* Storage assignment, batching and routing are exogenous (Section 2.1), so
-the processing time $p_o$ absorbs all travel and search variation into a single
-draw. A facility whose travel times depend strongly on the *sequence* of picks —
-which is most of them — has structure this model cannot represent, and a
-controller that jointly optimised release and routing could dominate any
-dispatching rule.
-
-*Scale.* Ten pickers and a 200-order queue is a small operation. Larger floors
-introduce zoning and congestion effects that change which rules are sensible, and
-the feature map carries no zone or congestion signal.
-
-*Regime.* One shift, one product mix, one SLA policy. Multi-shift effects —
-carryover backlog, shift handover, demand seasonality across a week — are outside
-the horizon entirely, and the finite-horizon end-of-shift effect that
-`interval_index_in_shift` captures would be replaced by something quite different
-in a continuously operating facility.
+One layout, ten pickers, one-order tours, exogenous routing, Poisson default
+arrivals. Appendix C fits inter-arrival shape to Olist; processing time and
+shelf life are design parameters. Nothing here is a claim about multi-block
+warehouses, batching, or picker routing. Section 2.1 stated that restriction
+before any number.
 
 ### 8.4 No online adaptation after deployment
 
-The selector is fitted once and frozen. It does not update on the shifts it
-subsequently controls, and it has no mechanism for detecting that the world has
-moved. This is a deliberate design property — it is what makes the deployed
-controller a deterministic forward pass with auditable behaviour — but it is a
-real limitation, and it interacts badly with the model error of Section 8.2's
-sibling concern above.
+The ranker is frozen. Regime posteriors are computed from the fitted mixture,
+not updated from live outcomes. A shift that drifts away from the training
+mixture gets the wrong specialist. The misspecification grid (Section 6.11) is
+the evidence we have that this matters, and Always-COVERT's shallower slope is
+a reminder that a dumb static rule does not carry a wrong model.
 
-A warehouse drifts: order mixes change seasonally, staffing changes, SLA policies
-are renegotiated. Under Proposition 2 the cost of that drift is bounded by
-$O(\varepsilon\tau^2)$, where $\varepsilon$ is the growing gap between the
-labelling model and the live system — so a frozen selector degrades smoothly
-rather than catastrophically, but it does degrade, and nothing in the current
-design notices. The natural remedies are all unimplemented: periodic re-labelling
-from logged shifts, which is cheap because the rollouts are offline; an online
-residual correction on top of the frozen selector; or a drift detector on the
-observation distribution that triggers re-fitting. Section 9 takes these up as
-future work. We have no evidence about how quickly the frozen selector goes stale
-in practice, because we have not run it in practice.
+Further limitations, stated so they are not rediscovered as objections.
 
-### 8.5 Reinforcement-learning baselines
+*Partial observability.* The aliasing rate among $\phi$-identical training
+states that disagree on the cost-minimising rule is $0.145$ on 1,927 pairs, with
+mean regret $0.30$ and an estimated $3.7\%$ share of the achievable benefit
+available from rule selection. That number is an upper bound on the part of the
+residual regret attributable to $\phi$, not a reason to treat $\phi$ as a state.
 
-Any paper that reports a learned method beating reinforcement learning owes the
-reader evidence that the RL baselines were configured competently, and the
-submitted version did not supply it: it varied only the training budget, and its
-PPO implementation normalised neither observations nor rewards on a feature vector
-spanning three orders of magnitude. That is not sufficient evidence for the
-conclusion it drew, and we withdraw the inference rather than the baseline.
+*Regime order.* $K^\star=12$ is the edge of the swept grid. BIC is still
+falling ($-168{,}901$ at $K=8$, $-222{,}525$ at $K=10$, $-240{,}139$ at
+$K=12$). Mean ARI is $0.970$, so the clustering is reproducible; the model
+order is not identified. We did not widen the grid, because doing so would
+retrain Stage 3 onward.
 
-Two things now stand in its place. Section 6.9 reports a hyperparameter
-sensitivity sweep over the discount, GAE parameter, rollout horizon, entropy
-coefficient and observation/reward normalisation, and states the fraction of the
-gap the best configuration recovers. Section 6.10's offline baseline is
-regenerated under a behaviour policy with non-degenerate conditional coverage,
-which the submitted corpus lacked. Both sections are written conditionally on
-those measurements.
+*A pool of six is what a dispatcher already has.* Nine candidates were
+considered and six retained (Section 3.6). Adding generated rules would change
+the labelling budget and the action-coverage comparison, and we did not do it.
 
-PPO tuning closed 78.2\% of the gap (Section 6.9); the structural reading of the
-policy-gradient baseline is withdrawn. The fitted-Q logger was found to
-double-call `observe()` and zero the arrival feature; that baseline is being
-retrained before Section 6.10 is resolved.
-
-⟨TBD-rerun: after the corrected FQI retraining, report whether the DAHS-to-FQI
-gap survives. Coverage under `random` is already adequate (6.00 effective
-actions overall, 5.94 conditional on interval index).⟩
-
-A comparison against a modern conservative offline-RL method (CQL, IQL) would
-strengthen the case further and is left to future work. It matters more now than
-it did in the submitted version, because the corrected behaviour policy
-(Section 6.10) changes the coverage regime those methods were designed for.
+*The FQI comparison is a 4% cost gap after a logger correction.* It is not a
+demonstration that bootstrapped value learning cannot close that gap with a
+different model class or a different behaviour policy.
 
 ---
 
 # 9. Conclusion and Future Work
 
-We studied DAHS, a selection hyper-heuristic for warehouse order dispatching under
-customer and product deadlines, and used it to ask what the *form of the
-supervision* is worth. The training mechanism — simulate a rule pool offline, fit a
-classifier to the result — is not new, and Section 2 places it within rollout
-classification policy iteration and multi-pass rule selection. What we contribute
-is a controlled comparison in which the environment, corpus, model class, feature
-set and objective are held fixed and only the supervision varies: a directly
-measured per-rule cost vector, a bootstrapped state–action value, or a policy
-gradient.
+We studied a selection hyper-heuristic for periodic-review warehouse
+dispatching under two deadline clocks, trained by offline truncated rollouts of
+a screened rule pool. The training mechanism is not new. The question was what
+the supervision is worth.
 
-On the theory, we gave two bounds that act in opposite directions in the rollout
-horizon. Proposition 1 bounds truncation error, which decays as $O(H-\tau)$;
-Proposition 2 bounds error from rolling out under a misspecified model, which
-accumulates as $O(\varepsilon\tau^2)$. Together they place the optimal horizon at
-$\tau^\star \approx 1/\varepsilon$ — the better the simulator, the longer the
-rollout worth running — and that prediction is testable, and tested. On the
-formulation, we modelled the customer due date and the product expiry as
-independent constraints, measured whether the second binds at the review interval
-rather than assuming it, and stated plainly that the controller observes a summary
-of the state rather than the state.
+On the default corpus, rollout labels at matched shift budgets beat fitted Q
+and PPO, and beat every static rule, with Always-COVERT as the static champion
+on composite cost. They do not beat online truncated lookahead. Single-sample labels match the
+deployed $M=20$ configuration on composite cost. A one-step ($\tau=1$) label is
+mixed on that cost and a null on service-failure rate. The operational product
+is a 3.7 ms decision that spends
+$5$--$7\%$ more than a 645 ms teacher.
 
-⟨TBD-rerun: restate the empirical findings here once the campaign completes. The
-sample-efficiency claim in particular must be re-established under the corrected
-metric before it is repeated, since Section 6.2 shows the accounting correction
-compresses the margins it was stated against.⟩
-
-**Future work.** The limitations of Section 8 point to five next steps, roughly in
-order of how much they would change the conclusions.
-
-*An independent environment.* Evaluation on a logged real-warehouse trace, or on a
-second simulator built independently, is the only thing that resolves the
-circularity of Section 8.1. Everything else is mitigation.
-
-*Growing the pool, and generating it.* Section 6.12 shows labelling cost is linear
-in $|\mathcal{H}|$ while the statistical cost is worse, and evaluates adaptive
-sample allocation as a mitigation. Hierarchical selection over the rule families of
-Section 3.6 — choose a family, then a member — is the natural design for a pool of
-twenty and is unimplemented. Beyond that, genetic programming *generates*
-dispatching rules where this paper only selects among them
-[@branke2016automated; @nguyen2017gpsurvey], and a hybrid that evolves candidates
-and then supervises selection over them with rollouts is the combination neither
-literature has tried.
-
-*Online adaptation.* The selector is fitted once and never notices that the world
-has moved (Section 8.4). Periodic re-labelling from logged shifts is cheap,
-because the rollouts are offline by construction; a drift detector on the
-observation distribution would say when to do it. Neither is implemented, and we
-have no evidence on how fast the frozen selector goes stale.
-
-*A richer observation.* The feature map is not a sufficient statistic and
-Section 3.2 exhibits the states it cannot separate. A permutation-invariant set
-encoding over the queued orders, retaining per-order attributes, would raise the
-ceiling that Section 8's aliasing measurement quantifies.
-
-*A value-approximated tail, and a state-dependent horizon.* This is the extension
-we regard as most promising, and it is not ours. Rather than truncating the
-rollout and discarding the remainder, the dynamic-dispatching literature
-approximates the tail with a learned value function, and in places learns the
-horizon itself as a function of state [@ulmer2019offlineonline; @ulmer2018budgeting;
-@goodson2017rolloutframework]. Substituting an approximated tail for our hard cut
-would replace the truncation term $(H_t-\tau)\bar{C}$ of Proposition 1 with an
-approximation error that need not grow with the remaining horizon, and would
-therefore permit a shorter $\tau$ — doubly attractive, since Proposition 2 shows a
-shorter horizon also limits model-error accumulation. Model quality is in any case
-not uniform across the state space: a saturated queue is more predictable than a
-quiet one, so a state-dependent $\tau$ should tighten both bounds where each is
-loosest. Combining that literature's tail approximation with the per-action cost
-supervision studied here is the obvious next construction, and we have not
-attempted it.
+The most useful extension is the one the dynamic-dispatching literature already
+runs: replace the hard truncation of Propositions 1 and 2 with a learned value
+tail [@ulmer2019offlineonline; @goodson2017rolloutframework], and let the
+horizon be state-dependent. That construction would likely permit a shorter
+$\tau$ --- attractive here, because Table 9 already says extra depth is not
+buying accuracy and Proposition 2 says extra depth accumulates model error.
+Two other extensions follow from the campaign rather than from taste: widen the
+regime grid until $K^\star$ is interior, or drop the mixture; and test the
+$\tau$--$\varepsilon$ interaction that Section 6.11 left unmeasured.
 
 ---
 
@@ -2651,7 +2121,7 @@ attempted it.
 
 ## A.1 Where each feature comes from
 
-The submitted version listed the feature names and nothing else — not where they
+The submitted version listed the feature names and nothing else --- not where they
 came from, and not whether they had been screened. Neither question had an answer,
 because the set was designed rather than selected and no redundancy analysis was
 performed. This appendix supplies both. The table is generated directly from
@@ -2666,7 +2136,7 @@ state (Section 3.2).
 |---:|---|---|---|
 | 1 | `queue_length` | queue | Standard congestion state; de Koster et al. (2007). |
 | 2 | `mean_queue_age` | queue | Waiting-time proxy; distinguishes fresh from stale backlog. |
-| 3 | `max_queue_age` | queue | Tail of the waiting-time distribution — starvation detector. |
+| 3 | `max_queue_age` | queue | Tail of the waiting-time distribution --- starvation detector. |
 | 4 | `pct_critical` | queue | Share of queue within 30 min of its due time. |
 | 5 | `pct_perishable` | queue | Gates the expiry-rule mask; tells the selector when the product clock is live at all. |
 | 6 | `n_arrivals_last_interval` | queue | Short-run demand shock; wave arrivals, Boysen et al. (2019). |
@@ -2674,7 +2144,7 @@ state (Section 3.2).
 | 8 | `n_pickers_busy` | resources | Absolute capacity remaining this epoch. |
 | 9 | `mean_pickup_time_recent` | resources | Realised service-rate estimate; drifts with order mix. |
 | 10 | `n_orders_late_so_far` | deadline | Realised failures to date; regime indicator. |
-| 11 | `n_orders_at_risk_30min` | deadline | Count with negative slack inside 30 min — the actionable set. |
+| 11 | `n_orders_at_risk_30min` | deadline | Count with negative slack inside 30 min --- the actionable set. |
 | 12 | `mean_slack_minutes` | deadline | Mean d - t - p; the ATC/MS/COVERT decision variable. |
 | 13 | `std_slack_minutes` | deadline | Slack dispersion; separates uniform from bimodal pressure. |
 | 14 | `mean_processing_time_remaining` | deadline | Expected work content of the queue. |
@@ -2694,7 +2164,7 @@ state (Section 3.2).
 ## A.2 What changed in this revision, and why
 
 **Two features are removed.** `time_to_next_expected_carrier` was computed as
-$1/\lambda$ and was therefore *constant* within any one configuration — zero
+$1/\lambda$ and was therefore *constant* within any one configuration --- zero
 variance, zero information. `intervals_remaining` was an exact affine function of
 `interval_index_in_shift`, the two summing to $N = 32$ by construction. Together
 they made the feature matrix exactly singular. That is not a cosmetic defect: the
@@ -2710,7 +2180,7 @@ model; none was run.
 **Three features are added**, all on the product clock: `pct_expiring_30min`,
 `mean_expiry_slack` and `n_spoiled_so_far`. The product deadline now enters the
 objective (Section 3.3), and a selector cannot act on a constraint it cannot
-observe — in particular FEFO's own decision variable, expiry slack, was not
+observe --- in particular FEFO's own decision variable, expiry slack, was not
 visible to the ranker that had to decide when to deploy FEFO.
 
 **One feature is renamed.** The breach-rate lags become `failure_rate_lag_1..3`,
@@ -2719,46 +2189,46 @@ tracking the change of primary metric in Section 3.3.
 ## A.3 Redundancy analysis
 
 `experiments/feature_analysis.py` runs four diagnostics on the training feature
-matrix and writes them to `results/features/`: near-constant columns; Pearson and
-Spearman correlation with pairs above $|r| = 0.95$ flagged; variance inflation
-factors, obtained by regressing each feature on the remaining ones; and
-correlation-distance clustering with one nominated representative per cluster.
+matrix: near-constant columns; Pearson and Spearman correlation with pairs above
+$|r| = 0.95$ flagged; variance inflation factors, obtained by regressing each
+feature on the remaining ones; and correlation-distance clustering with one
+nominated representative per cluster.
 
-VIF is the diagnostic that matters here and is the one whose absence let the two
-degenerate features through. A feature can be an exact linear combination of three
-others while correlating only moderately with each of them individually, so
-pairwise correlation alone does not detect it; the
-`interval_index_in_shift` / `intervals_remaining` dependence is exactly that case
-once the lag features are present.
+No column is near-constant. Ten pairs exceed $|r|=0.95$, of which
+`labor_utilization` with `n_pickers_busy` is $r=1$ (they encode the same
+capacity residual) and the failure-rate lags with `n_orders_late_so_far` are
+$r \ge 0.979$. Fourteen features have VIF $\ge 10$: `queue_length`,
+`n_arrivals_last_interval`, `n_pickers_busy`, `labor_utilization`, the three
+queue-length lags, the three failure-rate lags, `n_orders_late_so_far`,
+`mean_queue_age`, `max_queue_age`, and `mean_slack_minutes`. The clustering
+nominates dropping `labor_utilization`, `mean_queue_age`, `queue_length_lag_1`,
+`queue_length_lag_2`, and the three failure-rate lags. We did not drop them
+from the deployed model: the `top5_features` ablation (Section 6.8) already
+asks whether the long tail of the map earns its keep, and it does not, at
+least not detectably on 50 test shifts. The VIF column is a warning that
+coefficient-level stories about individual features are not identified, which
+is why Section 6.6 reports SHAP on the fitted trees rather than linear weights.
 
-⟨TBD-rerun: report the correlation heat map, the flagged pairs, the VIF column,
-and the cluster representatives on the regenerated training corpus. State whether
-any *further* feature is recommended for removal beyond the two already dropped,
-and if the analysis recommends one, either drop it and re-report or say why it is
-retained. Section 6.8's `top5_features` ablation reports what the full set buys
-over the parsimonious subset; the two results should be read together.⟩
-
-## A.4 Regime posteriors
-
-The ranker also receives the regime-membership posteriors of Section 4.5, one per
-mixture component. The submitted version fixed this at six, giving 31 inputs. It
-is no longer fixed: $K$ is selected by BIC over a grid wide enough to turn
-($K \in \{2,\dots,12\}$, against the submitted grid's $\{3,\dots,6\}$) with five
-EM restarts per $K$, and the selection is reported with its stability check rather
-than assumed. The ranker therefore has $26 + K^\star$ inputs.
-On this corpus BIC selects $K^\star = 12$, the upper endpoint of
-$\{2,3,4,5,6,7,8,10,12\}$ (mean ARI $0.969$, above the $0.85$ threshold). BIC
-values fall from $+39{,}104$ at $K=2$ to $-239{,}511$ at $K=12$ and do not turn.
+After dropping the two degenerate features of Section A.2, the regime BIC still
+selects $K^\star=12$ at the edge of
+$\{2,3,4,5,6,7,8,10,12\}$ (mean ARI $0.970$, above the $0.85$ threshold). BIC
+values fall from $+36{,}871$ at $K=2$ to $-240{,}139$ at $K=12$ and do not turn.
 The grid chose $K$, not a mode in the data. Input dimension is $38$.
 
 # Appendix B. Configuration and hyperparameters
 
 Every value below is read from `config.yaml` in the accompanying repository, which
-is the single source the code and this appendix share.
+is the source the campaign shares, except where a grid winner is named.
+
+**Fitted Q-iteration.** `config.yaml` default trees are `max_depth`$=4$,
+`n_estimators`$=200$, `learning_rate`$=0.05$, $\gamma=0.99$, 20 iterations.
+The E9 grid winner written to `results/E9/hp_winner.json` is `max_depth`$=4$,
+`n_estimators`$=500$, `learning_rate`$=0.05$, $\gamma=0.9$. Table 6 uses the
+winner.
 
 **Simulator.** 8-hour shift; $N = 32$ review intervals of $L = 15$ minutes;
 $m = 10$ pickers; queue capacity 200 orders, with overflow recorded as rejected
-demand rather than discarded. Arrivals at a nominal 1.65 orders/minute. Order
+demand rather than discarded. Arrivals are Poisson at a nominal 1.65 orders/minute. Order
 attributes: processing time Triangular$(2, 5, 12)$ min; customer window
 $d_o - a_o$ Triangular$(15, 45, 90)$ min; shelf life $x_o - a_o$
 Triangular$(20, 60, 120)$ min for the 20% of orders that are perishable, with
@@ -2779,47 +2249,42 @@ look-ahead scales can be fitted without touching the training or test shifts.
 
 **Labelling** (Section 4.3). Rollout horizon $\tau = 4$; $M = 20$ independent
 continuations per state-rule cell under common random numbers, with the per-cell
-standard error recorded alongside every label; behaviour policy `random` — **not**
+standard error recorded alongside every label; behaviour policy `random` --- **not**
 round robin, because the interval index is itself an observed feature, which made
 the submitted round robin a deterministic function of the state (Section 6.10).
 Tempered softmax with a **per-row** temperature $T(s) = \beta\,\sigma(s)$, where
 $\sigma(s)$ is the standard deviation of that state's own cost vector and $\beta$
-is searched over $\{0.01, \dots, 1.0\}$ so that the median training-label entropy
-falls within $[0.216, 0.505] \times \log|\mathcal{H}|$. The submitted scheme used a
-single global temperature; under the corrected objective the per-row cost spread
-varies by two orders of magnitude within a shift, so no one temperature keeps the
-labels in band. Expiry-rule mask threshold 0.05 on the perishable fraction (a
-no-op on the screened pool, which contains no expiry-only rule). Test-corpus
-ambiguity filter at $\theta = 2.2/|\mathcal{H}|$, never applied to the training
-corpus. The hard-label ablation of Section 6.8 replaces the tempered softmax with
+is searched so that the median training-label entropy
+falls within $[0.216, 0.505] \times \log|\mathcal{H}|$. Campaign fit:
+$\beta=0.470$, median entropy $0.638$ nats, band $[0.387, 0.905]$. Expiry-rule
+mask threshold 0.05 on the perishable fraction (a no-op on the screened pool,
+which contains no expiry-only rule). Test-corpus ambiguity filter at
+$\theta = 2.2/|\mathcal{H}|$, never applied to the training corpus. The
+hard-label ablation of Section 6.8 replaces the tempered softmax with
 the one-hot arg-max of the same cost vector and is otherwise identical.
 
-**Rule pool** (Section 3.6). Nine candidates before screening: FIFO, EDD, EEDD, FEFO, WSPT,
-ATC, MS, MDD, COVERT. Stage 1 retained `[EEDD, COVERT, MS, ATC, MDD, EDD]` and fitted
-ATC $k^\star=3.0$ (portfolio; standalone $1.5$) and COVERT $k^\star=4.0$.
+**Rule pool** (Section 3.6). Nine candidates before screening: FIFO, EDD, EEDD,
+FEFO, WSPT, ATC, MS, MDD, COVERT. Stage 1 retained
+`[EEDD, COVERT, MS, ATC, MDD, EDD]` and fitted ATC $k^\star=3.0$ (portfolio;
+standalone $1.5$) and COVERT $k^\star=4.0$.
 
 **Regime layer** (Section 4.5). Gaussian mixture, full covariance, with $K$
 selected by BIC over $K \in \{2,3,4,5,6,7,8,10,12\}$ and 5 EM restarts per $K$;
 stability checked by the mean adjusted Rand index over 10 refits against a 0.85
-threshold. The submitted configuration swept a narrower grid from a single restart.
+threshold. $K^\star=12$ at the grid edge, mean ARI $0.970$.
 
-**Ranker.** Gradient-boosted trees, `multi:softprob` objective, sample-weighted by
-inverse label entropy. Hyperparameters selected from an 18-configuration grid
-(`max_depth` $\in \{4,6,8\}$ $\times$ `n_estimators` $\in \{200,500,1000\}$
-$\times$ `learning_rate` $\in \{0.03,0.1\}$) by 5-fold cross-validation grouped on
-`shift_id`; isotonic calibration on a 20% held-out shift split.
-Selected: `max_depth`$=6$, `n_estimators`$=200$, `learning_rate`$=0.03$.
-Test ECE after isotonic: $0.020$ (pre $0.171$).
+**Ranker.** Gradient-boosted trees [@chen2016xgboost], `multi:softprob` objective,
+sample-weighted by inverse label entropy. Hyperparameters selected from an
+18-configuration grid (`max_depth` $\in \{4,6,8\}$ $\times$ `n_estimators` $\in
+\{200,500,1000\}$ $\times$ `learning_rate` $\in \{0.03,0.1\}$) by 5-fold
+cross-validation grouped on `shift_id`; isotonic calibration on a 20% held-out
+shift split. Selected: `max_depth`$=6$, `n_estimators`$=200$,
+`learning_rate`$=0.03$. Test ECE after isotonic: $0.0213$ (pre $0.1700$).
 
 **Switching controller** (Section 4.7). Minimum dwell $T_{\min} = 2$ intervals;
 entropy gate at half the maximum entropy.
 
 # Appendix C. Fitting the input distributions to a real order trace
-
-The submitted version set the simulator's input parameters by choice and then
-*validated* them against a public trace. Fitting is the right operation wherever a
-trace exists, so this appendix reports the fits; the residual comparison is kept
-because it is what says how far the fitted model still is from the data.
 
 **Source.** Olist Brazilian e-commerce public dataset [@olist2018dataset],
 approximately 100k orders. Inter-arrival times are computed as within-day
@@ -2828,46 +2293,56 @@ otherwise dominates the series. Because the trace is measured in days and the
 simulator in minutes, all comparisons are on mean-normalised samples: the trace
 fixes distribution *shape*, and the operating rate is set separately.
 
-**What is fitted.** `experiments/fit_input_distributions.py` fits candidate
-families to the two fields the trace actually carries — inter-arrival time, and
-the purchase-to-estimated-delivery window that stands in for the customer due
-window — selecting among them by AIC, and reports the fitted parameters with their
-goodness of fit. The arrival *shape* enters the simulator as an empirical
-bootstrap of the fitted inter-arrival distribution rather than as a Poisson
-assumption; Section 6.7 re-runs the full method comparison under it, frozen, as an
-active robustness test rather than a passive distributional check.
+Candidate families for inter-arrival times: exponential, lognormal, gamma,
+Weibull. Selected: **lognormal** ($n=98{,}241$, AIC $161{,}984$). Exponential is
+worse by $\Delta$AIC $=34{,}502$. Shape tests against the simulator's Poisson
+default: KS $D=0.153$, Wasserstein-1 $0.443$; simulated CV $1.00$ versus real
+$2.68$. Poisson is therefore an operating point, not a fitted arrival process.
+Section 6.7's Olist-bootstrap replay is the robustness check that uses the
+empirical burstiness.
 
-⟨TBD-rerun: report the candidate families, the AIC table, the selected family and
-its fitted parameters for each of the two fields, and the post-fit
-Kolmogorov–Smirnov and Wasserstein distances. State whether the fitted customer
-window supersedes the Triangular$(15,45,90)$ design value of Appendix B or merely
-corroborates its shape.⟩
+Customer windows: triangular \((15, 45, 90)\) after rescaling the
+purchase-to-estimated-delivery distribution. Closest shape match of the three
+inputs (KS $D=0.039$, subsampled $p=0.022$, $W_1=0.035$).
 
-**What is not fitted, and why.** Two inputs have no counterpart in this trace and
-are declared design parameters rather than fitted quantities.
+Processing time: not fitted. The trace field is purchase-to-approval, not pick
+time. The triangular \((2, 5, 12)\) is a literature three-point standard
+[@tompkins2010facilities]. Shape test against that proxy is correspondingly
+poor (KS $D=0.686$).
 
-*Processing time.* The Olist trace is e-commerce order metadata and carries no
-warehouse pick-time field. Its purchase-to-confirmation latency is not a pick
-time, and the submitted version's comparison against it ($D = 0.685$) was not a
-valid test of anything. Processing time is instead grounded in the three-point
-time-standard convention for manual picker-to-parts picking
-[@tompkins2010facilities; @dekoster2007orderpicking], which is the form used when
-only time-standard data are available. No public warehouse-floor analogue exists
-to fit against, and we say so rather than manufacture a comparison.
+Perishable fraction: design parameter $0.20$ against Olist food/drink share
+$0.0099$. Shelf life has no public analogue.
 
-*Shelf life and perishable fraction.* No public order trace carries a product
-expiry. The trace's own food-and-drink categories account for 0.99% of orders
-against the 0.20 perishable fraction used here, which is a configuration choice
-defining the operating regime under study, not a generative claim about Olist.
-Both are swept rather than defended: shelf life in Section 6.4, perishable
-fraction across the scenarios of Section 6.2.
+---
 
-**Submitted-version figures, for comparison.** Under the set-then-validate
-workflow the mean-normalised two-sample comparisons were: inter-arrival
-$D = 0.153$ (coefficient of variation 2.68 real against 1.00 simulated, skewness
-11.0 against 2.0); due-date window $D = 0.039$, normalised Wasserstein 0.036;
-processing-time proxy $D = 0.685$ (not a valid comparison, above). The
-inter-arrival gap is the one that motivated the active test: a homogeneous Poisson
-process is far less dispersed and far less heavy-tailed than the real stream.
+\section*{Data availability}
 
-# References
+The simulator, training pipeline, configuration and result artifacts that
+produced every number in this paper are in the accompanying repository. CAOR
+requires that the data and code underlying the work be deposited (Guide for
+Authors, Option C). A persistent archive with a DOI will be linked at
+acceptance; until then the versioned source is
+\url{https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling}.
+
+\section*{CRediT authorship contribution statement}
+
+**Vittal Mukunda:** Conceptualization, Methodology, Software, Formal analysis,
+Writing --- original draft. **Atharva Somani:** Software, Investigation,
+Validation, Data curation. **Pranjal Malaiya:** Methodology, Writing --- review
+and editing, Supervision.
+
+\section*{Declaration of competing interest}
+
+The authors declare that they have no known competing financial interests or
+personal relationships that could have appeared to influence the work reported
+in this paper.
+
+\section*{Funding}
+
+This research did not receive any specific grant from funding agencies in the
+public, commercial, or not-for-profit sectors.
+
+\section*{Acknowledgements}
+
+We thank the editors and the anonymous referees of the original submission for
+comments that changed the model, not only the prose.

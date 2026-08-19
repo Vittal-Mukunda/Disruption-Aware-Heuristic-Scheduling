@@ -28,6 +28,11 @@ sees, and the dispatcher may assign, exactly the orders that have arrived by
 removes an undisclosed clairvoyance — the submitted feature vector summarised
 up to fifteen minutes of future arrivals.
 
+There is no terminal admit at shift end `T`. The last review is at `t = T - L`,
+so arrivals in `(T - L, T]` never enter the queue and are not in `A`. Mean
+`|A| = 767` against a Poisson mean of `1.65 * 480 = 792` is that convention.
+Do not add a terminal `_admit` at `T` without re-evaluating the campaign.
+
 With that rule, `start = max(picker_free, t)` and the early exit on line ~"no
 picker can start before the interval ends" is provably safe: `picker_free` is
 the minimum over pickers, so if the earliest-free picker cannot start, none can.

@@ -194,8 +194,7 @@ DAHS/
 ## Backend (Python)
 
 Requires **Python 3.12**. `requirements-lock.txt` pins `scipy==1.18.0`, which
-does not install on 3.10/3.11. `pyproject.toml` still says `>=3.10,<3.13`;
-that range is wrong until the lockfile is rebuilt.
+does not install on 3.10/3.11. `pyproject.toml` requires `>=3.12,<3.13`.
 
 ```bash
 # 1. Create and activate a virtual environment

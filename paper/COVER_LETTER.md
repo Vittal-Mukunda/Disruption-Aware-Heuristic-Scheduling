@@ -1,19 +1,15 @@
 # Cover letter — resubmission of CAOR-D-26-01812
 
-> **DRAFT.** Fill the ⟨…⟩ slots and delete this box before sending. Keep it to
-> one page; the detail belongs in the response document.
-
----
-
 To the Editor,
 *Computers & Operations Research*
 
-Dear Professor ⟨editor name⟩,
+Dear Editor,
 
 Please find enclosed a revised version of manuscript **CAOR-D-26-01812**,
-*"Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation
-for Dynamic Warehouse Order Dispatching"*, together with a point-by-point response
-to the four reviewers.
+*"Offline Rollout Distillation for Warehouse Order Dispatching: A Controlled
+Comparison of Training Signals"*, together with a point-by-point response to the
+four reviewers. (The submitted title claimed sample-efficient adaptive selection;
+we have retitled the paper to match what the campaign actually supports.)
 
 We are grateful for reviews that were unusually detailed and technically precise.
 Several comments identified defects in our implementation rather than only in our
@@ -40,28 +36,27 @@ now places the method inside both traditions, corrects our mischaracterisation o
 the dispatching-rule-selection literature, and engages with the Klapp and Ulmer
 line of work on rollout and approximate dynamic programming for dynamic
 dispatching that we had not cited. The contribution is reframed as an empirical
-study — a controlled comparison of training signals at matched data budgets — and
-we state explicitly that we make no claim to a new training mechanism.
+study — a controlled comparison of training signals — and we state explicitly
+that we make no claim to a new training mechanism. Propositions 1 and 2 are
+truncation and model-error sketches for the labels; they are not confirmed by
+deployed cost.
 
 **Several of the new results are less favourable to the method than the submitted
-ones, and we report them as such.** Charging orders that are never served
-compresses our advantage over the simplest baseline from roughly 3.8× to roughly
-1.2×; we state this in Section 6.2 before reporting any new number. The
-state-space complementarity analysis Reviewer 1 asked for shows one rule winning
-65% of decisions and owning 15 of 16 cells of the state-space grid, which leaves a
-selector far less room than the submitted four-rule pool appeared to; we report the
-oracle gap and the fact that it exceeds our own pre-registered concentration
-ceiling. We judged that reporting these plainly was more useful than
-re-engineering the study around them.
-
-⟨IF THE CAMPAIGN RESULT IS UNFAVOURABLE — adapt or delete: We should also draw
-your attention to ⟨finding⟩, which materially weakens ⟨claim⟩ relative to the
-submitted version. We have rewritten Section ⟨n⟩ around the measured outcome rather
-than the anticipated one.⟩
+ones, and we report them as such.** Charging unserved orders on the submitted
+event logs compressed the FIFO margin from about 3.8× to about 1.2×; after
+regenerating under causal admission the live FIFO gap is **3.90×** on composite
+cost (Table 6). Online truncated lookahead remains cheaper than the distilled
+selector (greedy $J=356$, rolling $J=363$, DAHS $J=381$). Labels from $M=1$
+through $M=40$ and horizons $\tau=1$ through $\tau=4$ sit in a null band on
+deployed $J$. WSPT, screened out of the default pool, beats DAHS under
+high-load-perishable. On the 12-cell robustness grid DAHS wins 0 of 12 cells
+among the four frozen methods; the one-step teacher wins 8. We have rewritten
+Sections 6.2, 6.4, 6.5 and 7 around those outcomes rather than the anticipated
+ones.
 
 **One request.** Reviewer 2's sixth comment ends mid-sentence in the copy we
-received — *"Including this benchmark would answer several critical questions:"* —
-with the list of questions truncated. We have implemented the benchmark and
+received — *"Including this benchmark would answer several critical questions:"*
+— with the list of questions truncated. We have implemented the benchmark and
 answered the four questions we believe were intended, and marked them in our
 response as our reading. If the complete comment can be supplied we would be glad
 to address the specific questions.
@@ -69,7 +64,7 @@ to address the specific questions.
 All authors have approved the revised manuscript. The work is original, is not
 under consideration elsewhere, and we declare no competing interests. The code,
 data-generation pipeline and all result artifacts are available at
-⟨repository URL⟩ ⟨or: will be made available on acceptance⟩.
+https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling.
 
 We hope the revision addresses the reviewers' concerns, and we thank them for the
 care they took over the original submission.
@@ -81,4 +76,4 @@ Department of Industrial Engineering and Management
 R. V. College of Engineering, Bengaluru, India
 vittalmukunda.im24@rvce.edu.in
 
-⟨date⟩
+19 August 2026

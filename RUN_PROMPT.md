@@ -1,153 +1,182 @@
 # Remaining-run prompt (post-campaign)
 
-The full revision campaign is done on `ccf0240`. Do **not** wipe, do **not**
-re-run Stages 1–5, do **not** run `scripts/clean_stale.py` or
-`scripts/run_remaining.ps1`.
+The full revision campaign, the M-sweep, and `compute_budget measure` /
+`scaling` are done on `main`. Do **not** wipe, do **not** re-run Stages 1–5
+labelling/training, do **not** run `scripts/clean_stale.py` or
+`scripts/run_remaining.ps1`, do **not** widen `k_grid`, do **not** run theta.
 
 Paste everything between the `=====` lines into the agent on the **campaign
 machine** (`C:\CAOR` on the i9 — keep it off OneDrive). `git pull` first.
 
-Budget on that machine: **~3 h** for the M-sweep (required), **~30–60 min** for
-`compute_budget measure` + `scaling` (should), **~6 h more** if you also run
-theta (optional; skip unless you want a theta paragraph).
+Every leftover eval below is **mandatory**. Terminal admit (A) changes
+`|A|` and every KPI table, so it runs first. The rest run on that environment.
+After all five, update the manuscript from the live artifacts and push.
 
-M=20 already exists as the main run. M=1 is also the `single_sample_rollout`
-ablation — do not run that ablation separately.
+Git commits on that machine: author **Vittal Mukunda** only. Do not add a
+`Co-authored-by` trailer. Paper YAML authors stay Vittal (corresponding),
+Atharva Somani, Pranjal Malaiya — do not change the author list.
 
 ---
 
 ```text
 =====================================================================
-You are finishing the leftover result producers for CAOR-D-26-01812 (DAHS).
-The full campaign is already on main (commit ccf0240, CAMPAIGN_REPORT.md).
-Your job is to run ONLY the leftover experiments, commit the artifacts, and
-push. Do not redesign anything, do not tune anything, do not re-run Stages 1–5.
+You are finishing the leftover completeness evals for CAOR-D-26-01812 (DAHS).
+ALL of A–E are mandatory. Do not skip any. Do not redesign, do not tune
+beyond the stated overlays, do not re-run Stages 1–5 labelling/training,
+do not run the M-sweep or theta again.
 
 READ FIRST
-  CAMPAIGN_REPORT.md  — what already ran, what is still open (§6.1)
-  RUN_CAMPAIGN.md §6  — campaign is COMPLETE; remaining recipe sweeps only
-  this file           — the operating procedure
+  CAMPAIGN_REPORT.md
+  this file
+  experiments/evaluate.py
+  simulation/warehouse_env.py  (run_shift / run_with_policy / _admit)
+  experiments/e8_robustness_grid.py  (METHODS)
+  experiments/rl_sensitivity.py
+  baselines/rolling_horizon_mpc.py  (n_samples override)
 
 SETUP
-- Work in the existing clone. git pull origin main first.
-- Python 3.12 only. Reuse the existing .venv; do not recreate it unless
-  `python -c "import xgboost, sklearn"` fails.
+- Existing clone. git pull origin main first.
+- Python 3.12. Reuse .venv.
 - Windows: .venv\Scripts\python.exe
-- Confirm you are NOT on a OneDrive-synced path. If you are, STOP and move
-  the clone (OneDrive previously corrupted a wipe).
+- Confirm you are NOT on a OneDrive-synced path. If you are, STOP.
 
 DO NOT
 - Do not run scripts/clean_stale.py or scripts/run_remaining.ps1.
-- Do not re-run Stage 1, 2, 3, 4, 4b, 5, 5b, or the existing E3 retrains.
-- Do not edit config.yaml.
-- Do not fill TBD-rerun markers in paper/manuscript.md.
-- Do not parallelise LinUCB (you will not be evaluating it).
-- Do not skip M=1: it is the single-sample ablation as well as a sweep cell.
+- Do not relabel or retrain the ranker (labels do not see a terminal admit).
+- Do not overwrite config.yaml permanently. Overlays must be reverted;
+  committed config must still print:
+      ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD'] 3.0 4.0
+- Do not parallelise LinUCB.
+- Do not run `e2_main stats --methods fifo ours` without --out.
+- Do not add Co-authored-by on commits. Author is Vittal Mukunda.
+- Do not change paper author names or order.
 
 GATE (cheap; stop on failure)
       .venv\Scripts\python.exe scripts\preflight.py
-      .venv\Scripts\python.exe -m pytest -q
-Expect 159 passed, 1 skipped (FEFO-not-in-pool). Any failure or extra skip:
-stop and report.
+      .venv\Scripts\python.exe -m pytest tests/test_phase6.py -q
       .venv\Scripts\python.exe -c "from omegaconf import OmegaConf; c=OmegaConf.load('config.yaml'); print(list(c.heuristics.pool), c.heuristics.atc_lookahead_k, c.heuristics.covert_lookahead_k)"
 Must print exactly:
       ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD'] 3.0 4.0
 
-A. MUST — M-sweep, M in {1, 5, 10, 40}  (~3 h on the i9)
-M=20 is the committed main run; do not relabel it. After M=1, copy that
-eval parquet into E3 under the ablation name (evaluate always writes
-ours.parquet; e3 summary keys off the filename stem).
+A. MUST — terminal admit at T, then re-eval every Table 6 method
+warehouse_env currently never admits arrivals in (T-L, T]. After the last
+review, t becomes T and the loop stops. Add a single terminal `_admit()`
+after the shift loop, before KPIs, in every completion path:
 
-PowerShell (campaign machine is Windows):
+  - experiments/evaluate.py  `run_shift`
+  - experiments/evaluate.py  `run_shift_env_aware`
+  - simulation/warehouse_env.py  `run_with_policy`
 
-      foreach ($M in 1,5,10,40) {
-        python -m experiments.generate_labels --n-samples $M --n-jobs -1 `
-          --train-out data/e4_M$M/train.parquet --test-out data/e4_M$M/test.parquet
-        python -m experiments.train_ranker --run-id e4_M$M --skip-cv-cal `
-          --train-path data/e4_M$M/train.parquet --test-path data/e4_M$M/test.parquet
-        python -m experiments.evaluate --method ours --n-jobs -1 `
-          --run-dir runs/e4_M$M --results-dir results/E4/n_samples/M_$M
-        git add data/e4_M$M runs/e4_M$M results/E4/n_samples/M_$M
-        git commit -m "E4 n_samples M=$M"
-        git push origin main
+Do not dispatch those orders (there is no review at T). They enter A as
+unserved. Remove or rewrite the comment that says do not add a terminal
+admit. Mean |A| should move from 767 toward the Poisson mean 1.65*480=792.
+
+Then re-evaluate EVERY Table 6 method on the 50 test shifts, writing to the
+canonical results/<method>.parquet paths (this is the new live table):
+
+      foreach ($m in @(
+        'eedd','covert','ms','atc','mdd','edd','fifo','wspt','fefo',
+        'linucb','rolling_mpc','greedy_mpc','snapshot_xgb',
+        'ppo_fair','offline_fqi','ours'
+      )) {
+        python -m experiments.evaluate --method $m --n-jobs -1
       }
-      Copy-Item results\E4\n_samples\M_1\ours.parquet results\E3\single_sample_rollout.parquet
-      python -m experiments.e3_ablations summary
-      git add results/E3
-      git commit -m "E3 single_sample_rollout from M=1 plus regenerated summary"
-      git push origin main
+LinUCB ignores --n-jobs (serial by design). Frozen policies/rankers: do not
+retrain. Then:
 
-Each generate_labels pass must print "median train row entropy = ... -> OK".
-If it prints OUT OF BAND, stop and report; do not pass --force-out-of-band.
+      python -m experiments.e2_main stats --scenario default
 
-Commit and push after each M so a crash at M=40 does not cost M=1..10.
+Also re-eval the four named scenarios if those parquets exist under
+results/scenario_* (same method list, via e2_main eval). If a scenario
+driver is missing, say so in the report rather than inventing one.
 
-B. SHOULD — compute budget  (~30–60 min)
-      python -m experiments.compute_budget analytic
-      python -m experiments.compute_budget measure --n-shifts 3 --machine "Intel Core i9-14900K, 24c/32t"
-      python -m experiments.compute_budget scaling --n-shifts 5
-These write results/E12_compute/{measured_throughput.json, pool_scaling_analytic.parquet, successive_halving.json}.
-results/E12_compute/latency.json and label_budget.json are already committed
-from the eval parquets; do not overwrite them.
+B. MUST — Always-ATC at standalone k=1.5
+Table 6 Always-ATC is portfolio k=3.0. Overlay k=1.5 without committing it.
+Evaluate method atc into a NEW directory; do not overwrite results/atc.parquet
+(that file is k=3.0 after A):
 
-C. OPTIONAL — theta sweep  (~6 h; skip unless you want a theta paragraph)
-Nominal multiple 2.2 is the main run. For each other value in
-{1.5, 2.0, 3.0, 4.0}, using p instead of a dot in paths (Windows/git):
+      python -m experiments.evaluate --method atc --n-jobs -1 --results-dir results/E_atc_k1p5
 
-      foreach ($m in 1.5,2.0,3.0,4.0) {
-        $tag = "$m" -replace '\.','p'
-        python -m experiments.generate_labels --theta-uniform-multiple $m --n-jobs -1 `
-          --train-out data/e4_theta_m$tag/train.parquet --test-out data/e4_theta_m$tag/test.parquet
-        python -m experiments.train_ranker --run-id e4_theta_m$tag `
-          --train-path data/e4_theta_m$tag/train.parquet --test-path data/e4_theta_m$tag/test.parquet
-        python -m experiments.evaluate --method ours --n-jobs -1 `
-          --run-dir runs/e4_theta_m$tag --results-dir results/E4/theta/m_$tag
-        git add data/e4_theta_m$tag runs/e4_theta_m$tag results/E4/theta
-        git commit -m "E4 theta multiple=$m"
-        git push origin main
-      }
+Restore config.yaml ATC k=3.0 before the next step. Confirm the gate print
+is still 3.0 4.0.
 
-ASSEMBLE (after A, and C if run)
-There is no n_samples / theta summary driver. After the eval parquets exist,
-write results/E4/n_samples_summary.parquet (and theta_summary.parquet if C ran)
-with the same schema as results/E4/tau_summary.parquet: knob, value, metric,
-point, ci_lo, ci_hi, n, n_resamples. Metrics: service_failure_rate,
-composite_cost, mean_tardiness. Include the M=20 / theta=2.2 cell by copying
-the existing results/ours.parquet numbers. Plot
-figures/E4/n_samples_{metric}.{png,pdf} the same way e4_sensitivity plots tau.
-If you cannot match the schema, leave the per-M parquets and say so in the
-report; do not invent a different table.
+C. MUST — E8 add Always-COVERT
+In experiments/e8_robustness_grid.py set
+      METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "eedd", "covert"]
+Re-run the 12-cell grid (frozen rankers; teachers replan with true cell
+dynamics — do not pin them to the default cell):
 
-WHAT TO WATCH, AND REPORT RATHER THAN FIX
-1. Entropy band on each new labelling pass — abort if OUT OF BAND.
-2. M-sweep curve: if M=1 matches M=20, the multi-sample machinery bought
-   nothing and that is the result. Do not drop M=1.
-3. Do not compare new M=20 numbers to the committed ours.parquet; use the
-   committed file as the M=20 cell.
+      python -m experiments.e8_robustness_grid eval --n-jobs -1
+      python -m experiments.e8_robustness_grid summary
+
+Keep the sentence that DAHS wins 0/12 among the original four methods if
+that remains true; also report COVERT's cell wins.
+
+D. MUST — teachers at label M=20
+config.yaml baselines.rolling_horizon_mpc.n_samples is 5. Overlay n_samples=20
+in memory (or a temp cfg), do not commit n_samples=5 being changed.
+Evaluate both teachers into a NEW directory:
+
+      python -c "
+from omegaconf import OmegaConf, open_dict
+from pathlib import Path
+from experiments.evaluate import canonical_test_seeds, evaluate_policy_env_aware
+from baselines.rolling_horizon_mpc import make_rolling_horizon_mpc, make_greedy_mpc_policy
+cfg = OmegaConf.load('config.yaml')
+with open_dict(cfg):
+    cfg.baselines.rolling_horizon_mpc.n_samples = 20
+seeds = canonical_test_seeds(cfg)
+out = Path('results/E_teacher_M20')
+evaluate_policy_env_aware('greedy_mpc', make_greedy_mpc_policy(cfg), seeds, cfg, results_dir=out, save=True)
+evaluate_policy_env_aware('rolling_mpc', make_rolling_horizon_mpc(cfg, n_samples=20), seeds, cfg, results_dir=out, save=True)
+"
+Do not replace results/greedy_mpc.parquet or results/rolling_mpc.parquet
+(those stay the M=5 live Table 6 rows). Report M=20 next to them.
+
+E. MUST — PPO HP selected on calibration, frozen for test
+The existing sweep scored cells on the test shifts. Do not silently replace
+results/ppo_fair.parquet.
+
+If runs/ppo_sensitivity/<tag> already exist, do NOT retrain. For each tag,
+evaluate the frozen policy on the CALIBRATION block (seed.shift_corpora(cfg)['calib']).
+Pick the tag with lowest mean composite_cost on calib. Evaluate that frozen
+policy once on the TEST block into results/E_ppo_calib_select/.
+
+If terminal admit (A) makes those old PPO runs incomparable and you judge
+retraining necessary, retrain the sweep evaluating each cell on calib (not
+test), then freeze the winner for the test eval. Write
+results/E11_rl_sensitivity/ppo_calib_select.json with best_tag, calib cost,
+test cost, and gap_closed_fraction versus DAHS on test.
+
+ASSEMBLE (after A–E)
+      python -m experiments.e2_main stats --scenario default
+with the FULL default method list (no --methods subset).
+
+Update paper/manuscript.md numbers that A–E change, including:
+- mean |A| (no longer 767 if A worked)
+- Section 3.3 last-interval convention (they ARE now in A, not dispatched)
+- Table 6 from the new default_stats
+- ATC k=1.5 paragraph from E_atc_k1p5
+- Section 6.5 / Figure 6 from the 5-method E8 grid
+- teacher M=20 numbers from E_teacher_M20
+- Section 6.9: calib-selected PPO row, keep ppo_fair as the untuned test-scored row
+Do not change paper authors. Then:
+
+      python scripts/audit_reviewer_items.py
+      python scripts/build_submission.py --check
+
+Fix any gate failure you introduced. 40/40 and READY are required.
 
 FINAL REPORT
-Append a section "## Remaining-run addendum" to CAMPAIGN_REPORT.md:
-- wall-clock per M, plus measure/scaling (and theta if run)
-- for each M: median entropy, in-band?, composite_cost, service_failure_rate
-- whether single_sample_rollout is in results/E3 and e3_summary was regenerated
-- paths of n_samples_summary / figures, or an explicit "not assembled"
-- anything that failed
+Append "## Completeness-eval addendum" to CAMPAIGN_REPORT.md:
+- wall-clock per of A–E
+- new mean arrived
+- ATC k=1.5 vs k=3.0 J
+- E8 cell winners including COVERT
+- greedy/rolling J at M=20 vs M=5
+- PPO calib-selected tag and test J
+- audit/build_submission result
 
-Commit the new data/, runs/, results/, figures/, and the addendum. Push origin
-main. Do not open a PR. Do not edit the manuscript.
+Commit as Vittal Mukunda, no Co-authored-by. Push origin main. Do not open a PR.
 =====================================================================
 ```
-
----
-
-## Why this is all that is left
-
-Stages 1–5, tau∈{1,2,3,4}, data-efficiency, Olist, and the four retrain
-ablations already ran. Three commands exited 2 **on purpose** (they print a
-recipe): `e4_sensitivity n_samples`, `e4_sensitivity theta`, and
-`e3_ablations relabel single_sample_rollout`. The first two are this prompt;
-the third is M=1 of the M-sweep.
-
-`compute_budget measure` / `scaling` were never in the campaign stage list
-but they are the producers for R3.1 / R3.2 (throughput, successive-halving
-agreement). Latency is already extracted into `results/E12_compute/latency.json`.

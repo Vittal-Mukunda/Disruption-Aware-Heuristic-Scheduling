@@ -1,11 +1,19 @@
-$-- Pandoc template -> Elsevier elsarticle, for CAOR-D-26-01812.
-$-- Driven by scripts/build_submission.py. Requires the `elsarticle` class,
-$-- which ships with TeX Live and MiKTeX.
-$--
-$-- The `review` option gives the double-spaced single-column layout Elsevier
-$-- asks for at submission. Swap to `final,5p,times,twocolumn` for a preprint
-$-- that looks like the published article.
-\documentclass[review,3p,times]{elsarticle}
+% Pandoc template -> Elsevier elsarticle, for CAOR-D-26-01812.
+% Driven by scripts/build_submission.py.
+%
+% CAOR Guide for Authors (ScienceDirect, accessed 2026-08-19):
+%   - single-anonymized review
+%   - Harvard (author-year) bibliography
+%   - highlights: 3-5 bullets, <=85 characters each (also in paper/highlights.txt)
+%   - abstract <= 250 words
+%   - keywords: 1-7
+%   - data statement required (Option C)
+%   - CRediT required
+%   - no generative-AI declaration in this source (authors will add at submission)
+%
+% The `review` option is Elsevier's double-spaced single-column review layout.
+% Swap to `final,5p,times,twocolumn` for a preprint that looks like the article.
+\documentclass[review,authoryear,3p,times]{elsarticle}
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -17,12 +25,10 @@ $-- that looks like the published article.
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
 
-$-- Pandoc emits these for pipe tables and fenced blocks.
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \providecommand{\pandocbounded}[1]{#1}
 
-$-- Propositions 1 and 2 are stated as numbered results in Section 4.
 \newtheorem{proposition}{Proposition}
 \newtheorem{assumption}{Assumption}
 \theoremstyle{definition}
@@ -41,24 +47,30 @@ $endif$
 
 \title{$title$}
 
-$-- The markdown frontmatter carries name / email / affiliation per author.
-$-- All three share one affiliation, so it is declared once and referenced.
 $for(author)$
-\author[rvce]{$author.name$$if(author.email)$\corref{$if(author.corresponding)$cor1$endif$}$endif$}
+\author[rvce]{$author.name$$if(author.corresponding)$\corref{cor1}$endif$}
 $if(author.email)$\ead{$author.email$}$endif$
 $endfor$
 
 \affiliation[rvce]{organization={Department of Industrial Engineering and Management, R. V. College of Engineering},
+                   addressline={Mysore Road},
                    city={Bengaluru},
+                   postcode={560059},
                    country={India}}
 
-$if(corresponding)$
 \cortext[cor1]{Corresponding author.}
-$endif$
 
 \begin{abstract}
 $abstract$
 \end{abstract}
+
+\begin{highlights}
+\item Rollout labels beat FQI; PPO's gap is mostly normalisation.
+\item DAHS costs 381 vs Always-COVERT 454; teachers remain cheaper.
+\item Labels from M=1 to M=40 match on deployed cost.
+\item Distillation is 176 times faster than online truncated lookahead.
+\item Normalising PPO observations and rewards closes 78\% of the gap.
+\end{highlights}
 
 $if(keywords)$
 \begin{keyword}

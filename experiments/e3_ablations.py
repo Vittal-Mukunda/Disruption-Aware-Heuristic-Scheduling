@@ -464,7 +464,7 @@ def cmd_summary(args: argparse.Namespace) -> int:
     if not e3_dir.exists():
         raise SystemExit(f"no E3 results yet under {e3_dir}")
     for p in sorted(e3_dir.glob("*.parquet")):
-        if p.stem in ("ours", "e3_summary"):
+        if p.stem in ("ours", "e3_summary", "e3_cost_summary"):
             continue
         df_abl = pd.read_parquet(p)
         # Every frame, not just `ours`: results/E3 accumulates one parquet per

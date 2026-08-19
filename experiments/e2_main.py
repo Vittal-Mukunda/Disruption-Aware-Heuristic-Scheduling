@@ -132,6 +132,15 @@ def cmd_stats(args: argparse.Namespace) -> int:
     cfg = OmegaConf.load(CONFIG_PATH)
     methods = args.methods if args.methods else DEFAULT_METHODS
     baseline = args.baseline
+    metrics = args.metrics if args.metrics else DEFAULT_METRICS
+    methods_are_default = set(methods) == set(DEFAULT_METHODS)
+    metrics_are_default = set(metrics) == set(DEFAULT_METRICS)
+    if not (methods_are_default and metrics_are_default) and args.out is None:
+        raise SystemExit(
+            "e2_main stats with a subset of --methods/--metrics would overwrite "
+            f"results/E2/{args.scenario}_stats.parquet. Pass --out <path>."
+        )
+    write_canonical_plots = methods_are_default and metrics_are_default and args.out is None
 
     if args.scenario == "default":
         results_dir = args.results_dir or RESULTS_ROOT
@@ -160,7 +169,6 @@ def cmd_stats(args: argparse.Namespace) -> int:
     FIG_ROOT.mkdir(parents=True, exist_ok=True)
 
     all_metric_rows: list[pd.DataFrame] = []
-    metrics = args.metrics if args.metrics else DEFAULT_METRICS
     # Same guard as e3: a pre-revision results/*.parquet loads cleanly and carries
     # the OLD metric names, so without this the failure surfaces inside
     # pivot_table as a bare KeyError naming neither the file nor the cause.
@@ -196,8 +204,9 @@ def cmd_stats(args: argparse.Namespace) -> int:
         )
         ax.grid(True, axis="x", alpha=0.3)
         fig.tight_layout()
-        fig.savefig(FIG_ROOT / f"{args.scenario}_forest_{metric}.png", dpi=150)
-        fig.savefig(FIG_ROOT / f"{args.scenario}_forest_{metric}.pdf")
+        if write_canonical_plots:
+            fig.savefig(FIG_ROOT / f"{args.scenario}_forest_{metric}.png", dpi=150)
+            fig.savefig(FIG_ROOT / f"{args.scenario}_forest_{metric}.pdf")
         plt.close(fig)
 
         print(f"\n[E2 stats] {metric} (scenario={args.scenario}):")
@@ -207,9 +216,17 @@ def cmd_stats(args: argparse.Namespace) -> int:
         print(stats_df[cols].to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     out_table = pd.concat(all_metric_rows, ignore_index=True)
-    out_path = stats_out_dir / f"{args.scenario}_stats.parquet"
+    if args.out is not None:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        out_path = stats_out_dir / f"{args.scenario}_stats.parquet"
     out_table.to_parquet(out_path, index=False)
-    print(f"\n[E2 stats] wrote {out_path.relative_to(REPO_ROOT)}")
+    try:
+        shown = out_path.resolve().relative_to(REPO_ROOT)
+    except ValueError:
+        shown = out_path
+    print(f"\n[E2 stats] wrote {shown}")
     return 0
 
 
@@ -322,6 +339,12 @@ def main() -> int:
     p_stats.add_argument("--baseline", type=str, default="ours")
     p_stats.add_argument("--metrics", type=str, nargs="*", default=None)
     p_stats.add_argument("--results-dir", type=Path, default=None)
+    p_stats.add_argument(
+        "--out", type=Path, default=None,
+        help="Write the stats parquet here. Required when --methods or --metrics "
+             "is a subset of the defaults: a two-method smoke test must not "
+             "clobber results/E2/<scenario>_stats.parquet.",
+    )
     p_stats.set_defaults(func=cmd_stats)
 
     p_de = sub.add_parser("data_efficiency",

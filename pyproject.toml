@@ -7,7 +7,7 @@ name = "dahs"
 version = "0.1.0"
 description = "Rollout-Informed Label Distribution Learning for Adaptive Heuristic Selection in Dynamic Warehouse Dispatching"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.12,<3.13"
 authors = [
     { name = "Vittal Mukunda", email = "vittalmukunda.im24@rvce.edu.in" },
     { name = "Atharva Somani", email = "atharvasomani.im24@rvce.edu.in" },

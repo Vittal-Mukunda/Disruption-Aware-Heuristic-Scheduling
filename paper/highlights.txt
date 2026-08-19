@@ -1,0 +1,8 @@
+Highlights — CAOR-D-26-01812
+Submit as a separate editable file. Each bullet is at most 85 characters including spaces.
+
+- Rollout labels beat FQI; PPO's gap is mostly normalisation.
+- DAHS costs 381 vs Always-COVERT 454; teachers remain cheaper.
+- Labels from M=1 to M=40 match on deployed cost.
+- Distillation is 176 times faster than online truncated lookahead.
+- Normalising PPO observations and rewards closes 78% of the gap.

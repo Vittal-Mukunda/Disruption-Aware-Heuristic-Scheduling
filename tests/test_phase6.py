@@ -137,7 +137,31 @@ def test_diversity_grid_runs_on_stage1_costs():
             / "diversity_state_grid.parquet").exists()
 
 
-def test_e2_stats_runs_on_existing_parquets():
+def test_e2_stats_runs_on_existing_parquets(tmp_path):
+    if not _current_schema(RESULTS_DIR / "ours.parquet"):
+        pytest.skip("results/ours.parquet missing or pre-revision schema")
+    prod = RESULTS_DIR / "E2" / "default_stats.parquet"
+    before = pd.read_parquet(prod) if prod.exists() else None
+    out = tmp_path / "default_stats.parquet"
+    cmd = [
+        sys.executable, "-m", "experiments.e2_main", "stats",
+        "--scenario", "default",
+        "--methods", "fifo", "ours",
+        "--metrics", "composite_cost",
+        "--out", str(out),
+    ]
+    rc = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False,
+                        capture_output=True, text=True)
+    assert rc.returncode == 0, rc.stderr
+    assert out.exists()
+    smoke = pd.read_parquet(out)
+    assert set(smoke["method"]) <= {"fifo", "ours"}
+    if before is not None:
+        after = pd.read_parquet(prod)
+        pd.testing.assert_frame_equal(before, after)
+
+
+def test_e2_stats_refuses_subset_without_out():
     if not _current_schema(RESULTS_DIR / "ours.parquet"):
         pytest.skip("results/ours.parquet missing or pre-revision schema")
     cmd = [
@@ -148,8 +172,9 @@ def test_e2_stats_runs_on_existing_parquets():
     ]
     rc = subprocess.run(cmd, cwd=str(REPO_ROOT), check=False,
                         capture_output=True, text=True)
-    assert rc.returncode == 0, rc.stderr
-    assert (RESULTS_DIR / "E2" / "default_stats.parquet").exists()
+    assert rc.returncode != 0
+    err = (rc.stderr or "") + (rc.stdout or "")
+    assert "--out" in err
 
 
 def test_e2_apply_scenario_overlays_arrival_rate():

@@ -1,23 +1,9 @@
 # Response to Reviewers — CAOR-D-26-01812
 
-**Sample-Efficient Adaptive Heuristic Selection via Offline Rollout Distillation
-for Dynamic Warehouse Order Dispatching**
+**Offline Rollout Distillation for Warehouse Order Dispatching: A Controlled
+Comparison of Training Signals**
 
 Vittal Mukunda, Atharva Somani, Pranjal Malaiya
-
----
-
-> **HOW TO USE THIS FILE.** Every item below is written and final *except* where
-> it carries a `⟨PENDING⟩` marker. Those are the places where the answer is a
-> number the re-run produces. Fill each one from the artifact named beside it,
-> then delete this box and the markers.
->
-> Where an item's honest answer may be unfavourable, the response is written
-> **conditionally** and says which way it falls. Resolve those against the
-> measured outcome — do not delete the unfavourable branch.
->
-> Reviewer comments are quoted in **abridged** form for readability. Verify each
-> quotation against the decision letter before submitting.
 
 ---
 
@@ -63,12 +49,15 @@ the future, reserving and idling a picker for them, which structurally penalised
 every arrival-agnostic rule and never penalised FIFO. Together these explain the
 counterintuitive results Reviewer 1 asked about in comment 6.a. Both are fixed.
 
-**Finally, the headline margin shrinks.** Charging orders that were never served
-compresses our advantage over FIFO from roughly 3.8× to roughly 1.2× on the
-submitted repository's own event logs. We state this in Section 6.2 before
-reporting any new number, rather than letting it emerge from a table. The
-relative comparison between training signals — which is the paper's actual claim —
-survives; the size of the margin does not, and the submitted paper overstated it.
+**Finally, the headline margin is not the submitted 3.8× and is not the 1.2×
+that the metric correction alone produced on the old logs.** Charging unserved
+orders on the submitted event logs compressed the FIFO gap from about 3.8× to
+about 1.2×. After regenerating under causal admission, the live default-scenario
+FIFO gap is **3.90×** on composite cost (manuscript Table 6: DAHS $J=381.42$,
+FIFO $J=1485.97$). Teachers remain cheaper than DAHS ($356$--$363$). We state
+the live ranking in Section 6.2 before leaning on any method-to-method story.
+The relative comparison between training signals survives; the size of the
+static-rule margin does not, and the submitted paper overstated it.
 
 A short summary of what changed structurally:
 
@@ -326,9 +315,18 @@ Three expiry-pressure features are added, since the product deadline now enters
 the objective and a selector cannot act on a constraint it cannot observe. The
 observation is $\phi(S_t) \in \mathbb{R}^{26}$.
 
-⟨PENDING: correlation/VIF after `feature_analysis`. $K^\star=12$ at the grid
-endpoint, mean ARI $0.969$, BIC does not turn; ranker input dim $=38$.
-`runs/phase4/phase4_regime.json`.⟩
+After `feature_analysis` (`results/S1_features/feature_analysis.json`): no
+near-constant columns; ten pairs with $|r|\ge 0.95$, including
+`labor_utilization` vs `n_pickers_busy` at $r=1$; fourteen features with
+$\mathrm{VIF}\ge 10$ (queue length and its lags, picker occupancy and
+utilisation, failure-rate lags, late-so-far, queue age, slack). Coefficient-level
+stories about single features are not identified; Section 6.6 reports SHAP on
+the trees instead. After dropping the two degenerate features, BIC still
+selects $K^\star=12$ at the edge of $\{2,3,4,5,6,7,8,10,12\}$ (mean pairwise
+ARI $0.970$, above $0.85$). BIC falls from $+36{,}871$ at $K=2$ to $-240{,}139$
+at $K=12$ and does not turn (`runs/phase4/phase4_regime.json`). Ranker input
+dimension is $38$ (26 features plus 12 regime posteriors). We did not widen
+the $K$ grid.
 
 ### 3.b — Where do the 1600 test states come from?
 
@@ -441,10 +439,13 @@ We also report that EEDD's 0.650 win rate exceeds our own pre-registered 0.60
 concentration ceiling. We kept the rule and reported the number rather than
 dropping it to pass our own gate.
 
-⟨PENDING: the oracle gap in *composite cost* and DAHS's realised share of it.
-If DAHS captures little of an already-small gap, Section 6.2 and this response
-must say so, and the paper's empirical claim reduces to the sample-efficiency and
-amortisation results.⟩
+We did **not** compute a composite-cost oracle on the same 4×4 grid. The
+win-rate oracle gap over always-EEDD is 7.29 percentage points (per-cell oracle
+72.29% vs always-EEDD 65.00%; EEDD owns 15 of 16 cells). On the test-set
+objective the static champion is Always-COVERT, not Always-EEDD: DAHS $J=381.42$
+against COVERT $454.36$ (49/50 shifts). That is the gap DAHS captures against
+static rules. It does **not** capture the teacher gap: greedy_mpc $356.14$,
+rolling_mpc $362.58$. Distillation amortises a slightly worse scoring rule.
 
 ## 5. Data instance generation
 
@@ -466,9 +467,18 @@ against purchase-to-confirmation latency ($D = 0.685$) was not a valid test of
 anything, and we say so. No public trace carries a product expiry, so shelf life
 is a declared design parameter and is swept rather than defended.
 
-⟨PENDING: the fitted families, parameters and post-fit goodness of fit —
-`results/A/`. State for each field whether the fit supersedes or corroborates the
-design value.⟩
+Fits are in `results/A/validation_stats.json` and Appendix C. Inter-arrivals:
+Olist is bursty (CV $2.68$) against the simulator's Poisson (CV $1.00$); a
+lognormal on the trace beats an exponential by $\Delta$AIC $=34{,}502$; KS
+$D=0.153$. Poisson at 1.65 / min remains an **operating point**, not a fitted
+arrival process. Customer windows: triangular $(15,45,90)$ after rescaling is
+the closest shape match of the three inputs (KS $D=0.039$, subsampled $p=0.022$,
+$W_1=0.035$) and corroborates the design triple. Processing time is **not**
+fitted — the trace field is purchase-to-approval, not pick time; KS $D=0.686$
+against triangular $(2,5,12)$ is a proxy test and is poor. Perishable fraction
+$0.20$ is a design parameter against Olist food/drink share $0.0099$. A
+frozen-ranker replay under empirical Olist arrivals preserves the ranking
+(greedy still leads, EEDD still trails; Section 6.7).
 
 ### 5.c — The triangular parameters were not disclosed
 
@@ -510,10 +520,13 @@ Section 3.4 replaces this with a properly causal periodic-review admission rule 
 only orders arrived by $t$ are eligible at $t$ — which also removes fifteen minutes
 of undisclosed look-ahead from the observed state.
 
-⟨PENDING: throughput and utilisation by rule under the corrected admission rule.
-WSPT now records the *highest* throughput (743 vs FIFO 730) and every method sits
-at picker utilisation $\approx 0.956$. Cause 2 is confirmed. Composite-cost
-ranking is in manuscript Table 4 (revised).⟩
+Under the corrected admission rule, on 50 default test shifts, WSPT records the
+**highest** throughput ($743.3$ vs FIFO $730.2$) and every method sits at picker
+utilisation $\approx 0.956$ (WSPT $0.955$). Cause 2 is confirmed. Composite-cost
+ranking is manuscript Table 6: greedy_mpc $356.14$, rolling_mpc $362.58$, DAHS
+$381.42$, Always-COVERT $454.36$, Always-EEDD $695.77$, FIFO $1485.97$
+($3.90\times$). Arrived $=767$ on every method (last-interval arrivals in
+$(T-L,T]$ are never admitted); dropped $=0$.
 
 ### 6.b — The RL failure explanations are post hoc
 
@@ -533,8 +546,9 @@ policy-gradient method failing to learn at all.
 $\lambda$, rollout length `n_steps`, entropy coefficient, and the full $2\times2$
 over observation and reward normalisation — swept jointly rather than marginally,
 because observation scaling changes the effective gradient magnitude while reward
-scaling changes the advantage scale. Every configuration is trained at the matched
-budget and evaluated on the same held-out shifts. The summary statistic is the
+scaling changes the advantage scale. Every configuration is trained for 8{,}000
+epochs and evaluated on the same held-out shifts. Hyperparameters were selected
+on those test shifts. The summary statistic is the
 fraction of the PPO-to-DAHS gap the best configuration recovers.
 
 **On offline action coverage, we found an error in our own argument and it is
@@ -553,17 +567,23 @@ the labels as those whose best achievable rollout cost lies in the top quartile,
 which is exactly where a value function most needs data. Both corpora are reported
 so the effect of the behaviour policy on the baseline can be read directly.
 
-**Sections 6.9 and 6.10 are written conditionally on these measurements.** If
-tuning or the coverage fix closes a material part of either gap, the structural
-reading is withdrawn and the tuned configurations become the baselines throughout.
-We have written both branches deliberately.
+**Sections 6.9 and 6.10 report the measurements, not a pre-registered new
+baseline.** Tuning closed a material part of the PPO gap; coverage under
+`random` is adequate. The structural reading is withdrawn. The tuned PPO cell
+does **not** replace Table 6, because the grid was scored on the test shifts.
 
-**PPO: the structural reading is withdrawn.** The sweep recovered $78.2\%$ of the
-submitted PPO-to-DAHS cost gap. Best cell: observation *and* reward
-normalisation (cost $450$ vs untuned $696$ vs DAHS $381$). Tuned PPO is the PPO
-baseline. Coverage under `random`: $6.00$ effective actions overall, $5.94$
-conditional on interval index; adequate. Fitted Q must be retrained — the
-Stage-4 logger double-called `observe()` and zeroed arrivals.
+**PPO: the structural reading is withdrawn; Table 6 still reports the untuned
+row.** The sweep recovered $78.3\%$ of the untuned-PPO-to-DAHS cost gap
+(`gap_closed_fraction`$=0.783$). Best cell: observation *and* reward
+normalisation (cost $449.6$ vs untuned collapse $695.77$ vs DAHS $381.42$).
+Hyperparameters were selected on the **test** shifts, so the tuned cell is a
+sensitivity result, not a pre-registered baseline; manuscript Table 6 keeps
+`ppo_fair` ($J=610.93$). A separate `ppo_baseline` run at `n_steps`$=64$
+collapses to Always-EEDD ($J=695.77$). Coverage under `random`
+(`results/E11_rl_sensitivity/action_coverage.json`): $5.999$ effective actions
+overall, $5.995$ in breach-prone states, $5.937$ conditional on interval index.
+Adequate. Fitted Q was retrained after the Stage-4 logger double-called
+`observe()` and zeroed arrivals; a 4% cost gap remains ($396.80$ vs $381.42$).
 
 ### 6.c — The composite cost should be the primary metric
 
@@ -628,7 +648,9 @@ completed 721.6 orders against FIFO's 750.6.
    went unmet, and excluding them would reopen the same gap elsewhere.
 
 3. **The full outcome partition** — arrived, served, unserved, rejected — is
-   reported as columns in Table 1.
+   reported as columns in manuscript Table 6 (the live comparison; Table 5 is
+   the superseded submitted scoreboard). Arrived $=767$, dropped $=0$ on every
+   method. Last-interval arrivals in $(T-L,T]$ are never admitted.
 
 **What this costs us.** Recomputing your metric on the submitted repository's own
 per-order event logs (ten shifts, frozen model):
@@ -639,13 +661,17 @@ per-order event logs (ten shifts, frozen model):
 | FIFO | 11.75% | 17.97% |
 | PPO (matched budget) | 9.40% | 16.44% |
 
-The advantage over FIFO narrows from roughly **3.8× to 1.20×**, and over PPO from
-3.0× to 1.10×; on individual shifts the ordering against PPO inverts. Section 6.2
-states this before reporting any new number. The qualitative ranking survives; the
-margin does not, and the submitted paper's headline overstated it.
+On those old logs the advantage over FIFO narrows from roughly **3.8× to 1.20×**,
+and over PPO from 3.0× to 1.10×. That diagnosis is about the submitted
+denominator, not the regenerated campaign.
 
-⟨PENDING: the regenerated Table 1 with the full outcome partition —
-`results/*.parquet`, `results/E2/default_stats.parquet`.⟩
+**Live Table 6** (50 default test shifts, corrected objective and causal
+admission): DAHS $J=381.42$, SFR $0.0689$, spoil $0.0395$, tardiness $0.775$,
+throughput $731.9$, utilisation $0.956$. FIFO $J=1485.97$ ($3.90\times$), SFR
+$0.1894$. Always-COVERT $454.36$ is the static to beat. Always-EEDD $695.77$
+(DAHS strictly cheaper on 21/50, EEDD on 7, 22 exact ties). Teachers remain
+cheaper (greedy $356.14$, rolling $362.58$). Snapshot $\tau=1$ is $388.13$
+with a confirmatory paired interval that includes 0.
 
 ## 2. The handling of perishable orders is vague
 
@@ -727,8 +753,17 @@ standard error at $M = 20$. If that holds at full scale, the soft labels are
 largely noise, and we will report it as a finding about the method rather than
 smooth it over. It is why Section 6.4 now includes a sweep over $M$.
 
-⟨PENDING: rollout standard errors and `frac_separation_below_1se` at each $M$ —
-`data/label_meta.json`, `results/E4/`.⟩
+On the full training corpus at deployed $M=20$ (`data/label_meta.json`): mean
+rollout SE $3.71$, median SE $1.81$, $\mathrm{frac}<1\,\mathrm{se}=0.334$,
+median entropy $0.638$ (in band). The $M$ sweep completed at
+$\{1,5,10,20,40\}$. Deployed cost sits in a $0.7\%$ band: $M=1$ $J=380.24$,
+$M=20$ $381.42$, $M=40$ $382.78$. Paired against $M=20$, every cell's interval
+includes 0 ($M=40$: $+1.36$, $[-3.05,5.99]$, $p=0.35$). $\mathrm{frac}<1\,\mathrm{se}$
+falls as $M$ grows ($0$ at $M=1$ by construction; $0.567$, $0.455$, $0.334$,
+$0.215$ at $5,10,20,40$). Multi-sample labels improve calibration ECE and keep
+more test rows; they do not improve deployed $J$. The smoke-corpus $76.8\%$
+figure does **not** hold at full scale; one-third of $M=20$ epochs remain
+unseparated at one SE, which is still the reason the labels are soft.
 
 ## 4. The 25-D feature vector is an observation, not a Markov state
 
@@ -779,8 +814,13 @@ recorded as future work.
 The policy class is described as what it is: a **policy-function approximation**
 over a hand-crafted belief summary, with no belief state maintained.
 
-⟨PENDING: the empirical aliasing rate and its share of achievable benefit —
-`results/E12_observability/`.⟩
+The empirical aliasing diagnostic (`results/S1_observability/observability.json`)
+on 8,000 training states: 1,927 neighbour pairs, aliasing rate $0.145$, mean
+regret $0.30$, mean regret given disagreement $2.08$, estimated share of
+achievable benefit $0.037$. A constructed witness exists for ATC (cost gap
+$3.8$) and COVERT ($0.8$); not for EEDD, MS, MDD, or EDD. $\phi$ is not a
+sufficient statistic. The $3.7\%$ share is an upper bound on the part of residual
+regret attributable to the feature map, not a reason to treat $\phi$ as a state.
 
 ## 5. Model misspecification is ignored
 
@@ -813,10 +853,16 @@ We also state the limit of the result plainly in Section 8.2: we cannot estimate
 $\varepsilon$ for a real warehouse, so the bound tells an operator how to trade
 $\tau$ against model quality but not what their model quality is.
 
-⟨PENDING: degradation slope per axis for each method, and whether the
-cost-minimising $\tau$ shortens as perturbation grows as Proposition 2 predicts.
-If it does not, say so — the bound may be loose at these perturbation sizes.
-`results/E10_misspecification/`.⟩
+Mean relative-degradation slopes of composite cost, averaged over axes
+(`results/E10_misspecification/degradation_summary.json`): Always-COVERT $18.7$
+(most robust; model-free), fitted Q $22.0$, DAHS $22.8$, rolling_mpc $23.7$,
+Always-EEDD $27.7$ (least robust). On the SLA axis DAHS is the steepest of the
+five. The experiment does **not** retrain at $\tau\in\{1,2,3,4\}$ as
+$\varepsilon$ grows, so it does not test Proposition 2's prediction that
+$\tau^\star$ shortens. Section 4.4 already notes that $\tau^\star$ enters the
+swept grid only once $\varepsilon\gtrsim 0.29$; mild cells cannot show the
+optimum moving inward. We report the slopes and that the $\tau$--$\varepsilon$
+interaction is unmeasured.
 
 ## 6. The online rollout MPC baseline is missing
 
@@ -833,7 +879,7 @@ matches or exceeds its own teacher — which is the whole amortisation argument.
 `baselines/rolling_horizon_mpc.py` implements exactly the procedure you describe:
 at each epoch evaluate every rule over $\tau$ intervals averaged over $M$
 continuations, commit the arg-min for one interval, replan. It is reported in
-Table 1 with KPIs **and per-decision wall-clock**, and the break-even — the number
+manuscript Table 6 with KPIs **and per-decision wall-clock**, and the break-even — the number
 of decisions after which the one-off labelling cost is repaid by the per-decision
 saving — is reported in Section 6.12.
 
@@ -845,9 +891,16 @@ per decision, whether the amortisation is worth it, and how each degrades under
 misspecification — and Section 6.2 marks them as our reading. **We would be glad to
 address the specific questions if the complete comment can be supplied.**
 
-⟨PENDING: rolling-horizon MPC KPIs and latency; the DAHS-to-teacher gap; the
-break-even decision count — `results/ours.parquet`, `results/rolling_mpc.parquet`,
-Section 6.12.⟩
+Live KPIs, 50 default shifts: greedy_mpc ($\tau=1$, $M=5$) $J=356.14$;
+rolling_mpc ($\tau=4$, $M=5$) $J=362.58$; DAHS $J=381.42$. Teachers beat the
+student; both paired intervals exclude 0. Mean per-decision latency: DAHS
+$3.66$ ms, rolling_mpc $645$ ms ($176\times$), greedy_mpc $588$ ms. Labelling
+the $M=20$, $\tau=4$ corpus took $922$ s wall-clock; at $20.6$ extra seconds
+per shift of online lookahead, labelling alone is repaid after about $45$
+shifts and labelling plus Stage-3 training after about $250$. Both figures are
+hardware-specific and ignore that the teacher is also the better policy. The
+teachers use $M=5$ at evaluation; labels were built at $M=20$. A matched $M=20$
+teacher eval is leftover work, not a live claim.
 
 ---
 
@@ -880,10 +933,18 @@ label an estimator at all (Reviewer 2, comment 3).
 throughput on named hardware; `scripts/campaign_budget.py` reports the whole
 campaign's budget per stage.
 
-⟨PENDING: measured interval-steps and wall-clock for screening, calibration and
-labelling separately, on named hardware with the core count, plus the same figures
-for the offline-RL baseline's transition logging so the two training budgets are
-directly comparable. `data/label_meta.json`, `results/E12_compute/`.⟩
+Labelling $M=20$, $\tau=4$, $|\mathcal{H}|=6$, 250 train + 50 test shifts
+consumed $4{,}401{,}600$ interval-steps ($3{,}668{,}000$ train, $733{,}600$
+test) in $758$ s train and $164$ s test wall-clock on the campaign machine
+(Intel Core i9-14900K, 24 cores / 32 threads, 64 GB, Windows 11, Python
+3.12.10). Rule calibration under $M=5$ consumed $2{,}966{,}400$ additional
+interval-steps. A separate single-thread `compute_budget measure` pass on three
+shifts recorded $389.3$ interval-steps per second ($2.75$ h single-core for
+that driver's $3{,}848{,}000$-step corpus formula). Fitted Q logs the same
+shift walk once; its training budget is the FQI iteration grid in Appendix B
+(winner: depth 4, 500 trees, $\gamma=0.9$), not a second copy of the rollout
+tree. The two training budgets are therefore not a matched simulation-step
+count, and we do not claim they are.
 
 ## 2. Scalability in the size of the heuristic pool
 
@@ -917,10 +978,13 @@ two-stage selector could choose a family and then a member. With six screened ru
 the flat selector is not the bottleneck, so we record it as the natural next step
 for a pool of twenty rather than claim it.
 
-⟨PENDING: the sample-efficiency curve at pool sizes 2, 4, 8; and successive
-halving's arg-max agreement, label KL and step saving against uniform allocation.
-If agreement is high and the saving material, recommend it as the default beyond
-roughly eight rules; if not, report the mitigation as unsuccessful here.⟩
+We did **not** retrain DAHS at pool sizes $2$, $4$ and $8$. Analytic labelling
+cost is linear in $|\mathcal{H}|$ (`pool_scaling_analytic.parquet`: 4 rules
+$2.57$M steps, 8 rules $5.13$M, 20 rules $12.8$M at the deployed
+$(N,M,\tau)$). Successive halving at the deployed $(M,\tau)$ on 50 shifts:
+arg-max agreement $0.856$ against uniform allocation, mean label KL $0.185$,
+step saving $1.1\%$ (`successive_halving.json`). The verdict is unsuccessful;
+production labels stay uniform. Hierarchical selection is not implemented.
 
 ## 3. Deeper analysis of the high-load-perishable scenario
 
@@ -948,12 +1012,22 @@ shorter than the deployed one, the guardrail is the binding constraint, and the
 honest response is to report the trade explicitly and consider a load-dependent
 dwell rather than defend a fixed default.
 
-⟨PENDING: both statistics across all four scenarios, plus the switch rate,
-entropy-gate firing rate, and the within-scenario $T_{\min}$ sweep. The two
-halves come from different commands — `saturation_analysis trace` for the
-across-scenario statistics and `saturation_analysis dwell` for the causal sweep —
-so check both ran. `results/E13_saturation/scenario_behaviour.parquet`,
-`results/E4/t_min_summary.parquet`.⟩
+On 1,600 epochs per scenario (`results/E13_saturation/scenario_behaviour.parquet`):
+
+| Scenario | Eff. rules | Switch rate | Blocked-switch | Gate-open | EEDD share | COVERT share | $J$ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| low load | 1.005 | 0.0006 | 0 | 0.931 | 0.999 | 0 | 9.04 |
+| balanced | 1.034 | 0.0056 | 0 | 0.953 | 0.995 | 0.004 | 17.05 |
+| default | 1.610 | 0.039 | 0.008 | 0.929 | 0.849 | 0.138 | 381.42 |
+| high-load-perish | 1.584 | 0.031 | 0.0006 | 0.963 | 0.173 | 0.828 | 11427 |
+
+Collapse onto EEDD is the light-load mechanism; a switch into COVERT is the
+perishable-saturation mechanism. The dwell sweep *within* high-load-perishable
+(`dwell_verdict_high_load_perish.json`) finds the cost-minimising $T_{\min}$ at
+the deployed value $2$ (cost $11426.95$); $T_{\min}\in\{0,1\}$ is $11427.04$
+and $T_{\min}=4$ is $11429.34$. The guardrail is not the boundary condition
+there. WSPT, not DAHS, is the cheapest method in that scenario ($11168.50$ vs
+$11426.95$).
 
 ## 4. Is the full feature set necessary?
 
@@ -967,7 +1041,10 @@ a parsimonious selector is materially easier to deploy and to audit.
 This reads alongside the redundancy analysis added for Reviewer 1's comment 3.a,
 which found two features that were degenerate outright and removed them.
 
-⟨PENDING: the ablation row — `results/E3/e3_summary.parquet`.⟩
+`top5_features` $J=383.14$ against DAHS $381.42$ (paired $+$1.72,
+$[-3.44,6.59]$, $p_{\mathrm{adj}}=0.83$). Null on cost and SFR. The remaining
+33 ranker coordinates are not earning their dimensionality on this 50-shift
+test set. Train wall $897$ s.
 
 ## 5. Supplementary metrics for the ablations
 
@@ -989,8 +1066,25 @@ removing it improves them slightly — and it is retained deliberately as a
 deployability guardrail. Reporting cost alongside benefit makes that an explicit
 engineering trade rather than something to defend.
 
-⟨PENDING: the full ablation table with all three column groups —
-`results/E3/e3_summary.parquet`, `e3_cost_summary.parquet`.⟩
+Manuscript Table 11 (7-arm family, `random_ambiguity_filter` omitted because it
+is per-shift identical to DAHS; BH $p_{\mathrm{adj}}$ from the live
+`e3_summary.parquet`):
+
+| Ablation | $J$ | vs DAHS [95% CI] | $p_{\mathrm{adj}}$ | SFR | Train wall (s) |
+|---|---:|---|---:|---:|---:|
+| hard_labels | 382.43 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0685 | 1302 |
+| no_calibration | 381.46 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0685 | --- |
+| no_regime | 383.56 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0691 | 1124 |
+| no_switching_controller | 380.43 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0687 | --- |
+| single_sample_rollout ($M{=}1$) | 380.24 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0685 | --- |
+| top5_features | 383.14 | $+$1.72 [$-$3.44, 6.59] | 0.83 | 0.0691 | 897 |
+| DAHS | 381.42 | --- | --- | 0.0689 | --- |
+
+No ablation rejects equality with DAHS after BH control. Non-rejection is not
+an equivalence test. Inference-only arms do not retrain. Mean decision latency
+on the retrain arms is $0.7$--$0.9$ ms, below the deployed DAHS eval latency
+in Table 14 ($3.66$ ms), which includes the switching wrapper and regime
+posteriors.
 
 ## 6. Expand the limitations
 
@@ -1181,25 +1275,3 @@ We list these separately rather than leave them to be discovered.
    we inferred and would welcome the complete text.
 
 ---
-
-# ⟨PENDING⟩ index
-
-Every marker in this document, for use as a checklist once the campaign completes.
-
-| Item | Artifact |
-|---|---|
-| R1.3a — correlation/VIF; $K^\star$, BIC curve, ARI | `results/features/`, `runs/phase4/phase4_regime.json` |
-| R1.4e — oracle gap in composite cost; DAHS's share | `results/S1_calibration/`, `results/E2/` |
-| R1.5b — fitted families, parameters, goodness of fit | `results/A/` |
-| R1.6a — throughput and utilisation by rule | `results/*.parquet` |
-| R1.6b — PPO grid, `gap_closed_fraction`; FQI coverage | `results/E11_rl_sensitivity/`, `results/E9/` |
-| R2.1 — regenerated Table 1 with outcome partition | `results/*.parquet`, `results/E2/default_stats.parquet` |
-| R2.3 — rollout SE, `frac_separation_below_1se` per $M$ | `data/label_meta.json`, `results/E4/` |
-| R2.4 — empirical aliasing rate and its share | `results/E12_observability/` |
-| R2.5 — degradation slopes; does $\tau^\star$ shorten? | `results/E10_misspecification/` |
-| R2.6 — MPC KPIs, latency, break-even | `results/rolling_mpc.parquet`, §6.12 |
-| R3.1 — measured steps and wall-clock per stage | `data/label_meta.json`, `results/E12_compute/` |
-| R3.2 — pool-size curves; successive-halving saving | `results/E12_compute/` |
-| R3.3 — selection entropy, blocked-switch rate, $T_{\min}$ | `results/E13_saturation/`, `results/E4/` |
-| R3.4 — `top5_features` ablation row | `results/E3/e3_summary.parquet` |
-| R3.5 — ablation table with all three column groups | `results/E3/` |
