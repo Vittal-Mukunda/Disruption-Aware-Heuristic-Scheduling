@@ -1,0 +1,20 @@
+{
+  "label_simulated_interval_steps": 4401600,
+  "label_train_steps": 3668000,
+  "label_test_steps": 733600,
+  "label_budget_steps": 4617600,
+  "label_wall_clock_s": {
+    "train": 758.2536978999851,
+    "test": 163.9703109000111
+  },
+  "pool": [
+    "EEDD",
+    "COVERT",
+    "MS",
+    "ATC",
+    "MDD",
+    "EDD"
+  ],
+  "tau": 4,
+  "M": 20
+}

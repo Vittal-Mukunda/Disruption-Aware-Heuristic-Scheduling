@@ -233,10 +233,12 @@ Commit and push after each stage.
 
 ## 4. Things that must be reported, not smoothed over
 
-**The headline margin shrinks.** Counting unserved-and-overdue orders as failures
-(R2.1) moves the advantage over FIFO from ~3.8x to ~1.20x on this repository's
-own committed run logs. That is the correct number. Section 6, Table 1 and the
-abstract must be written around it.
+**The FIFO margin did not shrink to 1.20x.** That 1.20x was computed on old demo
+logs with only the metric rewritten; those logs still had the dispatcher idling
+pickers for arrival-agnostic rules, which uniquely favoured FIFO. After causal
+admission the measured default-scenario ratio is **3.90x on composite cost**
+(2.75x on service-failure rate), with utilisation equalised at ~0.956. Write
+Table 1 around the measured number, not the brief's prediction.
 
 **The diversity gate is broken, and the grid is worse than the gate.** EEDD —
 the rule that sorts on `min(sla_due, expiry_time)` — wins 65.0% of decisions on
@@ -297,30 +299,18 @@ bypassing it.
 
 ---
 
-## 6. This clone already has Stages 1–4
+## 6. Campaign status — COMPLETE on `ccf0240`
 
-Do **not** run `make clean-stale` or `make clean` here: that deletes the committed
-Stage-2 labels, Stage-3 ranker, and Stage-4 parquets. Stage 1 is done. Stages 2–3
-are done. Stage 4 baselines exist, but:
+Do **not** run `make clean-stale` or `scripts/run_remaining.ps1`. The revision
+campaign against `045edbc` finished; results and `CAMPAIGN_REPORT.md` are on
+`main` as `ccf0240`. The live log is `campaign_logs/rerun.log`.
 
-- `offline_fqi` must be retrained (double-`observe()` logger, now fixed).
-- `results/snapshot_xgb.parquet` for the default scenario was never written
-  (`evaluate --method snapshot_xgb`).
-- Stages 4b and 5 (data-efficiency, low_load / balanced / high_load_perish,
-  misspecification, weights, SHAP) have not run.
+What is still unrun (recipe commands that exit 2) is listed in
+`CAMPAIGN_REPORT.md` §6.1: the M-sweep, the theta sweep, and the M=1
+single-sample ablation. Do those before writing §6.4 / the ablation table.
+`python -m experiments.compute_budget measure` and `scaling` were also never
+run; they are cheap relative to a labelling pass.
 
-On Windows, from the repo root with the lockfile venv:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-powershell -File scripts\run_remaining.ps1
-```
-
-That block retrains FQI, evaluates snapshot_xgb, then Stage 4b and the three
-scenario evals. Continue afterwards from Stage 5 in section 2 above
-(`e8_robustness_grid`, misspecification, E4, E5). `e4_sensitivity tau`,
-`n_samples`, `theta`, and `e3_ablations relabel` **exit 2 on purpose** — they
-print a recipe; a zero exit would look like a finished sweep.
-
-Python on this machine is `.venv\Scripts\python.exe`, not `.venv/bin/python`.
-`make` is optional; every Makefile target is a `python -m ...` line.
+Python on Windows is `.venv\Scripts\python.exe`. Install from
+`requirements-lock.txt`. The lockfile needs **Python 3.12** (`scipy==1.18.0`);
+the documented 3.10–3.12 range is wrong.

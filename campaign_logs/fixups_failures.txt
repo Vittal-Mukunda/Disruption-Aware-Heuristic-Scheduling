@@ -1,2 +1,0 @@
-rc=127  .venv/Scripts/python.exe -m experiments.generate_labels --tau 2 --train-out data/tau2/train.parquet --test-out data/tau2/test.parquet
-rc=1  .venv/Scripts/python.exe -m experiments.train_ranker --run-id phase4_tau2 --train-path data/tau2/train.parquet --test-path data/tau2/test.parquet --skip-cv-cal

@@ -11,7 +11,7 @@
 <br/>
 
 [![Manuscript](https://img.shields.io/badge/Manuscript-Markdown-b31b1b?style=flat-square)](paper/manuscript.md)
-[![Python](https://img.shields.io/badge/Python-3.10--3.12-3776AB?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![Method](https://img.shields.io/badge/Method-Offline_Rollout_Distillation-E8740C?style=flat-square)](#4-the-dahs-method)
 [![Status](https://img.shields.io/badge/Status-Under_revision_(CAOR--D--26--01812)-E8740C?style=flat-square)](REVISION_PLAN.md)
 
@@ -193,7 +193,9 @@ DAHS/
 
 ## Backend (Python)
 
-Requires **Python 3.10, 3.11, or 3.12** (the project pins `>=3.10,<3.13`).
+Requires **Python 3.12**. `requirements-lock.txt` pins `scipy==1.18.0`, which
+does not install on 3.10/3.11. `pyproject.toml` still says `>=3.10,<3.13`;
+that range is wrong until the lockfile is rebuilt.
 
 ```bash
 # 1. Create and activate a virtual environment
@@ -316,9 +318,8 @@ First, detect the operating system. Use PowerShell syntax on Windows and bash
 syntax on macOS/Linux for every command below.
 
 STEP 1 — PYTHON BACKEND
-- Check that Python 3.10, 3.11, or 3.12 is installed: run `python --version`.
-  The project pins ">=3.10,<3.13" in pyproject.toml — do NOT use Python 3.13 or
-  newer. If no compatible Python is present, install Python 3.12.
+- Check that Python 3.12 is installed: run `python --version`.
+  The lockfile needs 3.12 (`scipy==1.18.0`). Do not use 3.13+.
 - From the repository root, create a virtual environment: `python -m venv .venv`
 - Activate it:
     Windows (PowerShell):  .\.venv\Scripts\Activate.ps1

@@ -26,12 +26,16 @@ format it.
 
 ## 1. Run the campaign
 
-- [ ] Follow `RUN_PROMPT.md` on the run machine
-- [ ] `CAMPAIGN_REPORT.md` produced and committed
-- [ ] Every artifact in `RUN_CAMPAIGN.md` §3 exists
-- [ ] `pytest` re-run *after* the campaign — the 11 skips should now be 0 or close
-      to it. Any test that now runs and **fails** is a result problem, not a test
-      problem, and must be understood before anything is written.
+- [x] Follow `RUN_PROMPT.md` on the run machine
+- [x] `CAMPAIGN_REPORT.md` produced and committed (`ccf0240`)
+- [x] Every artifact in `RUN_CAMPAIGN.md` §3 exists
+- [x] `pytest` re-run *after* the campaign — 159 passed, 1 skipped (FEFO mask
+      is a no-op because FEFO is not in the deployed pool). No failures.
+
+Still unrun, and needed before writing §6.4 / the M=1 ablation row: the M-sweep,
+theta sweep, and `e3_ablations relabel single_sample_rollout` (M=1 is the first
+cell of the M-sweep). Also `python -m experiments.compute_budget measure` and
+`scaling`.
 
 ## 2. Read the results before writing anything
 
@@ -46,13 +50,13 @@ restructuring rather than rewriting. Check them first, in this order.
 - [x] **`frac_separation_below_1se` in `data/label_meta.json`.** 33.4% at full
       scale (M=20, |H|=6). Report it; the M sweep remains load-bearing.
 - [x] **`gap_closed_fraction` for PPO, and the FQI coverage fix.** PPO closed
-      78.2% — structural reading withdrawn; tuned PPO (obs+rew norm, cost 450)
-      is the baseline. FQI coverage under `random` is adequate (6.00 / 5.94);
-      the logger was still broken at Stage 4 — retrain before resolving §6.10.
-- [ ] **Does the calibrated E8 grid cell reproduce the Table 1 static rows
-      exactly?** `tests/test_reproducibility.py` pins this. If it fails, stop —
-      the submitted version had a contradiction here and nothing downstream is
-      trustworthy until it is resolved.
+      78.3% — structural reading withdrawn; tuned PPO (obs+rew norm, cost 450)
+      is the baseline. FQI coverage under `random` is adequate (6.00 / 5.94).
+      The observe-once logger was retrained on this run; DAHS beats FQI 381 vs
+      397 (1.04x, CI excludes zero).
+- [x] **Does the calibrated E8 grid cell reproduce the Table 1 static rows
+      exactly?** Yes. `results/E8/arr1.65_default/{ours,eedd,greedy_mpc,snapshot_xgb}.parquet`
+      match Table 1 to 0.0 absolute error on every non-timing column.
 
 ## 3. Decisions that are yours, not the data's
 
@@ -71,8 +75,8 @@ restructuring rather than rewriting. Check them first, in this order.
 
 ## 4. Write the paper
 
-- [ ] Fill all **44 `⟨TBD-rerun⟩` markers** in `paper/manuscript.md`.
-      `grep -c "TBD-rerun" paper/manuscript.md` must reach 0.
+- [ ] Fill all **`⟨TBD-rerun⟩` markers** in `paper/manuscript.md`.
+      `grep -c "TBD-rerun"` is currently **34** (not 44). Must reach 0.
       Each marker states what to report *and* which way the conclusion falls —
       resolve against the measured outcome, do not delete the unfavourable branch.
 - [ ] Regenerate every figure; confirm all nine referenced paths exist

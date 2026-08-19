@@ -3,10 +3,10 @@
 Run executed against commit `045edbc` ("Fix FQI logger, unserved KPIs, and campaign
 gates before a from-scratch re-run"), merged locally as `c4d8f84`.
 
-**An earlier full campaign was run against the pre-fix tree and is superseded.** It is
-retained in this repo's history (commits `05db389` … `0fd99f6`) and in
-`campaign_logs/stage*.log` as a record of the defects it exposed. **Do not cite any
-number from it.**
+**An earlier full campaign was run against the pre-fix tree and is superseded.** It
+survives only in git history (`05db389` … `0fd99f6`). Those logs have been deleted.
+The live record of *this* run is `campaign_logs/rerun.log`. **Do not cite any
+number from the pre-fix campaign.**
 
 ---
 
@@ -93,8 +93,10 @@ Official BH-FDR stats on the **primary metric** (service-failure rate),
 
 **Two caveats that must be disclosed:**
 
-- DAHS wins on only **21 of 50 shifts**. The mean advantage is tail-driven: EEDD is better
-  on the median shift and catastrophic on a minority. The wide CI reflects this.
+- DAHS is strictly cheaper on **21 of 50 shifts**, EEDD on **7**, and they **tie on 22**.
+  The mean advantage is tail-driven (EEDD's worst shift is 5281 against DAHS's 2421).
+  DAHS also wins the **median** (44.1 vs 57.6). An earlier draft of this report
+  wrongly said EEDD won the median.
 - **EEDD is not the best single rule.** By aggregate composite cost the best is
   **COVERT (454.36)**; EEDD ranks 8th of 14. Against COVERT, DAHS wins **49/50**, 1.19x,
   p=3.55e-15 — a smaller margin but a far more robust claim. The "EEDD owns 15/16 cells"
@@ -106,12 +108,12 @@ Official BH-FDR stats on the **primary metric** (service-failure rate),
 Composite cost **3.90x** (50/50 shifts, CI [891, 1335]); service-failure rate **2.75x**
 (0.0689 vs 0.1894, `reject_bh = True`).
 
-The brief predicted the corrected objective would move this to ~1.20x. It did not. I
-hypothesised the unserved-and-overdue accounting bug explained the gap; **that hypothesis
-was wrong** — after the `045edbc` fix the ratio moved only from 3.90x to 3.90x on
-composite cost, and 2.76x to 2.75x on service-failure rate. The divergence from the
-brief's expectation is **unexplained** and needs an author's eye. Nothing was tuned to
-produce either number.
+The brief predicted ~1.20x from the *old demo logs* with only the metric rewritten.
+That calculation still had the dispatcher idling pickers for arrival-agnostic rules
+(F4), which uniquely favoured FIFO. After causal admission, utilisation is 0.956 for
+every method including FIFO, and FIFO's failures are late *served* orders
+(`sla_breach_rate_arrived` 0.182 vs DAHS 0.065), not abandoned work. The 3.90x is
+the post-F4 number; the 1.20x is not a target.
 
 ### 5. PPO and offline FQI — the structural claim is withdrawn
 
@@ -148,7 +150,7 @@ After the observe-once logger fix DAHS *does* beat FQI, but barely: 381.42 vs 39
 warning: *"K is being chosen by the grid boundary, not by the data."*
 
 BIC is still falling steeply at the edge — K=8: −168901, K=10: −222525, K=12: **−240139**.
-No flattening. `mean ARI 0.9694`, `stable = True`, so the clustering is reproducible; it is
+No flattening. `mean ARI 0.9700`, `stable = True`, so the clustering is reproducible; it is
 the model order that is undetermined.
 
 `045edbc` added `n_init: 5` (good — removes init luck) but did **not** widen `k_grid`. Not
@@ -219,8 +221,8 @@ Every artifact in RUN_CAMPAIGN.md §3 was produced:
 | `results/S1_calibration/diversity_state_grid.parquet` | yes | Stage 1, unchanged |
 | `results/S1_perishability/pivotality_summary.json` | yes | Stage 1, unchanged |
 | `data/label_meta.json` | yes | beta=0.469759 per_row; entropy 0.6381; sep<1se 0.3345; 4,401,600 interval-steps |
-| `runs/phase4/phase4_regime.json` | yes | K\*=12 (grid edge), ARI 0.9694, stable |
-| `runs/phase4/phase4_metrics.json` | yes | CV soft-xent 0.87499; ECE 0.1709→0.0198; Brier 0.1739→0.1258 |
+| `runs/phase4/phase4_regime.json` | yes | K\*=12 (grid edge), ARI 0.9700, stable |
+| `runs/phase4/phase4_metrics.json` | yes | CV soft-xent 0.87583; ECE 0.1700→0.0213; Brier 0.1730→0.1240 |
 | `results/*.parquet` (16 methods) | yes | Table 1 above |
 | `results/E2/default_stats.parquet` | yes | bootstrap CI + Wilcoxon + BH-FDR, all four scenarios |
 | `results/E3/e3_summary.parquet`, `e3_cost_summary.parquet` | yes | 4 retrain + inference ablations |
@@ -232,11 +234,13 @@ Every artifact in RUN_CAMPAIGN.md §3 was produced:
 | `results/E9/` | yes | FQI eval + data-efficiency + 12-cell grid |
 | `runs/data_efficiency/`, `figures/data_efficiency/` | yes | Figure 4, budgets {25,50,100,150,250} x 5 reps |
 | `results/A/`, `results/A2/` | yes | Olist validation + arrivals |
+| `results/E12_compute/latency.json` | yes | extracted after the run from eval parquets |
 
-**Calibration note:** isotonic calibration improves ECE (0.1709→0.0198, acceptance <0.05
-met) and Brier (0.1739→0.1258) but *degrades* soft cross-entropy (0.8284→2.3880),
-consistently across all five CV folds. EDD never wins in the calibration split and is
-passed through uncalibrated.
+**Calibration note:** isotonic calibration improves ECE (0.1700→0.0213, acceptance <0.05
+met) and Brier (0.1730→0.1240) but *degrades* soft cross-entropy (0.8280→2.3577).
+EDD never wins in the calibration split and is passed through uncalibrated. An
+earlier draft of this report quoted the superseded campaign's E5 print
+(0.1709→0.0198); the live file is `runs/phase4/phase4_metrics.json`.
 
 ### 5.1 `audit_reviewer_items.py` — 3 failures
 
@@ -332,24 +336,23 @@ most. These are the ones it **did not**:
 | Line | Passage | Why |
 |---|---|---|
 | 1821 | companion sweep over number of continuations (M) | `e4_sensitivity n_samples` not run (§6.1) |
-| 2042 | both ablations incl. single-sample rollout | `e3_ablations relabel` not run (§6.1) |
-| 2306 | sample-efficiency curve at pool sizes 2, 4, 8 | no pool-size sweep exists in the campaign |
-| 2286 | mean and 95th-percentile per-decision latency | not measured by any driver in §2 |
-| 2320 | arg-max agreement and label KL against uniform sampling | not measured by any driver in §2 |
+| 2042 | both ablations incl. single-sample rollout | `e3_ablations relabel` not run; same compute as M=1 |
+| 2286 | per-decision latency | **now extracted** to `results/E12_compute/latency.json` from the eval parquets |
+| 2275 | measured interval-steps / wall-clock | **partial:** `data/label_meta.json` + `results/E12_compute/label_budget.json`. Still missing `python -m experiments.compute_budget measure` |
+| 2306 | sample-efficiency curve at pool sizes 2, 4, 8 | no retrain-at-pool-size driver. `compute_budget scaling` is a different experiment (successive-halving vs uniform on the *screening* pool) |
+| 2320 | arg-max agreement and label KL vs uniform | produced by `python -m experiments.compute_budget scaling`, not yet run |
 
-Lines 2306, 2286 and 2320 have **no producing command anywhere in RUN_CAMPAIGN.md** — they
-cannot be resolved by re-running the campaign as written, and need new code.
-
-The remaining 29 markers have their numbers in the artifacts listed in §5, but the prose is
+The remaining markers have their numbers in the artifacts listed in §5, but the prose is
 the authors' to write.
 
 ---
 
 ## 8. Summary judgement
 
-The core claim survives: **DAHS beats every single dispatch rule on both composite cost and
-the primary service-failure metric, with paired intervals excluding zero after BH-FDR
-correction.**
+On the **default** scenario the core claim survives: **DAHS beats every static dispatch
+rule** on composite cost and service-failure rate, with paired intervals excluding zero
+after BH-FDR. It does **not** beat the teachers, is tied with tau=1, loses to WSPT under
+`high_load_perish`, and loses to EEDD (by pennies) under `balanced`.
 
 Three things the campaign changed:
 
@@ -363,5 +366,6 @@ Three things the campaign changed:
    rule. COVERT is, and the DAHS-over-COVERT result (49/50, 1.19x) is the more defensible
    headline.
 
-Two numbers need author adjudication before submission: the FIFO ratio (3.90x measured vs
-~1.20x expected, §3.4) and K\* at the grid boundary (§3.6).
+K\* at the grid boundary (§3.6) still needs an author decision: report it as a
+limitation, or widen `k_grid` and retrain (that invalidates Stage 3 onward). The FIFO
+3.90x is explained in §3.4 — do not treat 1.20x as a target.
