@@ -432,3 +432,7 @@ Traceback (most recent call last):
     raise KeyError(
 KeyError: "KPI columns ['service_failure_rate', 'composite_cost'] are not in this result frame. Available: ['ablation', 'decision_latency_ms_mean', 'decision_latency_ms_p95', 'eval_wall_clock_s_per_shift', 'retrained', 'train_flags', 'train_wall_clock_s']"
 ########## rc=1  13:34:26
+warning: in the working copy of 'campaign_logs/msweep.log', LF will be replaced by CRLF the next time Git touches it
+pushed E3
+MSWEEP END 13:34:28
+MSWEEP COMPLETE

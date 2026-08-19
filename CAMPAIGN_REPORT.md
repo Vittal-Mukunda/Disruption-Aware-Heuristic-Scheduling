@@ -369,3 +369,193 @@ Three things the campaign changed:
 K\* at the grid boundary (§3.6) still needs an author decision: report it as a
 limitation, or widen `k_grid` and retrain (that invalidates Stage 3 onward). The FIFO
 3.90x is explained in §3.4 — do not treat 1.20x as a target.
+
+---
+
+## Remaining-run addendum
+
+Executed against `f1ee3ff` per `RUN_PROMPT.md`. Sections **A (must)** and **B (should)**
+were run. Section **C (theta)** was **not run** — the prompt marks it optional and it was
+not requested.
+
+### Gate
+
+`preflight.py` passed. `pytest -q` gave **1 expected skip** (FEFO-not-in-pool) and **one
+failure**, which is a false positive and is described in §6.3 below. Pool check printed
+exactly `['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD'] 3.0 4.0`. `C:\CAOR` confirmed off
+OneDrive.
+
+### A — M-sweep (`e4_sensitivity n_samples`)
+
+Wall clock **2 h 41 m** total (10:52:53 → 13:34:28). Training dominates and is flat in M:
+the HP search costs ~35 min per arm regardless of M, so only M=40 is meaningfully more
+expensive.
+
+| M | labelling | training | arm total | median entropy | in band? |
+|---|---|---|---|---|---|
+| 1 | 49 s | 34.6 min | 35.7 min | 0.6413 | yes |
+| 5 | 3.9 min | ~28 min | 32.6 min | 0.6441 | yes |
+| 10 | ~7 min | ~28 min | 35.3 min | 0.6493 | yes |
+| 40 | ~28 min | ~30 min | 58.1 min | 0.6520 | yes |
+
+Target band throughout: **[0.3870, 0.9048]**. Every pass printed `-> OK`;
+`--force-out-of-band` was never used.
+
+#### Result — the multi-sample estimator buys nothing
+
+| M | composite cost | service-failure rate | mean tardiness | paired vs M=20 |
+|---|---|---|---|---|
+| **1** | **380.24** | 0.0685 | 0.7688 | −1.18, p=0.910 |
+| 5 | 380.44 | 0.0680 | 0.7650 | −0.98, p=0.539 |
+| 10 | 382.40 | 0.0691 | 0.7786 | +0.98, p=0.125 |
+| 20 | 381.42 | 0.0689 | 0.7753 | committed main run |
+| 40 | 382.78 | 0.0686 | 0.7668 | +1.36, p=0.352 |
+
+The curve spans **2.5 units on a base of 381 (0.7%)**, every bootstrap interval overlaps
+every other, no paired test approaches significance, and **M=1 is nominally the best cell
+on composite cost**.
+
+This is watch item 2 of the remaining-run prompt resolving in the direction it warned of:
+*"if M=1 matches M=20, the multi-sample machinery bought nothing and that is the result."*
+
+Read together with §4 of the main report — `snapshot_xgb` (tau=1) statistically
+indistinguishable from DAHS (tau=4) — **both axes of the rollout estimator are flat**. The
+labelling scheme costs |H|·tau·M = 480 simulated interval-steps per decision and performs
+no better than the |H|·1·1 = 6-step corner. Neither the horizon nor the number of
+continuations is earning its compute.
+
+#### E3 single-sample ablation
+
+`results/E3/single_sample_rollout.parquet` is present (copied from
+`results/E4/n_samples/M_1/ours.parquet` as the prompt directs) and `e3_summary` was
+**regenerated** — but only after working around a bug, see §6.4.
+
+Regenerated E3 table, composite cost, vs `ours` 381.4196:
+
+| ablation | composite cost | diff | p_raw | p_adj_bh | reject_bh |
+|---|---|---|---|---|---|
+| no_switching_controller | 380.4286 | −0.9911 | 0.5940 | 0.8315 | False |
+| **single_sample_rollout** | **380.2351** | **−1.1846** | 0.9095 | 1.0000 | False |
+| no_calibration | 381.4599 | +0.0403 | 0.5699 | 0.8315 | False |
+| random_ambiguity_filter | 381.4196 | 0.0000 | 1.0000 | 1.0000 | False |
+| hard_labels | 382.4306 | +1.0110 | 0.4651 | 0.8315 | False |
+| top5_features | 383.1432 | +1.7235 | 0.4204 | 0.8315 | False |
+| no_regime | 383.5620 | +2.1424 | 0.0479 | 0.3355 | False |
+
+**No ablation is significant after BH-FDR.** `no_regime` is closest and still does not
+survive correction. Removing the regime layer, using hard labels, dropping to five
+features, and disabling the switching controller all fail to move composite cost
+measurably.
+
+### B — compute budget
+
+Wall clock **~11 min** (13:35:54 → 13:47:04). `analytic` instant, `measure` 1.9 min,
+`scaling` 9.3 min. `latency.json` and `label_budget.json` were left untouched as
+instructed.
+
+`results/E12_compute/measured_throughput.json`:
+
+| | |
+|---|---|
+| machine | Intel Core i9-14900K, 24c/32t |
+| single-core throughput | **389.3 interval-steps/s** |
+| seconds per shift | 37.69 |
+| full corpus (3,848,000 steps) | **2.75 h single-core** |
+
+`analytic`: revision total 3,848,000 interval-steps at M=20 — **6.17x** the submitted
+cost for **20x** the samples per cell, because the O(N²) replay term is gone.
+
+`results/E12_compute/successive_halving.json` — **a negative result**:
+
+| | |
+|---|---|
+| argmax agreement rate | 0.85625 |
+| mean label KL | 0.1851 |
+| steps, uniform | 109,800 |
+| steps, successive halving | 108,580 |
+| step saving | **1.1%** |
+| verdict | *"Successive halving degrades the label at this budget; report uniform allocation and note the mitigation as unsuccessful here."* |
+
+Successive halving buys a 1.1% compute saving while disagreeing with the uniform-allocation
+arg-max on 14% of epochs. It should be reported as an unsuccessful mitigation.
+
+`pool_scaling_analytic.parquet` covers pool sizes 2/4/8/10/16/20 — steps scale linearly
+(0.50x / 1.00x / 2.00x relative to a 4-rule pool).
+
+### Assembled artifacts
+
+- `results/E4/n_samples_summary.parquet` — schema **verified identical** to
+  `results/E4/tau_summary.parquet`: `knob, value, metric, point, ci_lo, ci_hi, n,
+  n_resamples`. Metrics: `service_failure_rate`, `composite_cost`, `mean_tardiness`.
+  M=20 cell taken from the committed `results/ours.parquet`.
+- `figures/E4/n_samples_composite_cost.{png,pdf}`
+- `figures/E4/n_samples_service_failure_rate.{png,pdf}`
+
+Built by importing `_bootstrap_summary` and `_plot_curve` from
+`experiments.e4_sensitivity`, so the schema and plot style match the tau sweep exactly
+rather than being reimplemented.
+
+### Effect on §7 of the main report
+
+Three of the five gaps listed there are now closed, and one was mislabelled:
+
+| Line | Status after this run |
+|---|---|
+| 1821 — M sweep | **closed** — `results/E4/n_samples_summary.parquet` |
+| 2042 — single-sample ablation | **closed** — in `results/E3`, summary regenerated |
+| 2286 — per-decision latency | **already closed** — `results/E12_compute/latency.json`, committed in `f1ee3ff` |
+| 2320 — arg-max agreement and label KL | **closed** — `successive_halving.json` (0.85625 / 0.1851). The main report wrongly said no producer existed; `compute_budget scaling` is the producer. |
+| 2306 — sample-efficiency curve at pool sizes 2/4/8 | **still open** — `pool_scaling_analytic.parquet` gives the *analytic cost* at those pool sizes, not an empirical sample-efficiency curve. Producing one needs a re-label and retrain per pool size; no driver exists. |
+
+### Anything that failed
+
+**§6.3 — `test_campaign_commands.py` false positive (not fixed; prose).**
+`pytest -q` fails one case:
+`test_campaign_command_parses[experiments.compute_budget measure` and `scaling` were also never]`.
+The extractor matches `python -m …` inside backticks but continues past the closing
+backtick. `RUN_CAMPAIGN.md:311` reads:
+
+> `` `python -m experiments.compute_budget measure` and `scaling` were also never ``
+
+so it executed `compute_budget measure and scaling were also never --help`. All three
+subcommands (`analytic`, `measure`, `scaling`) were verified to parse cleanly and all three
+ran to rc=0 in section B. Fix is either to reword that sentence or to stop the extractor at
+the closing backtick. Not fixed here — it is prose.
+
+**§6.4 — `e3_ablations summary` is not idempotent (worked around; no code changed).**
+`cmd_summary` globs `results/E3/*.parquet` and skips only the stems `ours` and
+`e3_summary`, but **not `e3_cost_summary`** — its own second output. The first run succeeds;
+every subsequent run re-ingests its own cost table and dies:
+
+```
+KeyError: "KPI columns ['service_failure_rate', 'composite_cost'] are not in this result
+frame. Available: ['ablation', 'decision_latency_ms_mean', 'decision_latency_ms_p95',
+'eval_wall_clock_s_per_shift', 'retrained', 'train_flags', 'train_wall_clock_s']"
+```
+
+Worked around by moving `e3_cost_summary.parquet` aside and re-running; the command then
+exited 0 and regenerated both outputs. One-line fix: add `e3_cost_summary` to the skip
+tuple at `experiments/e3_ablations.py:467`.
+
+**§6.5 — the `random_ambiguity_filter` ablation cannot affect KPIs.**
+Its row reads `diff = 0.0000, p = 1.0000`. Every KPI column in
+`results/E3/random_ambiguity_filter.parquet` is **bit-identical** to `results/ours.parquet`
+(max absolute difference exactly 0.0 on `composite_cost`); only `wall_clock_s`,
+`decision_latency_ms_mean` and `decision_latency_ms_p95` differ, and those are measurement
+noise.
+
+The module docstring explains why: the ablation drops "the same NUMBER of **test rows** at
+random as the theta filter drops by confidence". `evaluate --method ours` runs the policy in
+simulation over 50 shifts and never consults the filtered test-row set, so the KPI parquet
+is identical **by construction**. The retrain is real (1623.8 s) but trains on an unchanged
+training set.
+
+That row is an identity, not a measurement. Reporting it as "the ambiguity filter has no
+significant effect on cost" would be misleading — its effect can only appear in label-space
+metrics (arg-max agreement, soft cross-entropy on retained rows), not in KPIs.
+
+### Not run
+
+**Section C — theta sweep.** Optional per the prompt. On the training times measured here
+(~35 min per arm, flat in the knob) four arms would cost roughly **4 h**, less than the
+6 h the prompt budgets. Nothing else in the report depends on it.

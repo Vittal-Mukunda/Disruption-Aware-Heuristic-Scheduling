@@ -1,0 +1,11 @@
+{
+  "machine_note": "Intel Core i9-14900K, 24c/32t",
+  "n_shifts_measured": 3,
+  "measured_steps": 44016,
+  "wall_clock_s": 113.06330059998436,
+  "interval_steps_per_second_single_core": 389.3040426594984,
+  "seconds_per_shift": 37.687766866661455,
+  "full_corpus_steps": 3848000,
+  "full_corpus_hours_single_core": 2.7456403524270203,
+  "note": "Labelling is embarrassingly parallel over shifts; divide the single-core estimate by the usable core count. The measurement itself is single-threaded so the per-core rate is not confounded by scheduler effects."
+}

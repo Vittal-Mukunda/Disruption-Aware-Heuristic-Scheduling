@@ -1,0 +1,36 @@
+BUDGET START 13:35:54
+
+########## .venv/Scripts/python.exe -m experiments.compute_budget analytic ##########  13:35:54
+                           scheme  n_shifts  n_rules  tau  M   steps  samples_per_cell  steps_per_sample
+submitted (replay-from-zero, M=1)       250        4    4  1  624000                 1          156000.0
+ revision (forward walk + branch)       250        6    4 20 3848000                20           32067.0
+      revision, Stage-1 screening        30        9    4  5  173760                 5            3861.0
+
+  submitted total : 624,000 interval-steps at M=1
+  revision total  : 3,848,000 interval-steps at M=20 (6.17x) 
+  The revision buys 20x the samples per cell for 6.17x the compute, because the O(N^2) replay term is gone.
+########## rc=0  13:35:54
+
+########## .venv/Scripts/python.exe -m experiments.compute_budget measure --n-shifts 3 --machine Intel Core i9-14900K, 24c/32t ##########  13:35:54
+[compute] measured 44,016 steps in 113.1s (389 steps/s, single core)
+[compute] full corpus 3,848,000 steps -> 2.75 core-hours
+########## rc=0  13:37:48
+
+########## .venv/Scripts/python.exe -m experiments.compute_budget scaling --n-shifts 5 ##########  13:37:48
+Analytic scaling in pool size (labelling steps are linear in |H|):
+ n_rules  steps_uniform  classes_to_learn  min_states_rule_of_thumb  steps_relative_to_pool_4
+       2        1288000                 2                       100                      0.50
+       4        2568000                 4                       200                      1.00
+       8        5128000                 8                       400                      2.00
+      10        6408000                10                       500                      2.50
+      16       10248000                16                       800                      3.99
+      20       12808000                20                      1000                      4.99
+
+Successive halving (eta=2) over 9 rules, 5 shifts:
+  arg-max agreement with uniform : 85.6%
+  mean KL between labels         : 0.1851
+  step saving                    : 1.1%
+  Successive halving degrades the label at this budget; report uniform allocation and note the mitigation as unsuccessful here.
+########## rc=0  13:47:04
+BUDGET END 13:47:04
+BUDGET COMPLETE

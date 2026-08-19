@@ -1,0 +1,10 @@
+{
+  "eta": 2,
+  "pool_size": 9,
+  "argmax_agreement_rate": 0.85625,
+  "mean_label_kl": 0.1850741794792043,
+  "steps_uniform": 109800,
+  "steps_successive_halving": 108580,
+  "step_saving": 0.011111111111111072,
+  "verdict": "Successive halving degrades the label at this budget; report uniform allocation and note the mitigation as unsuccessful here."
+}
