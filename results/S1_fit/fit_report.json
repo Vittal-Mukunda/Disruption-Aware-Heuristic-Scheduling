@@ -8,7 +8,7 @@
     "exponential_delta_aic": 34502.387306195014,
     "cv": 2.676518866993428,
     "skew": 11.040989951155556,
-    "deployed_as": "empirical bootstrap (arrival_mode: olist)"
+    "deployed_as": "poisson operating point (arrival_mode: poisson); Olist bootstrap is the A2 replay"
   },
   "arrival_rate": {
     "provenance": "operating point",
@@ -16,15 +16,16 @@
     "value": 1.65
   },
   "sla_due_triangular": {
-    "provenance": "fitted",
-    "source": "Olist purchase -> estimated delivery, shape only, rescaled to the shift time base",
+    "provenance": "operating point",
+    "source": "Olist purchase -> estimated delivery. AIC-best family is lognormal; value[] is a moment-matched triangular, not what config.yaml deploys (15, 45, 90).",
     "n": 99441,
     "best_family": "lognorm",
     "value": [
       1.405,
       10.17,
       138.425
-    ]
+    ],
+    "deployed_as": "triangular (15, 45, 90) in config.yaml"
   },
   "processing_time_triangular": {
     "provenance": "literature",

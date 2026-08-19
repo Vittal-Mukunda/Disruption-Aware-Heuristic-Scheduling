@@ -29,7 +29,7 @@ comment it serves.
 ```bash
 git clone https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling.git CAOR
 cd CAOR
-python -m venv .venv                    # Python 3.10-3.12 ONLY
+python -m venv .venv                    # Python 3.12 ONLY
 # Install from the LOCKFILE (bit-reproducible). Windows: .venv\Scripts\pip
 .venv/bin/pip install -r requirements-lock.txt
 .venv/bin/pip install -e . --no-deps
@@ -313,4 +313,4 @@ run; they are cheap relative to a labelling pass.
 
 Python on Windows is `.venv\Scripts\python.exe`. Install from
 `requirements-lock.txt`. The lockfile needs **Python 3.12** (`scipy==1.18.0`);
-the documented 3.10–3.12 range is wrong.
+the documented range is now `>=3.12,<3.13`.

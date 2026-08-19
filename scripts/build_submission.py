@@ -92,6 +92,18 @@ def check() -> list[str]:
         return [f"{MS} not found"]
     text = MS.read_text(encoding="utf-8")
 
+    if text.startswith("---"):
+        fm_end = text.find("\n---", 3)
+        fm = text[4:fm_end] if fm_end > 0 else ""
+        am = re.search(r"abstract:\s*\|(.*)", fm, re.S)
+        if am:
+            n_abs = len(am.group(1).split())
+            if n_abs > 250:
+                problems.append(
+                    f"abstract is {n_abs} words (Elsevier unstructured abstract "
+                    f"limit is 250)"
+                )
+
     n_tbd = text.count("TBD-rerun")
     if n_tbd:
         problems.append(
@@ -148,7 +160,10 @@ def check() -> list[str]:
     # References to the SUBMITTED paper's tables are a different document's
     # numbering and must NOT be renumbered; they are matched and excluded here so
     # a legitimate "the submitted Table 1" does not trip the ordering check.
-    article = re.sub(r"the submitted (?:paper's )?Table\s+\d+", "", prose, flags=re.I)
+    article = re.sub(
+        r"the submitted (?:paper's )?(?:Table|Figure)\s+\d+",
+        "", prose, flags=re.I,
+    )
     for kind in ("Table", "Figure"):
         seen = []
         for m in re.finditer(rf"{kind}\s+(\d+)", article):
@@ -228,7 +243,12 @@ def build() -> int:
         "", text, flags=re.S,
     )
     staged = OUT / "manuscript_clean.md"
-    staged.write_text(text, encoding="utf-8")
+    # Paths in the source are ../figures/... from paper/. Staged under
+    # paper/submission/ those would resolve to paper/figures/ (missing).
+    staged.write_text(
+        text.replace("](../figures/", "](../../figures/"),
+        encoding="utf-8",
+    )
 
     tex = OUT / "manuscript.tex"
     cmd = [

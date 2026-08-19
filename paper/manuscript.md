@@ -21,11 +21,11 @@ keywords:
   - warehouse operations
   - perishable inventory
 abstract: |
-  Warehouse order dispatching under customer due dates and product expiry is usually left to priority rules, but no single rule is best across a shift. A selection hyper-heuristic can choose the rule from the current state. Training that selector by simulating candidates offline and fitting a classifier is not new --- it is multi-pass rule selection and rollout classification policy iteration --- and we do not claim a new mechanism. We ask what the form of the supervision is worth, holding environment, corpus, model class and objective fixed.
+  Warehouse dispatching under due dates and product expiry is usually left to priority rules, but no single rule is best across a shift. A selection hyper-heuristic can choose the rule from the current state. Training that selector by simulating candidates offline and fitting a classifier is not new --- it is multi-pass rule selection and rollout classification policy iteration --- and we do not claim a new mechanism. We compare training signals, holding environment, corpus and objective fixed.
 
-  The problem is a partially observed sequential decision process. Each order has two independent clocks, both priced, together with tardiness and unserved demand, in a composite cost $J$. Three training signals are compared: a Monte Carlo truncated rollout of every rule, fitted Q-iteration on the same logs, and a neural policy gradient. Only the rollout signal trains the deployed tree ranker.
+  The problem is partially observed. Each order has two priced clocks, tardiness and unserved demand, in a composite cost $J$. Three signals are compared: a Monte Carlo truncated rollout of every rule, fitted Q-iteration on the same logs, and a neural policy gradient. Only the rollout signal trains the deployed tree ranker.
 
-  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and an untuned PPO policy ($611$; $450$ on a test-scored normalisation cell, not a train-split selection). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 exact ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency ($3.7$ ms vs $645$ ms). Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval (which includes 0) and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
+  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and untuned PPO ($611$; $449.60$ on a test-scored normalisation cell). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency. Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
 ---
 
 # 1. Introduction
@@ -714,7 +714,7 @@ grounded in a cited source, or declared a design choice; none is left unexplaine
 | Inter-arrival **shape** | Poisson (exponential inter-arrivals) | Operating point. Olist shape is lognormal; Section 6.7 and Appendix C report the fit and a frozen-ranker replay under empirical bootstrap arrivals |
 | Arrival **rate** | 1.65 orders/min nominal | Operating point; swept in Section 6.5 |
 | Processing time $p_o$ | Triangular$(2, 5, 12)$ min | **Literature**: three-point time standard for manual picker-to-parts picking [@tompkins2010facilities; @dekoster2007orderpicking] |
-| Customer window $d_o - a_o$ | Triangular$(15, 45, 90)$ min | **Fitted** to the Olist purchase-to-estimated-delivery distribution, shape only, rescaled to the shift time base |
+| Customer window $d_o - a_o$ | Triangular$(15, 45, 90)$ min | **Operating point.** AIC on the Olist purchase-to-estimated-delivery sample selects lognormal, not triangular (Appendix C). The campaign uses this triangular envelope at warehouse scale; it is not the MLE |
 | Shelf life $x_o - a_o$ | Triangular$(20, 60, 120)$ min | Design parameter; no public trace carries expiry. Swept in Section 6.4 |
 | Perishable fraction | 0.20 | Design parameter; varied by scenario |
 | Priority classes and weights | $\{$low, medium, high$\}$ at $(0.50, 0.35, 0.15)$, $w_o \in \{1, 2, 4\}$ | Design parameter |
@@ -1349,7 +1349,7 @@ that interval excludes zero.
 | MS | 0.070 | 0.248 | [0.119, 0.412] | yes |
 | ATC | 0.055 | 0.086 | [0.032, 0.155] | yes |
 | MDD | 0.011 | 0.039 | [0.014, 0.070] | yes |
-| EDD | 0.068 | 0.007 | [0.000, 0.021] | yes |
+| EDD | 0.068 | 0.007 | $[8.7{\times}10^{-7}, 0.021]$ | yes |
 | FIFO | 0.001 | 0.000 | [0.000, 0.000] | no |
 | WSPT | 0.000 | 0.000 | [0.000, 0.000] | no |
 | FEFO | 0.000 | 0.000 | [0.000, 0.000] | no |
@@ -1611,7 +1611,8 @@ shifts each. Best static is the cheapest always-on rule in that scenario.
 | low load | 9.04 / 0.00337 | COVERT (13-way tie at 9.04) | 9.04 | 9.04 | 9.04 |
 
 DAHS does not dominate across regimes. Under high-load-perishable WSPT is
-cheaper (paired cost difference $-258$, interval $[-332,-187]$, BH-reject).
+cheaper (paired cost difference $-258$, interval $[-332,-187]$, BH-reject);
+Always-ATC is also cheaper than DAHS there ($J=11{,}377$).
 Under balanced, EEDD is cheaper by $0.10$ with a null test (interval
 $[-0.31, 0.00]$). Under low load thirteen methods, including DAHS and both
 teachers, return identical $J=9.04$. The default-scenario ranking is therefore
@@ -1638,8 +1639,8 @@ $T_{\min}$ epochs, and under saturation the queue state changes fastest --- exac
 when a stale rule is most costly. We measure this as the **blocked-switch rate**:
 the share of epochs at which the ranker's arg-max differed from the deployed rule
 *because the dwell was still active*. A $T_{\min}$ sweep *within*
-high-load-perishable finds the cost-minimising dwell at the deployed value
-$T_{\min}=2$ (cost 11426.95); $T_{\min}\in\{0,1\}$ is 11427.04 and $T_{\min}=4$ is
+high-load-perishable finds the cost-minimising dwell tied at the deployed
+$T_{\min}=2$ and at $T_{\min}=3$ (both $11426.95$); $T_{\min}\in\{0,1\}$ is 11427.04 and $T_{\min}=4$ is
 11429.34. The guardrail is not the boundary condition in that scenario.
 
 ## 6.3 Sample efficiency
@@ -1711,7 +1712,7 @@ $M=1$ post-calibration ECE $0.067$ misses the $0.05$ bar.
 |---:|---:|---:|---:|---:|---:|---|
 | 1 | 380.24 | 0.0685 | 0.641 | 0 | 1150 / 1600 | 0.077$\to$0.067 |
 | 5 | 380.44 | 0.0680 | 0.644 | 0.567 | 1384 / 1600 | 0.123$\to$0.034 |
-| 10 | 382.40 | 0.0691 | 0.649 | 0.455 | 1457 / 1600 | 0.155$\to$0.027 |
+| 10 | 382.40 | 0.0691 | 0.649 | 0.455 | 1457 / 1600 | 0.155$\to$0.026 |
 | 20 | 381.42 | 0.0689 | 0.638 | 0.334 | 1525 / 1600 | 0.170$\to$0.021 |
 | 40 | 382.78 | 0.0686 | 0.652 | 0.215 | 1526 / 1600 | 0.189$\to$0.018 |
 
@@ -1798,10 +1799,12 @@ leads and EEDD still trails. Figure 10.
 
 **Table 11.** Retrain and inference ablations versus DAHS, 50 paired shifts.
 Composite cost is the column that decides. No ablation rejects equality with
-DAHS after BH control on cost, SFR, or tardiness (7-arm family, including
-`single_sample_rollout`). `random_ambiguity_filter` is per-shift identical to
-DAHS by construction --- the deployed filter is never applied at evaluation ---
-and is omitted from the table. Non-rejection is not an equivalence test.
+DAHS after BH control on cost, SFR, or tardiness. The BH family is the eight
+methods in `e3_summary.parquet`, including `random_ambiguity_filter`. That arm
+is per-shift identical to DAHS by construction --- the deployed filter is never
+applied at evaluation --- and is omitted from the displayed rows; the reported
+$p_{\mathrm{adj}}$ values are therefore the 8-arm (not 7-arm) corrections.
+Non-rejection is not an equivalence test.
 The training wall-clock to convergence is reported for
 retrain arms; inference-only arms do not retrain.
 
@@ -1971,13 +1974,15 @@ teacher is also the better policy.
 ### Scaling in $|\mathcal{H}|$
 
 Labelling cost is linear in $|\mathcal{H}|$ under uniform allocation of $M$
-continuations to every rule. Two mechanisms in the labeller address that.
+continuations to every rule. Two mitigations are discussed.
 
 Adaptive sample allocation (successive halving) discards clearly dominated rules
 part-way through the $M$ continuations and spends the remaining budget on the
 survivors. Hierarchical selection first screens a cheap one-step score and only
-then rolls the shortlist to depth $\tau$. Successive halving is implemented
-(`costs_at_epoch_successive_halving`). A 50-shift diagnostic at the deployed
+then rolls the shortlist to depth $\tau$. Successive halving is implemented in
+the labeller as `costs_at_epoch_successive_halving` and was measured as a
+compute-budget diagnostic; production labelling (`label_one_shift`) never calls
+it and stays on uniform `costs_at_epoch`. A 50-shift diagnostic at the deployed
 $(M,\tau)$ on the **nine-candidate screen set** (not the six-rule deployed pool)
 produced arg-max agreement $0.856$ against uniform allocation, mean
 label KL $0.185$, and a $1.1\%$ step saving (`successive_halving.json`).
@@ -2004,7 +2009,7 @@ On the default operating point, a rollout-trained selector beats every static
 dispatching rule we screened, with Always-COVERT as the static to beat
 ($J=454$ against DAHS $381$, $49/50$ shifts) rather than Always-EEDD ($J=696$,
 but only $21$ strict wins and $22$ exact ties). It beats fitted Q-iteration
-($397$) and an 8{,}000-timestep PPO policy ($611$ in Table 6; $450$ once observations and
+($397$) and an 8{,}000-timestep PPO policy ($611$ in Table 6; $449.60$ once observations and
 rewards are normalised; $696$ for the `n_steps`$=64$ collapse). It does not beat the teachers that generate its labels
 ($356$ and $363$). Distillation therefore loses $5$--$7\%$ of composite cost
 against online truncated lookahead and returns a $176$-fold reduction in
@@ -2313,9 +2318,11 @@ $2.68$. Poisson is therefore an operating point, not a fitted arrival process.
 Section 6.7's Olist-bootstrap replay is the robustness check that uses the
 empirical burstiness.
 
-Customer windows: triangular \((15, 45, 90)\) after rescaling the
-purchase-to-estimated-delivery distribution. Closest shape match of the three
-inputs (KS $D=0.039$, subsampled $p=0.022$, $W_1=0.035$).
+Customer windows: the AIC-best family on the Olist
+purchase-to-estimated-delivery sample is **lognormal**. The campaign does not
+deploy that MLE. It uses triangular \((15, 45, 90)\) as a warehouse-scale
+operating-point envelope. Closest shape match of the three
+inputs against that envelope (KS $D=0.039$, subsampled $p=0.022$, $W_1=0.035$).
 
 Processing time: not fitted. The trace field is purchase-to-approval, not pick
 time. The triangular \((2, 5, 12)\) is a literature three-point standard

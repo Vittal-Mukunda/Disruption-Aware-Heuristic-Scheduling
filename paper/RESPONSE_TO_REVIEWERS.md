@@ -969,8 +969,9 @@ the useful form of the answer:
   per-state supervision stays dense, and the *shift* budget at which the selector
   saturates is the quantity to watch, not the step budget.
 
-**We implement and evaluate the first mitigation you suggest.** Successive halving
-spends the same total budget adaptively — a cheap round over all rules, discard the
+**We implement successive halving as a compute-budget diagnostic, not as the
+production labelling path.** `label_one_shift` calls uniform `costs_at_epoch`.
+Successive halving spends the same total budget adaptively --- a cheap round over all rules, discard the
 worst fraction, reallocate to the survivors. This is compatible with the soft label
 rather than in tension with it: the tempered softmax maps a clearly inferior rule
 to near-zero probability however precisely its cost was estimated, so a rule
@@ -1072,9 +1073,9 @@ removing it improves them slightly — and it is retained deliberately as a
 deployability guardrail. Reporting cost alongside benefit makes that an explicit
 engineering trade rather than something to defend.
 
-Manuscript Table 11 (7-arm family, `random_ambiguity_filter` omitted because it
-is per-shift identical to DAHS; BH $p_{\mathrm{adj}}$ from the live
-`e3_summary.parquet`):
+Manuscript Table 11 (displayed 7 arms; BH family is the eight methods in
+`e3_summary.parquet`, including the omitted identity `random_ambiguity_filter`;
+$p_{\mathrm{adj}}$ from that 8-arm correction):
 
 | Ablation | $J$ | vs DAHS [95% CI] | $p_{\mathrm{adj}}$ | SFR | Train wall (s) |
 |---|---:|---|---:|---:|---:|

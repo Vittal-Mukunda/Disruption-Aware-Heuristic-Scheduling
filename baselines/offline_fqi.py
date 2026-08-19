@@ -43,6 +43,7 @@ so admission has happened before the observation, matching every other policy.
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -118,6 +119,8 @@ def log_transitions(
             a = pool.index(rule)
             phi_before = env.potential()
             env.step(rule)
+            if env.interval_idx >= env.n_intervals:
+                env.admit_if_shift_complete()
             r = -float(env.potential() - phi_before)
             done = bool(env.interval_idx >= env.n_intervals)
             if done:
@@ -330,7 +333,14 @@ def load_offline_fqi(
 
 
 def default_hp(cfg: DictConfig) -> dict:
-    """The deployed hyperparameters (config defaults; set by the e9 HP search)."""
+    """Deployed FQI hyperparameters: E9 winner if present, else config defaults.
+
+    Config.yaml keeps the search starting point (200 trees, γ=0.99). Table 6
+    uses `results/E9/hp_winner.json` (500 trees, γ=0.9).
+    """
+    winner = REPO_ROOT / "results" / "E9" / "hp_winner.json"
+    if winner.exists():
+        return json.loads(winner.read_text(encoding="utf-8"))
     fqi = cfg.baselines.offline_fqi
     return {
         "gamma": float(fqi.gamma),

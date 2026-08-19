@@ -2,9 +2,9 @@
 
 Three sub-commands map 1:1 to the three pieces of E2 in HANDOFF §3.2:
 
-  1. `eval`           — run any method against a named scenario, write a per-
-                        method parquet under `results/<scenario>/`. Scenarios
-                        are config sub-trees in `cfg.experiments.scenarios`.
+  1. `eval`           — run any method against a named scenario. Default writes
+                        to `results/<method>.parquet` (same path `stats` reads).
+                        Other scenarios write `results/scenario_<name>/`.
   2. `stats`          — load per-method parquets for a scenario (default: the
                         existing `results/*.parquet` snapshot), compute bootstrap
                         95% CI per method + paired Wilcoxon vs OURS + BH-FDR.
@@ -105,7 +105,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if args.n_test is not None:
         seeds = seeds[: int(args.n_test)]
 
-    out_dir = (args.results_dir or RESULTS_ROOT) / f"scenario_{args.scenario}"
+    if args.scenario == "default":
+        out_dir = args.results_dir or RESULTS_ROOT
+    else:
+        out_dir = (args.results_dir or RESULTS_ROOT) / f"scenario_{args.scenario}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     methods = args.methods if args.methods else DEFAULT_METHODS

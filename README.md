@@ -262,9 +262,10 @@ The experiment entry points live in `experiments/`; the `Makefile` wraps them as
 stage targets (run `make help` for the full list). Key targets:
 
 The pipeline is five ordered stages. Stage 1 must precede Stage 2: it settles
-the rule pool and the ATC/COVERT look-ahead scales that labelling consumes, and
-`config.yaml` ships those scales as `null` so an uncalibrated run fails loudly
-rather than silently reusing the submitted value.
+the rule pool and the ATC/COVERT look-ahead scales that labelling consumes.
+Committed `config.yaml` carries the fitted scales `3.0 / 4.0`. `with_default_scales`
+still fills a missing scale with the grid midpoint so Stage-1 diagnostics can run
+before calibration has written a value.
 
 | Target | Purpose |
 |---|---|

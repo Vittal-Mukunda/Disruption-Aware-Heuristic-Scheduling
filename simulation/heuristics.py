@@ -307,16 +307,11 @@ def resolve_pool(cfg=None) -> list[str]:
 def with_default_scales(cfg):
     """Fill any unset rule scale parameter with its grid median.
 
-    `config.yaml` ships `atc_lookahead_k` and `covert_lookahead_k` as null so an
-    uncalibrated rule fails loudly rather than silently reusing an arbitrary
-    default. That is the right behaviour for the deployed pipeline, but the
-    Stage-1 diagnostics — screening, the perishability scan, the compute
-    benchmark — need to *run* the rules before calibration has produced a value.
-
-    They call this, which substitutes the midpoint of the calibration grid and
-    records that it did so. Any result produced this way is a diagnostic, never a
-    reported rule benchmark: `experiments/calibrate_rules.py` is what fixes the
-    deployed values, and it overwrites whatever this returns.
+    Committed `config.yaml` carries the fitted scales (`3.0` / `4.0`). If a scale
+    is missing, ATC/COVERT fail at step time rather than silently reusing 2.0.
+    Stage-1 diagnostics call this to substitute the calibration-grid midpoint
+    before those fitted values exist. Results produced that way are diagnostics,
+    never reported rule benchmarks.
     """
     from omegaconf import OmegaConf, open_dict
 

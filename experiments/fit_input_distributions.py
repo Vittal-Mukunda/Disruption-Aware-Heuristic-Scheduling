@@ -259,7 +259,7 @@ def main() -> int:
             "exponential_delta_aic": float(expon_row["aic"] - best_ia["aic"]),
             "cv": float(ia.std() / ia.mean()),
             "skew": float(stats.skew(ia)),
-            "deployed_as": "empirical bootstrap (arrival_mode: olist)",
+            "deployed_as": "poisson operating point (arrival_mode: poisson); Olist bootstrap is the A2 replay",
         },
         "arrival_rate": {
             "provenance": "operating point",
@@ -268,12 +268,14 @@ def main() -> int:
             "value": float(cfg.sim.arrivals.base_rate_per_minute),
         },
         "sla_due_triangular": {
-            "provenance": "fitted",
-            "source": "Olist purchase -> estimated delivery, shape only, "
-                      "rescaled to the shift time base",
+            "provenance": "operating point",
+            "source": "Olist purchase -> estimated delivery. AIC-best family is "
+                      "lognormal; value[] is a moment-matched triangular, not "
+                      "what config.yaml deploys (15, 45, 90).",
             "n": int(dw.size),
             "best_family": str(dw_fits.iloc[0]["family"]),
             "value": sla_tri,
+            "deployed_as": "triangular (15, 45, 90) in config.yaml",
         },
         "processing_time_triangular": {
             "provenance": "literature",

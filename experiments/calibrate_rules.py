@@ -87,10 +87,9 @@ def _with_k(cfg: DictConfig, key: str, k: float) -> DictConfig:
 def _default_k(cfg: DictConfig) -> DictConfig:
     """Fill any unset scale parameter with a neutral value.
 
-    `config.yaml` ships `atc_lookahead_k: null` so that an uncalibrated run fails
-    loudly rather than silently reusing the submitted 2.0. Screening still needs
-    *some* value before calibration has run, so it uses the grid midpoint and
-    says so in its output.
+    Committed `config.yaml` carries the fitted scales. If a scale is unset,
+    `_default_k` fills the grid midpoint so screening can run before calibration
+    has written a value.
     """
     grid = [float(x) for x in cfg.heuristics.calibration.k_grid]
     mid = float(np.median(grid))

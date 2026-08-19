@@ -280,12 +280,9 @@ class WarehouseEnv:
         if n_new:
             self._n_arrivals_last_interval = n_new
 
-        # Scale parameters are resolved lazily. `config.yaml` ships them as null
-        # so that an uncalibrated ATC or COVERT fails loudly rather than silently
-        # reusing an arbitrary default (Reviewer 1, 4.c) — but only the rule that
-        # needs one should be affected. Building the context eagerly made
-        # `float(None)` raise on every step, for every rule, before Stage 1 has
-        # had a chance to write the fitted values.
+        # Scale parameters are resolved lazily. Committed config carries fitted
+        # k=3.0/4.0; if a scale is missing, only the rule that needs it fails,
+        # rather than `float(None)` on every step for every rule.
         ctx = {"t": interval_start}
         for key, cfg_key in (("atc_k", "atc_lookahead_k"),
                              ("covert_k", "covert_lookahead_k")):

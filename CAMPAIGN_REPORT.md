@@ -142,7 +142,7 @@ construction, "contradicting Section 6.10's coverage claim" — the revision's r
 behaviour policy is what fixed it.
 
 After the observe-once logger fix DAHS *does* beat FQI, but barely: 381.42 vs 396.80,
-1.04x, CI [2.69, 29.72], p=8.05e-03. On the pre-fix tree they were statistically tied.
+1.04x, CI [2.90, 29.83], p=8.05e-03. On the pre-fix tree they were statistically tied.
 
 ### 6. Regime K* — selected at the grid endpoint
 
@@ -166,7 +166,7 @@ Not among the six watch items, but it bears on the method's core design.
 **`snapshot_xgb` (the tau=1 arm) is statistically indistinguishable from DAHS (tau=4).**
 On the primary metric: ours 0.0689 vs snapshot_xgb 0.0671 — the tau=1 arm is *better* on
 the point estimate — diff −0.0018, CI [−0.0042, 0.0005], `p_adj_bh = 0.336`,
-**`reject_bh = False`**. On composite cost: 381.42 vs 388.13, CI [−4.05, 17.96] (includes
+**`reject_bh = False`**. On composite cost: 381.42 vs 388.13, CI [−3.63, 18.17] (includes
 zero).
 
 `baselines/snapshot_xgb.py` describes this gap as "the headline number".

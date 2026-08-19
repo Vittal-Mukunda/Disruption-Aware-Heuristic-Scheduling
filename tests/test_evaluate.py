@@ -65,11 +65,8 @@ def _usable_ppo(run_dir: Path) -> bool:
 def cfg():
     """Config with provisional ATC/COVERT scales filled in.
 
-    `config.yaml` ships `atc_lookahead_k: null` so that an uncalibrated
-    production run fails loudly rather than silently reusing the submitted 2.0
-    (Reviewer 1, 4.c). Tests still have to *run* those rules before Stage 1 has
-    fitted anything, which is exactly what `with_default_scales` is for. Nothing
-    here is a reported rule benchmark.
+    Committed `config.yaml` carries fitted ATC/COVERT scales (`3.0` / `4.0`).
+    `with_default_scales` is still used so tests remain valid if a scale is unset.
     """
     return with_default_scales(OmegaConf.load(CONFIG_PATH))
 
