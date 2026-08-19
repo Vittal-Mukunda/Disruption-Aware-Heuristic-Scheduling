@@ -413,3 +413,22 @@ Saved artifacts under runs\e4_M40/
   mean decision_latency_ms_mean   = 3.8801
   mean decision_latency_ms_p95    = 3.9348
 ########## rc=0  13:34:19
+warning: in the working copy of 'campaign_logs/msweep.log', LF will be replaced by CRLF the next time Git touches it
+pushed M=40
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations summary ##########  13:34:25
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\CAOR\experiments\e3_ablations.py", line 556, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\CAOR\experiments\e3_ablations.py", line 552, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "C:\CAOR\experiments\e3_ablations.py", line 474, in cmd_summary
+    require_metrics(df_abl, ["service_failure_rate", "composite_cost"])
+  File "C:\CAOR\experiments\stats.py", line 98, in require_metrics
+    raise KeyError(
+KeyError: "KPI columns ['service_failure_rate', 'composite_cost'] are not in this result frame. Available: ['ablation', 'decision_latency_ms_mean', 'decision_latency_ms_p95', 'eval_wall_clock_s_per_shift', 'retrained', 'train_flags', 'train_wall_clock_s']"
+########## rc=1  13:34:26
