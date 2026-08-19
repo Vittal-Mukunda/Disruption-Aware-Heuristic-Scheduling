@@ -3,16 +3,16 @@
   "n_failed": 0,
   "baseline_cost": 695.7707970245864,
   "best_tag": "norm(obs=True,rew=True)",
-  "best_cost": 449.83032244359435,
+  "best_cost": 449.60407898581803,
   "per_factor_spread": {
     "-": 0.0,
     "ent_coef": 0.0,
     "gae_lambda": 0.0,
     "gamma": 0.0,
     "n_steps": 22.478808449103894,
-    "normalization": 313.2272431035798
+    "normalization": 313.4534865613561
   },
-  "dahs_cost": 381.2459732810013,
-  "gap_closed_fraction": 0.7819429692503186,
+  "dahs_cost": 381.41963667042035,
+  "gap_closed_fraction": 0.7830946695454307,
   "verdict": "Tuning closes a substantial share of the gap. Section 6.9's 'structural, not budgetary' claim must be withdrawn and the tuned configuration reported as the PPO baseline."
 }

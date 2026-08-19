@@ -3,7 +3,7 @@
   "retrained": false,
   "train_wall_clock_s": null,
   "train_flags": [],
-  "decision_latency_ms_mean": 0.5003290626518719,
-  "decision_latency_ms_p95": 0.5150353008066304,
-  "eval_wall_clock_s_per_shift": 0.0251858359988546
+  "decision_latency_ms_mean": 0.5434254376450554,
+  "decision_latency_ms_p95": 0.6831485973089002,
+  "eval_wall_clock_s_per_shift": 0.026937063998775556
 }

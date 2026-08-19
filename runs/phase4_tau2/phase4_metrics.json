@@ -1,0 +1,123 @@
+{
+  "run_id": "phase4_tau2",
+  "seed": 1337,
+  "smoke": false,
+  "pool": [
+    "EEDD",
+    "COVERT",
+    "MS",
+    "ATC",
+    "MDD",
+    "EDD"
+  ],
+  "n_classes": 6,
+  "label_precision": {
+    "mean_standard_error": 0.952481703034897,
+    "median_standard_error": 0.6967036594514598,
+    "max_standard_error": 10.620536123204365,
+    "frac_separation_below_1se": 0.5627936507936508,
+    "frac_separation_below_2se": 0.6678095238095239,
+    "median_separation": 0.7379917050260895
+  },
+  "label_tau": 2,
+  "label_n_rollout_samples": 20,
+  "n_train_rows": 8000,
+  "n_test_rows": 1273,
+  "n_train_shifts_inner": 200,
+  "n_cal_shifts_inner": 50,
+  "regime": {
+    "k_star": 12,
+    "mean_ari": 0.9700223077881879,
+    "stable": true
+  },
+  "ranker": {
+    "best_params": {
+      "max_depth": 4,
+      "n_estimators": 200,
+      "learning_rate": 0.03
+    },
+    "best_mean_cv_soft_xent": 1.2343973535258859,
+    "per_fold_cv_soft_xent": [
+      1.209786285297219,
+      1.26579695090189,
+      1.235086609332537,
+      1.2629316111531974,
+      1.1983853109445866
+    ],
+    "grid_size": 18,
+    "feature_cols": [
+      "f_queue_length",
+      "f_mean_queue_age",
+      "f_max_queue_age",
+      "f_pct_critical",
+      "f_pct_perishable",
+      "f_n_arrivals_last_interval",
+      "f_labor_utilization",
+      "f_n_pickers_busy",
+      "f_mean_pickup_time_recent",
+      "f_n_orders_late_so_far",
+      "f_n_orders_at_risk_30min",
+      "f_mean_slack_minutes",
+      "f_std_slack_minutes",
+      "f_mean_processing_time_remaining",
+      "f_pct_high_priority",
+      "f_pct_expiring_30min",
+      "f_mean_expiry_slack",
+      "f_n_spoiled_so_far",
+      "f_arrival_rate_recent_60min",
+      "f_queue_length_lag_1",
+      "f_queue_length_lag_2",
+      "f_queue_length_lag_3",
+      "f_failure_rate_lag_1",
+      "f_failure_rate_lag_2",
+      "f_failure_rate_lag_3",
+      "f_interval_index_in_shift",
+      "regime_post_0",
+      "regime_post_1",
+      "regime_post_2",
+      "regime_post_3",
+      "regime_post_4",
+      "regime_post_5",
+      "regime_post_6",
+      "regime_post_7",
+      "regime_post_8",
+      "regime_post_9",
+      "regime_post_10",
+      "regime_post_11"
+    ]
+  },
+  "test_calibration": {
+    "ece_pre": 0.11118490700167365,
+    "ece_post": 0.05271808380511268,
+    "brier_pre": 0.3641625940799713,
+    "brier_post": 0.35455891489982605,
+    "soft_xent_pre": 1.021438969824822,
+    "soft_xent_post": 1.890588998677036,
+    "n_rows": 1273
+  },
+  "cv_calibration": null,
+  "argmax_distribution_test_pre": {
+    "EEDD": 969,
+    "COVERT": 176,
+    "MS": 45,
+    "ATC": 83,
+    "MDD": 0,
+    "EDD": 0
+  },
+  "argmax_distribution_test_post": {
+    "EEDD": 998,
+    "COVERT": 173,
+    "MS": 43,
+    "ATC": 59,
+    "MDD": 0,
+    "EDD": 0
+  },
+  "argmax_distribution_test_truth": {
+    "EEDD": 817,
+    "COVERT": 205,
+    "MS": 124,
+    "ATC": 105,
+    "MDD": 19,
+    "EDD": 3
+  }
+}

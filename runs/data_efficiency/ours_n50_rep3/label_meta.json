@@ -49,8 +49,8 @@
   "simulated_interval_steps_test": 733600,
   "budget_interval_steps": 4617600,
   "wall_clock_s": {
-    "train": 751.4434618999949,
-    "test": 158.89273010002216
+    "train": 758.2536978999851,
+    "test": 163.9703109000111
   },
   "objective_weights": {
     "w_breach": 3.0,

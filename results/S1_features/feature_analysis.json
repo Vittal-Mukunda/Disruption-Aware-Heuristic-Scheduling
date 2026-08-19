@@ -10,32 +10,32 @@
     {
       "a": "failure_rate_lag_1",
       "b": "failure_rate_lag_2",
-      "r": 0.9950547943197697
+      "r": 0.9951438774810343
     },
     {
       "a": "failure_rate_lag_2",
       "b": "failure_rate_lag_3",
-      "r": 0.9945569724370849
+      "r": 0.9946526745393318
     },
     {
       "a": "failure_rate_lag_1",
       "b": "failure_rate_lag_3",
-      "r": 0.9848000873505425
-    },
-    {
-      "a": "n_orders_late_so_far",
-      "b": "failure_rate_lag_3",
-      "r": 0.98452315099746
+      "r": 0.9848765640365196
     },
     {
       "a": "n_orders_late_so_far",
       "b": "failure_rate_lag_2",
-      "r": 0.983263218112794
+      "r": 0.9847234774918467
+    },
+    {
+      "a": "n_orders_late_so_far",
+      "b": "failure_rate_lag_3",
+      "r": 0.9844272460726406
     },
     {
       "a": "n_orders_late_so_far",
       "b": "failure_rate_lag_1",
-      "r": 0.976265456707065
+      "r": 0.9794748044720603
     },
     {
       "a": "queue_length_lag_1",
@@ -62,8 +62,8 @@
     "failure_rate_lag_2",
     "failure_rate_lag_1",
     "failure_rate_lag_3",
-    "mean_queue_age",
     "n_orders_late_so_far",
+    "mean_queue_age",
     "queue_length_lag_2",
     "queue_length_lag_3",
     "max_queue_age",
@@ -79,13 +79,13 @@
         "mean_queue_age"
       ]
     },
-    "labor_utilization": {
+    "n_pickers_busy": {
       "members": [
         "labor_utilization",
         "n_pickers_busy"
       ],
       "dropped": [
-        "n_pickers_busy"
+        "labor_utilization"
       ]
     },
     "n_orders_late_so_far": {
@@ -117,8 +117,8 @@
     "failure_rate_lag_1",
     "failure_rate_lag_2",
     "failure_rate_lag_3",
+    "labor_utilization",
     "mean_queue_age",
-    "n_pickers_busy",
     "queue_length_lag_1",
     "queue_length_lag_2"
   ]

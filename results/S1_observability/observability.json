@@ -44,12 +44,12 @@
     "n_states": 8000,
     "k_neighbours": 5,
     "radius_percentile": 10.0,
-    "radius_standardised": 1.0121381074015665,
-    "n_pairs": 1929,
-    "aliasing_rate": 0.14359771902540175,
-    "mean_regret": 0.2907150951572078,
-    "mean_regret_given_disagreement": 2.0245105363113867,
+    "radius_standardised": 1.012285907983557,
+    "n_pairs": 1927,
+    "aliasing_rate": 0.14478463933575506,
+    "mean_regret": 0.3015145744223718,
+    "mean_regret_given_disagreement": 2.082503888573156,
     "mean_cost_spread_across_rules": 55.952943362163566,
-    "aliasing_share_of_achievable_benefit": 0.03618237781000094
+    "aliasing_share_of_achievable_benefit": 0.03721884432591591
   }
 }

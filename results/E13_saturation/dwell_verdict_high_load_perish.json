@@ -1,8 +1,8 @@
 {
   "scenario": "high_load_perish",
-  "best_t_min": 3,
-  "best_cost": 10179.632455650319,
+  "best_t_min": 2,
+  "best_cost": 11426.954156030108,
   "deployed_t_min": 2,
-  "deployed_cost": 10179.655097351346,
+  "deployed_cost": 11426.954156030108,
   "note": "If the cost-minimising dwell in this scenario is shorter than the deployed one, the guardrail is the boundary condition the reviewer asked about, and the paper should say so and quantify the trade against switching frequency rather than defending the default."
 }

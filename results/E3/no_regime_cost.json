@@ -1,11 +1,11 @@
 {
   "ablation": "no_regime",
   "retrained": true,
-  "train_wall_clock_s": 1746.392195499997,
+  "train_wall_clock_s": 1123.5047756000422,
   "train_flags": [
     "--no-regime"
   ],
-  "decision_latency_ms_mean": 1.250513750292157,
-  "decision_latency_ms_p95": 1.373888501606416,
-  "eval_wall_clock_s_per_shift": 0.05937669800128788
+  "decision_latency_ms_mean": 0.7037563117410173,
+  "decision_latency_ms_p95": 0.8910557965864427,
+  "eval_wall_clock_s_per_shift": 0.03205190000124276
 }

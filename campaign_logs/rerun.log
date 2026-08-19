@@ -1,0 +1,2839 @@
+RERUN START 23:37:35
+
+########## .venv/Scripts/python.exe -m experiments.generate_labels --run-id phase4 --n-jobs -1 ##########  23:37:35
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:  1.5min
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  5.8min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed: 12.5min remaining:   37.8s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed: 12.6min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:  1.5min remaining:  6.9min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:  1.6min remaining:  2.4min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:  1.7min remaining:  1.1min
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  2.7min remaining:   30.7s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  2.7min finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=4  M=20  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 4,617,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=4, M=20, |H|=6)...
+  train: 758.3s  (3.03s/shift)  3,668,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=4, M=20, |H|=6)...
+  test: 164.0s  (3.28s/shift)  733,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.469759
+  median train row entropy = 0.6381 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1525/1600 (dropped 75)
+  rollout SE: mean=3.7089  median=1.8144
+  epochs with best/second gap < 1 SE: 33.4%
+
+[stage2] saved:
+  data\train.parquet  (8000 rows)
+  data\test.parquet  (1525 rows)
+  data\test_unfiltered.parquet  (1600 rows)
+  runs\phase4\label_meta.json
+  data\label_meta.json
+[stage2] simulated interval-steps: 4,401,600 (a priori budget 4,617,600)
+[stage2] total wall-clock: 922.2s
+########## rc=0  23:52:58
+
+########## .venv/Scripts/python.exe -m experiments.train_ranker --run-id phase4 ##########  23:52:58
+[Phase 4] run_id=phase4  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\data\train.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (91.1s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87583  per-fold = ['0.8372', '0.8883', '0.8937', '0.8722', '0.8877']
+  HP-search wall: 1484.7s  (combos: 18)
+[Phase 4] 5-fold-CV calibration report (acceptance: ECE_post < 0.05)...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  mean ECE pre = 0.1555  post = 0.0271
+  mean Brier pre = 0.1928  post = 0.1519
+  mean soft-xent post = 2.30121
+  CV-calibration wall: 132.6s
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 30.3s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1700   post=0.0213
+  Brier pre=0.1730  post=0.1240
+  soft-xent  pre=0.82800  post=2.35773
+  test rows: 1525
+
+Saved artifacts under runs\phase4/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_cv_calibration.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  00:21:59
+
+########## make tau1 PY=.venv/Scripts/python.exe ##########  00:21:59
+.venv/Scripts/python.exe -m experiments.generate_labels --tau 1 \
+  --train-out data/tau1/train.parquet --test-out data/tau1/test.parquet
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:  1.3min
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  5.3min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed: 11.2min remaining:   33.8s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed: 11.3min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:  1.4min remaining:  6.3min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:  1.5min remaining:  2.2min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:  1.6min remaining:   58.6s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  2.4min remaining:   27.4s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  2.4min finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=1  M=20  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 1,161,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=1, M=20, |H|=6)...
+  train: 679.1s  (2.72s/shift)  968,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=1, M=20, |H|=6)...
+  test: 146.6s  (2.93s/shift)  193,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.010000
+  median train row entropy = 0.6931 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 915/1600 (dropped 685)
+  rollout SE: mean=0.0000  median=0.0000
+  epochs with best/second gap < 1 SE: 36.7%
+
+[stage2] saved:
+  data\tau1\train.parquet  (8000 rows)
+  data\tau1\test.parquet  (915 rows)
+  data\tau1\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\tau1\label_meta.json
+[stage2] simulated interval-steps: 1,161,600 (a priori budget 1,161,600)
+[stage2] total wall-clock: 825.8s
+.venv/Scripts/python.exe -m experiments.train_ranker --run-id phase4_tau1 \
+  --train-path data/tau1/train.parquet \
+  --test-path data/tau1/test.parquet --skip-cv-cal
+[Phase 4] run_id=phase4_tau1  smoke=False  seed=1337
+[Phase 4] data: data\tau1\train.parquet / data\tau1\test.parquet
+[Phase 4] train: 8000 rows; test: 915 rows
+[Phase 4] labels: tau=1 M=20 beta=0.0100 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (88.5s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 1.49329  per-fold = ['1.4730', '1.4996', '1.4946', '1.5308', '1.4685']
+  HP-search wall: 1930.5s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 21.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.0505   post=0.1295
+  Brier pre=0.5295  post=0.5814
+  soft-xent  pre=1.07656  post=1.28188
+  test rows: 915
+
+Saved artifacts under runs\phase4_tau1/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  01:09:47
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method eedd --n-jobs -1 ##########  01:09:47
+[eval] method=eedd  n_test=50
+
+[eval] eedd over 50 shifts:
+  mean composite_cost             = 695.7708
+  mean service_failure_rate       = 0.0943
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.8400
+  mean unserved                   = 37.1600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0910
+  mean sla_breach_rate_served     = 0.0944
+  mean spoilage_rate              = 0.0357
+  mean mean_tardiness             = 0.7843
+  mean mean_tardiness_served      = 0.8361
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 21.7428
+  mean wall_clock_s               = 0.0122
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0007
+########## rc=0  01:09:49
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method covert --n-jobs -1 ##########  01:09:49
+[eval] method=covert  n_test=50
+
+[eval] covert over 50 shifts:
+  mean composite_cost             = 454.3620
+  mean service_failure_rate       = 0.0836
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.1000
+  mean unserved                   = 34.9000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0715
+  mean sla_breach_rate_served     = 0.0716
+  mean spoilage_rate              = 0.0857
+  mean mean_tardiness             = 0.8112
+  mean mean_tardiness_served      = 0.5760
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 14.1988
+  mean wall_clock_s               = 0.0147
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0008
+########## rc=0  01:09:52
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ms --n-jobs -1 ##########  01:09:52
+[eval] method=ms  n_test=50
+
+[eval] ms over 50 shifts:
+  mean composite_cost             = 789.8243
+  mean service_failure_rate       = 0.1040
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.1400
+  mean unserved                   = 37.8600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0898
+  mean sla_breach_rate_served     = 0.0932
+  mean spoilage_rate              = 0.1058
+  mean mean_tardiness             = 0.7816
+  mean mean_tardiness_served      = 0.8336
+  mean picker_utilization         = 0.9559
+  mean mean_interval_cost         = 24.6820
+  mean wall_clock_s               = 0.0145
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0008
+########## rc=0  01:09:54
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method atc --n-jobs -1 ##########  01:09:54
+[eval] method=atc  n_test=50
+
+[eval] atc over 50 shifts:
+  mean composite_cost             = 559.9183
+  mean service_failure_rate       = 0.1108
+  mean arrived                    = 767.0000
+  mean throughput                 = 734.3000
+  mean unserved                   = 32.7000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0989
+  mean sla_breach_rate_served     = 0.0987
+  mean spoilage_rate              = 0.0945
+  mean mean_tardiness             = 1.1667
+  mean mean_tardiness_served      = 0.8206
+  mean picker_utilization         = 0.9556
+  mean mean_interval_cost         = 17.4974
+  mean wall_clock_s               = 0.0163
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0008
+########## rc=0  01:09:56
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method mdd --n-jobs -1 ##########  01:09:56
+[eval] method=mdd  n_test=50
+
+[eval] mdd over 50 shifts:
+  mean composite_cost             = 733.1523
+  mean service_failure_rate       = 0.0999
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.5000
+  mean unserved                   = 36.5000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0857
+  mean sla_breach_rate_served     = 0.0896
+  mean spoilage_rate              = 0.1019
+  mean mean_tardiness             = 0.6526
+  mean mean_tardiness_served      = 0.6559
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 22.9110
+  mean wall_clock_s               = 0.0150
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0009
+########## rc=0  01:09:58
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method edd --n-jobs -1 ##########  01:09:58
+[eval] method=edd  n_test=50
+
+[eval] edd over 50 shifts:
+  mean composite_cost             = 763.0576
+  mean service_failure_rate       = 0.1014
+  mean arrived                    = 767.0000
+  mean throughput                 = 729.7800
+  mean unserved                   = 37.2200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0873
+  mean sla_breach_rate_served     = 0.0908
+  mean spoilage_rate              = 0.1033
+  mean mean_tardiness             = 0.7458
+  mean mean_tardiness_served      = 0.7965
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 23.8455
+  mean wall_clock_s               = 0.0139
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0007
+########## rc=0  01:10:00
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method fifo --n-jobs -1 ##########  01:10:00
+[eval] method=fifo  n_test=50
+
+[eval] fifo over 50 shifts:
+  mean composite_cost             = 1485.9735
+  mean service_failure_rate       = 0.1894
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.1600
+  mean unserved                   = 36.8400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.1819
+  mean sla_breach_rate_served     = 0.1854
+  mean spoilage_rate              = 0.0743
+  mean mean_tardiness             = 2.0225
+  mean mean_tardiness_served      = 2.0948
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 46.4367
+  mean wall_clock_s               = 0.0101
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  01:10:02
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method wspt --n-jobs -1 ##########  01:10:02
+[eval] method=wspt  n_test=50
+
+[eval] wspt over 50 shifts:
+  mean composite_cost             = 1215.6961
+  mean service_failure_rate       = 0.0987
+  mean arrived                    = 767.0000
+  mean throughput                 = 743.3400
+  mean unserved                   = 23.6600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0964
+  mean sla_breach_rate_served     = 0.0755
+  mean spoilage_rate              = 0.0611
+  mean mean_tardiness             = 5.5539
+  mean mean_tardiness_served      = 2.3048
+  mean picker_utilization         = 0.9550
+  mean mean_interval_cost         = 37.9905
+  mean wall_clock_s               = 0.0156
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0008
+########## rc=0  01:10:04
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method fefo --n-jobs -1 ##########  01:10:04
+[eval] method=fefo  n_test=50
+
+[eval] fefo over 50 shifts:
+  mean composite_cost             = 1698.9586
+  mean service_failure_rate       = 0.2032
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.3400
+  mean unserved                   = 36.6600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.2032
+  mean sla_breach_rate_served     = 0.2045
+  mean spoilage_rate              = 0.0001
+  mean mean_tardiness             = 2.8211
+  mean mean_tardiness_served      = 2.8861
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 53.0925
+  mean wall_clock_s               = 0.0111
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+########## rc=0  01:10:06
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ours --verbose --n-jobs=-1 ##########  01:10:06
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:    3.5s remaining:   16.3s
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:    4.0s remaining:    6.1s
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:    4.4s remaining:    2.7s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:    4.7s remaining:    0.8s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:    5.1s finished
+[eval] method=ours  n_test=50
+  wrote C:\CAOR\results\ours.parquet (50 rows)
+
+[eval] ours over 50 shifts:
+  mean composite_cost             = 381.4196
+  mean service_failure_rate       = 0.0689
+  mean arrived                    = 767.0000
+  mean throughput                 = 731.9000
+  mean unserved                   = 35.1000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0654
+  mean sla_breach_rate_served     = 0.0653
+  mean spoilage_rate              = 0.0395
+  mean mean_tardiness             = 0.7753
+  mean mean_tardiness_served      = 0.5449
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 11.9194
+  mean wall_clock_s               = 0.1410
+  mean decision_latency_ms_mean   = 3.6566
+  mean decision_latency_ms_p95    = 3.6020
+########## rc=0  01:10:14
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method rolling_mpc --verbose --n-jobs -1 ##########  01:10:14
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:   21.6s remaining:  1.6min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:   25.6s remaining:   38.4s
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:   27.2s remaining:   16.6s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:   38.5s remaining:    7.2s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:   40.4s finished
+[eval] method=rolling_mpc  n_test=50
+  wrote C:\CAOR\results\rolling_mpc.parquet (50 rows)
+
+[eval] rolling_mpc over 50 shifts:
+  mean composite_cost             = 362.5789
+  mean service_failure_rate       = 0.0642
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.4600
+  mean unserved                   = 34.5400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0606
+  mean sla_breach_rate_served     = 0.0600
+  mean spoilage_rate              = 0.0392
+  mean mean_tardiness             = 0.7700
+  mean mean_tardiness_served      = 0.5228
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.3306
+  mean wall_clock_s               = 20.6511
+  mean decision_latency_ms_mean   = 644.6489
+  mean decision_latency_ms_p95    = 899.7904
+########## rc=0  01:10:55
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method greedy_mpc --n-jobs -1 ##########  01:10:55
+[eval] method=greedy_mpc  n_test=50
+
+[eval] greedy_mpc over 50 shifts:
+  mean composite_cost             = 356.1368
+  mean service_failure_rate       = 0.0607
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.5400
+  mean unserved                   = 34.4600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0571
+  mean sla_breach_rate_served     = 0.0563
+  mean spoilage_rate              = 0.0372
+  mean mean_tardiness             = 0.7252
+  mean mean_tardiness_served      = 0.4831
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.1293
+  mean wall_clock_s               = 18.8494
+  mean decision_latency_ms_mean   = 588.3249
+  mean decision_latency_ms_p95    = 866.1468
+########## rc=0  01:11:33
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method linucb ##########  01:11:33
+[eval] method=linucb  n_test=50
+
+[eval] linucb over 50 shifts:
+  mean composite_cost             = 551.5475
+  mean service_failure_rate       = 0.0863
+  mean arrived                    = 767.0000
+  mean throughput                 = 731.1600
+  mean unserved                   = 35.8400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0775
+  mean sla_breach_rate_served     = 0.0789
+  mean spoilage_rate              = 0.0694
+  mean mean_tardiness             = 0.7726
+  mean mean_tardiness_served      = 0.7335
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 17.2359
+  mean wall_clock_s               = 0.0228
+  mean decision_latency_ms_mean   = 0.4433
+  mean decision_latency_ms_p95    = 0.7149
+########## rc=0  01:11:36
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method snapshot_xgb --n-jobs=-1 ##########  01:11:36
+[eval] method=snapshot_xgb  n_test=50
+
+[eval] snapshot_xgb over 50 shifts:
+  mean composite_cost             = 388.1294
+  mean service_failure_rate       = 0.0671
+  mean arrived                    = 767.0000
+  mean throughput                 = 731.9800
+  mean unserved                   = 35.0200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0638
+  mean sla_breach_rate_served     = 0.0635
+  mean spoilage_rate              = 0.0337
+  mean mean_tardiness             = 0.7340
+  mean mean_tardiness_served      = 0.4977
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 12.1290
+  mean wall_clock_s               = 0.1293
+  mean decision_latency_ms_mean   = 3.2951
+  mean decision_latency_ms_p95    = 3.1259
+########## rc=0  01:11:43
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi hpsearch --n-jobs=-1 ##########  01:11:43
+[e9] logging transitions for 250 shifts under behaviour policy 'random'...
+[e9] 8000 transitions (7.7s) -> offline_fqi_transitions.npz
+[e9 hpsearch] fit on shifts 0..199 (6400 transitions); select on validation shifts 200..249
+  [ 1/12] gamma=0.90 depth=4 n_est=200 lr=0.05  val_cost=385.715 val_breach=0.0684 (8s)
+  [ 2/12] gamma=0.90 depth=4 n_est=500 lr=0.05  val_cost=380.442 val_breach=0.0667 (7s)
+  [ 3/12] gamma=0.90 depth=6 n_est=200 lr=0.05  val_cost=387.332 val_breach=0.0666 (5s)
+  [ 4/12] gamma=0.90 depth=6 n_est=500 lr=0.05  val_cost=403.017 val_breach=0.0694 (12s)
+  [ 5/12] gamma=0.95 depth=4 n_est=200 lr=0.05  val_cost=386.279 val_breach=0.0699 (3s)
+  [ 6/12] gamma=0.95 depth=4 n_est=500 lr=0.05  val_cost=433.279 val_breach=0.0763 (7s)
+  [ 7/12] gamma=0.95 depth=6 n_est=200 lr=0.05  val_cost=416.730 val_breach=0.0716 (5s)
+  [ 8/12] gamma=0.95 depth=6 n_est=500 lr=0.05  val_cost=413.936 val_breach=0.0726 (12s)
+  [ 9/12] gamma=0.99 depth=4 n_est=200 lr=0.05  val_cost=388.866 val_breach=0.0701 (3s)
+  [10/12] gamma=0.99 depth=4 n_est=500 lr=0.05  val_cost=440.769 val_breach=0.0738 (8s)
+  [11/12] gamma=0.99 depth=6 n_est=200 lr=0.05  val_cost=436.153 val_breach=0.0778 (5s)
+  [12/12] gamma=0.99 depth=6 n_est=500 lr=0.05  val_cost=453.187 val_breach=0.0800 (12s)
+
+[e9 hpsearch] selected on validation composite_cost (lower is better):
+ gamma  max_depth  n_estimators  learning_rate  val_service_failure_rate  val_composite_cost
+  0.90          4           500           0.05                  0.066749          380.441762
+  0.90          4           200           0.05                  0.068376          385.714545
+  0.95          4           200           0.05                  0.069920          386.279071
+  0.90          6           200           0.05                  0.066643          387.332045
+  0.99          4           200           0.05                  0.070079          388.865833
+  0.90          6           500           0.05                  0.069395          403.016571
+  0.95          6           500           0.05                  0.072626          413.936292
+  0.95          6           200           0.05                  0.071585          416.730300
+  0.95          4           500           0.05                  0.076342          433.278559
+  0.99          6           200           0.05                  0.077817          436.152868
+  0.99          4           500           0.05                  0.073765          440.769366
+  0.99          6           500           0.05                  0.080002          453.187047
+
+[e9 hpsearch] winner -> hp_winner.json: {'gamma': 0.9, 'n_iterations': 20, 'xgb_params': {'max_depth': 4, 'n_estimators': 500, 'learning_rate': 0.05}}
+########## rc=0  01:13:24
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi eval --n-jobs=-1 ##########  01:13:24
+[e9 eval] training FQI on all 250 shifts with hp={'gamma': 0.9, 'n_iterations': 20, 'xgb_params': {'max_depth': 4, 'n_estimators': 500, 'learning_rate': 0.05}}
+[e9 eval] trained + saved to C:\CAOR\runs\offline_fqi (7s)
+
+[e9 eval] offline_fqi over 50 test shifts:
+  service_failure_rate = 0.0724
+  composite_cost       = 396.7984
+  mean_tardiness  = 0.8016
+
+[e9 eval] context (frozen results/ parquets):
+  ours           sla_breach=0.0689  composite_cost=381.4196  mean_tardiness=0.7753
+  snapshot_xgb   sla_breach=0.0671  composite_cost=388.1294  mean_tardiness=0.7340
+  greedy_mpc     sla_breach=0.0607  composite_cost=356.1368  mean_tardiness=0.7252
+########## rc=0  01:13:39
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi robustness_grid --n-jobs=-1 ##########  01:13:39
+  arr1.40_tight        sla_breach=0.0536  composite_cost=207.068
+  arr1.40_default      sla_breach=0.0042  composite_cost=16.201
+  arr1.40_loose        sla_breach=0.0006  composite_cost=2.172
+  arr1.50_tight        sla_breach=0.0994  composite_cost=405.206
+  arr1.50_default      sla_breach=0.0041  composite_cost=17.818
+  arr1.50_loose        sla_breach=0.0006  composite_cost=3.307
+  arr1.65_tight        sla_breach=0.3032  composite_cost=1714.186
+  arr1.65_default      sla_breach=0.0724  composite_cost=396.798
+  arr1.65_loose        sla_breach=0.0198  composite_cost=111.159
+  arr1.80_tight        sla_breach=0.4676  composite_cost=4185.306
+  arr1.80_default      sla_breach=0.2881  composite_cost=2251.214
+  arr1.80_loose        sla_breach=0.1545  composite_cost=1102.899
+[e9 robustness_grid] results\E8\robustness_grid_summary.parquet is not present yet (E8 is a later stage). FQI grid written to robustness_grid_offline_fqi.parquet; re-run this command after `e8_robustness_grid summary` for the side-by-side.
+########## rc=0  01:14:00
+
+########## .venv/Scripts/python.exe -m baselines.ppo_fair ##########  01:14:00
+########## rc=0  01:14:16
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ppo_fair ##########  01:14:16
+[eval] method=ppo_fair  n_test=50
+
+[eval] ppo_fair over 50 shifts:
+  mean composite_cost             = 610.9285
+  mean service_failure_rate       = 0.0951
+  mean arrived                    = 767.0000
+  mean throughput                 = 730.4800
+  mean unserved                   = 36.5200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0833
+  mean sla_breach_rate_served     = 0.0850
+  mean spoilage_rate              = 0.0916
+  mean mean_tardiness             = 0.8761
+  mean mean_tardiness_served      = 0.9074
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 19.0915
+  mean wall_clock_s               = 0.0144
+  mean decision_latency_ms_mean   = 0.1670
+  mean decision_latency_ms_p95    = 0.2466
+########## rc=0  01:14:20
+
+########## .venv/Scripts/python.exe -m experiments.rl_sensitivity ppo ##########  01:14:20
+C:\CAOR\.venv\Lib\site-packages\stable_baselines3\ppo\ppo.py:155: UserWarning: You have specified a mini-batch size of 64, but because the `RolloutBuffer` is of size `n_steps * n_envs = 32`, after every 0 untruncated mini-batches, there will be a truncated mini-batch of size 32
+We recommend using a `batch_size` that is a factor of `n_steps * n_envs`.
+Info: (n_steps=32 and n_envs=1)
+  warnings.warn(
+[ppo-sensitivity] 12 configurations x 8,000 steps, evaluated on 50 test shifts
+  [ 1/12] baseline
+  [ 2/12] gamma=0.9
+  [ 3/12] gamma=1.0
+  [ 4/12] gae_lambda=0.9
+  [ 5/12] gae_lambda=0.99
+  [ 6/12] n_steps=32
+  [ 7/12] n_steps=256
+  [ 8/12] ent_coef=0.01
+  [ 9/12] ent_coef=0.05
+  [10/12] norm(obs=True,rew=True)
+  [11/12] norm(obs=True,rew=False)
+  [12/12] norm(obs=False,rew=True)
+
+                     tag        factor  composite_cost  service_failure_rate
+ norm(obs=True,rew=True) normalization        449.6041                0.0826
+norm(obs=True,rew=False) normalization        540.6608                0.0842
+             n_steps=256       n_steps        673.2920                0.0933
+                baseline             -        695.7708                0.0943
+          gae_lambda=0.9    gae_lambda        695.7708                0.0943
+         gae_lambda=0.99    gae_lambda        695.7708                0.0943
+               gamma=1.0         gamma        695.7708                0.0943
+               gamma=0.9         gamma        695.7708                0.0943
+           ent_coef=0.01      ent_coef        695.7708                0.0943
+              n_steps=32       n_steps        695.7708                0.0943
+           ent_coef=0.05      ent_coef        695.7708                0.0943
+norm(obs=False,rew=True) normalization        763.0576                0.1014
+
+[ppo-sensitivity] gap closed: 78.3%
+[ppo-sensitivity] Tuning closes a substantial share of the gap. Section 6.9's 'structural, not budgetary' claim must be withdrawn and the tuned configuration reported as the PPO baseline.
+########## rc=0  01:18:03
+
+########## .venv/Scripts/python.exe -m experiments.rl_sensitivity coverage ##########  01:18:03
+[coverage] behaviour policy: random  |H| = 6
+[coverage] overall      : effective actions 6.00, min share 0.161  (n=8,000)
+[coverage] breach-prone : effective actions 6.00, min share 0.157  (n=2,000)
+[coverage] conditional on interval_idx: 5.94 of 6 effective actions
+
+[coverage] Coverage is adequate: the offline-RL deficit cannot be attributed to unsupported actions in the hard region.
+########## rc=0  01:18:04
+
+########## .venv/Scripts/python.exe -m experiments.e2_main data_efficiency --n-jobs=-1 ##########  01:18:04
+[Phase 4] run_id=data_efficiency/ours_n25_rep0  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n25_rep0\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=25 rep=0
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 8  BIC = -5467.5  mean ARI = 0.9059  stable=True  (10.2s)
+  BIC sweep: {2: 5281.817677917799, 3: 3516.53215456745, 4: -1270.338357050019, 5: -1742.4298349871533, 6: -3783.4693588196114, 7: -3751.8110066160007, 8: -5467.786576313727, 10: -2020.5011337851502, 12: -732.569367654316}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.86745  per-fold = ['0.8924', '0.8749', '0.7986', '0.9424', '0.8289']
+  HP-search wall: 414.2s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 640 train rows (20 shifts) / 160 calibration rows (5 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 5.0s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 2 of 6 rules never win in the calibration split (indices [3, 5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1569   post=0.1145
+  Brier pre=0.1872  post=0.2580
+  soft-xent  pre=0.85747  post=2.00581
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n25_rep0/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n25_rep1  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n25_rep1\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=25 rep=1
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 7  BIC = -4803.5  mean ARI = 0.9016  stable=True  (9.5s)
+  BIC sweep: {2: 5229.437174822318, 3: 2269.8686220581812, 4: -2979.573601195836, 5: -1078.8326160432352, 6: 756.7031971532924, 7: -4606.040031098473, 8: -3314.06369720801, 10: -161.8501144255606, 12: 2688.163449644824}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.94471  per-fold = ['0.9712', '0.9968', '0.9195', '0.8219', '1.0143']
+  HP-search wall: 395.8s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 640 train rows (20 shifts) / 160 calibration rows (5 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 5.1s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1730   post=0.0243
+  Brier pre=0.1901  post=0.1583
+  soft-xent  pre=0.85972  post=3.58663
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n25_rep1/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n25_rep2  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n25_rep2\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=25 rep=2
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 7  BIC = -5694.5  mean ARI = 0.9829  stable=True  (10.3s)
+  BIC sweep: {2: 3568.045915321629, 3: -1608.9960238969998, 4: -2594.988269856689, 5: -1125.9085836943214, 6: -3919.215255152363, 7: -5304.691720521758, 8: -3865.6343312626086, 10: -4408.812405879697, 12: 375.5439783919792}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.94266  per-fold = ['0.9111', '1.0884', '0.8578', '0.9336', '0.9224']
+  HP-search wall: 408.2s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 640 train rows (20 shifts) / 160 calibration rows (5 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 5.1s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 2 of 6 rules never win in the calibration split (indices [3, 5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1785   post=0.0577
+  Brier pre=0.1928  post=0.1491
+  soft-xent  pre=0.85593  post=2.82224
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n25_rep2/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n25_rep3  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n25_rep3\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=25 rep=3
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -6549.1  mean ARI = 0.8774  stable=True  (11.2s)
+  BIC sweep: {2: 5281.567541773309, 3: -277.5326677974408, 4: -5217.437017930826, 5: -3626.3744656075414, 6: -2891.088212291883, 7: -1699.7916715271895, 8: -4550.400127927191, 10: -5572.708784918108, 12: -2618.1733636086647}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89053  per-fold = ['0.8640', '0.9350', '0.7866', '0.8902', '0.9767']
+  HP-search wall: 410.5s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 640 train rows (20 shifts) / 160 calibration rows (5 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 4.8s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 2 of 6 rules never win in the calibration split (indices [3, 5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1621   post=0.0638
+  Brier pre=0.1899  post=0.1898
+  soft-xent  pre=0.87379  post=3.29886
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n25_rep3/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n25_rep4  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n25_rep4\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=25 rep=4
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 4  BIC = -5238.5  mean ARI = 0.9758  stable=True  (7.4s)
+  BIC sweep: {2: 6024.92327117814, 3: 1864.5941049457742, 4: -5238.221923239917, 5: -3706.8639889350197, 6: -2573.495526449815, 7: -1743.3794138413505, 8: -465.0461844428137, 10: -2439.6073404641575, 12: 718.1761041316204}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.93949  per-fold = ['0.9356', '0.9108', '0.9471', '0.9332', '0.9708']
+  HP-search wall: 376.6s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 640 train rows (20 shifts) / 160 calibration rows (5 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 4.7s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1716   post=0.0488
+  Brier pre=0.1814  post=0.1346
+  soft-xent  pre=0.84946  post=2.12600
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n25_rep4/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n50_rep0  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n50_rep0\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 1600 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=50 rep=0
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 7  BIC = -19114.5  mean ARI = 0.8239  stable=False  (13.9s)
+  BIC sweep: {2: 10566.27348098827, 3: -1904.2830092663971, 4: -14374.039021639413, 5: -13052.029436667573, 6: -12542.120600008533, 7: -19114.507728760895, 8: -17439.82077231798, 10: -18706.745365013932, 12: -17588.42900509203}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.90208  per-fold = ['0.9291', '0.8048', '0.9633', '0.8966', '0.9165']
+  HP-search wall: 584.0s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 1280 train rows (40 shifts) / 320 calibration rows (10 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 6.7s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1673   post=0.0301
+  Brier pre=0.1797  post=0.1377
+  soft-xent  pre=0.83975  post=2.92733
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n50_rep0/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n50_rep1  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n50_rep1\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 1600 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=50 rep=1
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -22755.9  mean ARI = 0.8424  stable=False  (12.8s)
+  BIC sweep: {2: 11177.23939566746, 3: -2998.276488701511, 4: -14867.40855478843, 5: -13917.489250386137, 6: -12842.828100742136, 7: -11847.81034939652, 8: -19317.710441257077, 10: -16359.879289342458, 12: -22294.416493564007}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88126  per-fold = ['0.8775', '0.8088', '0.9412', '0.9039', '0.8750']
+  HP-search wall: 584.5s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 1280 train rows (40 shifts) / 320 calibration rows (10 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 6.7s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1612   post=0.0773
+  Brier pre=0.1752  post=0.1420
+  soft-xent  pre=0.84359  post=1.79322
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n50_rep1/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n50_rep2  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n50_rep2\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 1600 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=50 rep=2
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -20718.9  mean ARI = 0.9878  stable=True  (12.3s)
+  BIC sweep: {2: 8636.19739449904, 3: -3152.372369505796, 4: -13870.608394818633, 5: -13133.2296735716, 6: -11307.456599910663, 7: -9684.358127986576, 8: -17037.71048805953, 10: -22427.255895003105, 12: -16706.949938167985}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.91447  per-fold = ['0.9328', '0.9198', '0.8484', '0.9309', '0.9406']
+  HP-search wall: 582.4s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 1280 train rows (40 shifts) / 320 calibration rows (10 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 6.7s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1688   post=0.0413
+  Brier pre=0.1749  post=0.1346
+  soft-xent  pre=0.84421  post=1.95908
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n50_rep2/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n50_rep3  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n50_rep3\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 1600 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=50 rep=3
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -25898.9  mean ARI = 0.9474  stable=True  (13.7s)
+  BIC sweep: {2: 7604.516761613291, 3: -5151.871768514851, 4: -16055.240376075095, 5: -14407.772714854687, 6: -15625.007229929157, 7: -12379.991952843273, 8: -19303.19660978591, 10: -25638.81039082981, 12: -24187.099130683135}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89508  per-fold = ['0.8600', '0.8721', '0.9006', '0.8810', '0.9617']
+  HP-search wall: 585.2s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 1280 train rows (40 shifts) / 320 calibration rows (10 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 6.6s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1689   post=0.0204
+  Brier pre=0.1822  post=0.1449
+  soft-xent  pre=0.85000  post=3.01571
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n50_rep3/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n50_rep4  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n50_rep4\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 1600 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=50 rep=4
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -27606.3  mean ARI = 0.9224  stable=True  (14.4s)
+  BIC sweep: {2: 10763.613724744839, 3: -5136.614241295134, 4: -16069.617737109338, 5: -2653.6048486627406, 6: -13523.226123855566, 7: -13189.236215265206, 8: -11787.477930020294, 10: -28720.12619556703, 12: -25400.34795446961}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87494  per-fold = ['0.9270', '0.8500', '0.8721', '0.8039', '0.9217']
+  HP-search wall: 605.1s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 1280 train rows (40 shifts) / 320 calibration rows (10 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 6.8s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1592   post=0.0403
+  Brier pre=0.1830  post=0.1536
+  soft-xent  pre=0.85051  post=1.89612
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n50_rep4/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n100_rep0  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n100_rep0\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 3200 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=100 rep=0
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -76713.5  mean ARI = 0.7402  stable=False  (25.1s)
+  BIC sweep: {2: 18507.22333422492, 3: -9765.440475604306, 4: -33758.99761833044, 5: -26712.245877423164, 6: -50578.79782021717, 7: -48356.299697955576, 8: -45695.88784762806, 10: -69568.4521362889, 12: -76792.86516856335}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.91236  per-fold = ['0.9612', '0.8751', '0.9098', '0.9557', '0.8600']
+  HP-search wall: 886.0s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 2560 train rows (80 shifts) / 640 calibration rows (20 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 18.7s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1726   post=0.0178
+  Brier pre=0.1796  post=0.1298
+  soft-xent  pre=0.83234  post=2.57594
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n100_rep0/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n100_rep1  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n100_rep1\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 3200 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=100 rep=1
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -81410.9  mean ARI = 0.6872  stable=False  (22.7s)
+  BIC sweep: {2: 12449.116052322333, 3: -13095.083007796014, 4: -37016.79405062953, 5: -37200.32166388715, 6: -53627.5497660046, 7: -52124.69965038779, 8: -62928.15137309033, 10: -73693.21652671951, 12: -77960.39432716419}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89089  per-fold = ['0.9218', '0.8195', '0.8798', '0.9623', '0.8711']
+  HP-search wall: 893.8s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 2560 train rows (80 shifts) / 640 calibration rows (20 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 10.2s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1706   post=0.0332
+  Brier pre=0.1781  post=0.1359
+  soft-xent  pre=0.83844  post=2.25045
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n100_rep1/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n100_rep2  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n100_rep2\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 3200 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=100 rep=2
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -70416.1  mean ARI = 0.9025  stable=True  (20.0s)
+  BIC sweep: {2: 17018.46504068653, 3: -11419.299220135685, 4: -37537.3400961069, 5: -37577.04936936257, 6: -26401.91687090735, 7: -53856.14098605307, 8: -55455.029903940136, 10: -71948.51062906817, 12: -68933.88825716719}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88349  per-fold = ['0.8779', '0.8683', '0.8784', '0.9287', '0.8642']
+  HP-search wall: 856.4s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 2560 train rows (80 shifts) / 640 calibration rows (20 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 9.5s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1727   post=0.0196
+  Brier pre=0.1759  post=0.1286
+  soft-xent  pre=0.83303  post=2.61850
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n100_rep2/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n100_rep3  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n100_rep3\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 3200 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=100 rep=3
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -75722.7  mean ARI = 0.7925  stable=False  (20.4s)
+  BIC sweep: {2: 18376.90318974296, 3: -11012.73647680352, 4: -34630.29267199541, 5: -35423.99625405311, 6: -52720.242583179315, 7: -50727.368171835085, 8: -50000.48457359766, 10: -46367.108586918665, 12: -68040.53276870641}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89111  per-fold = ['0.9500', '0.8529', '0.8554', '0.9094', '0.8879']
+  HP-search wall: 901.8s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 2560 train rows (80 shifts) / 640 calibration rows (20 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 10.0s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+[calibration] 1 of 6 rules never win in the calibration split (indices [5]); their probabilities are passed through uncalibrated.
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1690   post=0.0328
+  Brier pre=0.1762  post=0.1317
+  soft-xent  pre=0.83544  post=2.49822
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n100_rep3/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n100_rep4  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n100_rep4\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 3200 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=100 rep=4
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -73400.4  mean ARI = 0.9141  stable=True  (18.6s)
+  BIC sweep: {2: 15213.821374845644, 3: -13117.563926463912, 4: -34206.81591250612, 5: -34179.006738197946, 6: -51555.69067516382, 7: -49679.19612151143, 8: -72005.05697216056, 10: -73365.83629146, 12: -71959.79916111002}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87239  per-fold = ['0.8977', '0.8757', '0.8493', '0.8436', '0.8956']
+  HP-search wall: 848.2s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 2560 train rows (80 shifts) / 640 calibration rows (20 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 9.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1700   post=0.0084
+  Brier pre=0.1768  post=0.1338
+  soft-xent  pre=0.83642  post=2.80626
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n100_rep4/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n150_rep0  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n150_rep0\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 4800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=150 rep=0
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+  K* = 10  BIC = -123177.3  mean ARI = 0.8140  stable=False  (34.1s)
+  BIC sweep: {2: 23196.33218921488, 3: -20931.532165040495, 4: -53432.7097707666, 5: -82671.20766783507, 6: -81844.65461641297, 7: -79653.24519138687, 8: -78285.73757182788, 10: -124590.24419138819, 12: -120690.07941041604}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88104  per-fold = ['0.8886', '0.8692', '0.9187', '0.8738', '0.8550']
+  HP-search wall: 1059.7s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 3840 train rows (120 shifts) / 960 calibration rows (30 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 21.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1746   post=0.0229
+  Brier pre=0.1779  post=0.1315
+  soft-xent  pre=0.83117  post=2.45718
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n150_rep0/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n150_rep1  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n150_rep1\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 4800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=150 rep=1
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -133842.2  mean ARI = 0.7606  stable=False  (31.9s)
+  BIC sweep: {2: 24302.183206098867, 3: -21041.39006447437, 4: -51728.43802463945, 5: -49832.2397961252, 6: -82313.40541136192, 7: -80701.92190494212, 8: -82132.74368084373, 10: -116763.4280669771, 12: -125521.41857066916}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88173  per-fold = ['0.8937', '0.8813', '0.8632', '0.8832', '0.8872']
+  HP-search wall: 1109.5s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 3840 train rows (120 shifts) / 960 calibration rows (30 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 12.6s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1718   post=0.0304
+  Brier pre=0.1708  post=0.1260
+  soft-xent  pre=0.82723  post=2.04960
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n150_rep1/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n150_rep2  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n150_rep2\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 4800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=150 rep=2
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -129182.2  mean ARI = 0.7810  stable=False  (28.3s)
+  BIC sweep: {2: 25381.76169008154, 3: -19283.41639544943, 4: -48391.11234407135, 5: -52445.58521266596, 6: -79006.33742012616, 7: -74720.54504728579, 8: -73530.27872090826, 10: -115268.34959715008, 12: -126898.47304125095}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89436  per-fold = ['0.9080', '0.8841', '0.9024', '0.8710', '0.9062']
+  HP-search wall: 1088.9s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 3840 train rows (120 shifts) / 960 calibration rows (30 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 12.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1755   post=0.0266
+  Brier pre=0.1732  post=0.1271
+  soft-xent  pre=0.83245  post=2.50731
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n150_rep2/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n150_rep3  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n150_rep3\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 4800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=150 rep=3
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -131065.0  mean ARI = 0.7441  stable=False  (29.8s)
+  BIC sweep: {2: 20823.67264408905, 3: -21210.8273103693, 4: -57687.42963008963, 5: -87232.03994515857, 6: -90642.1572835287, 7: -88531.51398942729, 8: -89059.57050196832, 10: -115377.24986821719, 12: -131122.2640202861}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.89109  per-fold = ['0.9398', '0.8865', '0.8777', '0.8476', '0.9039']
+  HP-search wall: 1114.0s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 3840 train rows (120 shifts) / 960 calibration rows (30 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 12.5s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1776   post=0.0196
+  Brier pre=0.1769  post=0.1260
+  soft-xent  pre=0.83120  post=2.88848
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n150_rep3/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n150_rep4  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n150_rep4\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 4800 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=150 rep=4
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -125099.3  mean ARI = 0.7163  stable=False  (26.2s)
+  BIC sweep: {2: 21922.606985010054, 3: -20006.48940433862, 4: -51264.429232191265, 5: -82240.0670314068, 6: -81550.95374562402, 7: -79259.77316740056, 8: -77421.52550272553, 10: -112712.04857199753, 12: -123906.57060299252}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88925  per-fold = ['0.8778', '0.9154', '0.9106', '0.8624', '0.8801']
+  HP-search wall: 1115.8s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 3840 train rows (120 shifts) / 960 calibration rows (30 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 12.3s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1755   post=0.0265
+  Brier pre=0.1743  post=0.1262
+  soft-xent  pre=0.82852  post=2.24391
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n150_rep4/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[Phase 4] run_id=data_efficiency/ours_n250_rep0  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\runs\data_efficiency\ours_n250_rep0\train_subset.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] derived labels: shift subset: budget=250 rep=0
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (86.0s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87583  per-fold = ['0.8372', '0.8883', '0.8937', '0.8722', '0.8877']
+  HP-search wall: 1498.6s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 30.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1700   post=0.0213
+  Brier pre=0.1730  post=0.1240
+  soft-xent  pre=0.82800  post=2.35773
+  test rows: 1525
+
+Saved artifacts under runs\data_efficiency\ours_n250_rep0/
+  calibrator.joblib
+  label_meta.json
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+  train_subset.parquet
+[E2 data_efficiency] budgets = [25, 50, 100, 150, 250]  reps = 5
+[E2 data_efficiency] budget=25 rep=0 shifts=25 -> runs\data_efficiency\ours_n25_rep0
+[E2 data_efficiency] budget=25 rep=1 shifts=25 -> runs\data_efficiency\ours_n25_rep1
+[E2 data_efficiency] budget=25 rep=2 shifts=25 -> runs\data_efficiency\ours_n25_rep2
+[E2 data_efficiency] budget=25 rep=3 shifts=25 -> runs\data_efficiency\ours_n25_rep3
+[E2 data_efficiency] budget=25 rep=4 shifts=25 -> runs\data_efficiency\ours_n25_rep4
+[E2 data_efficiency] budget=50 rep=0 shifts=50 -> runs\data_efficiency\ours_n50_rep0
+[E2 data_efficiency] budget=50 rep=1 shifts=50 -> runs\data_efficiency\ours_n50_rep1
+[E2 data_efficiency] budget=50 rep=2 shifts=50 -> runs\data_efficiency\ours_n50_rep2
+[E2 data_efficiency] budget=50 rep=3 shifts=50 -> runs\data_efficiency\ours_n50_rep3
+[E2 data_efficiency] budget=50 rep=4 shifts=50 -> runs\data_efficiency\ours_n50_rep4
+[E2 data_efficiency] budget=100 rep=0 shifts=100 -> runs\data_efficiency\ours_n100_rep0
+[E2 data_efficiency] budget=100 rep=1 shifts=100 -> runs\data_efficiency\ours_n100_rep1
+[E2 data_efficiency] budget=100 rep=2 shifts=100 -> runs\data_efficiency\ours_n100_rep2
+[E2 data_efficiency] budget=100 rep=3 shifts=100 -> runs\data_efficiency\ours_n100_rep3
+[E2 data_efficiency] budget=100 rep=4 shifts=100 -> runs\data_efficiency\ours_n100_rep4
+[E2 data_efficiency] budget=150 rep=0 shifts=150 -> runs\data_efficiency\ours_n150_rep0
+[E2 data_efficiency] budget=150 rep=1 shifts=150 -> runs\data_efficiency\ours_n150_rep1
+[E2 data_efficiency] budget=150 rep=2 shifts=150 -> runs\data_efficiency\ours_n150_rep2
+[E2 data_efficiency] budget=150 rep=3 shifts=150 -> runs\data_efficiency\ours_n150_rep3
+[E2 data_efficiency] budget=150 rep=4 shifts=150 -> runs\data_efficiency\ours_n150_rep4
+[E2 data_efficiency] budget=250 rep=0 shifts=250 -> runs\data_efficiency\ours_n250_rep0
+
+[E2 data_efficiency] summary -> results\data_efficiency\data_efficiency_summary.json
+########## rc=0  06:03:39
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi data_efficiency --n-jobs=-1 ##########  06:03:39
+  budget= 25 rep=0  sla_breach=0.0772 composite_cost=427.880 (10s)
+  budget= 25 rep=1  sla_breach=0.0947 composite_cost=624.353 (6s)
+  budget= 25 rep=2  sla_breach=0.1019 composite_cost=706.947 (6s)
+  budget= 25 rep=3  sla_breach=0.0918 composite_cost=647.851 (6s)
+  budget= 25 rep=4  sla_breach=0.0886 composite_cost=491.773 (6s)
+  budget= 50 rep=0  sla_breach=0.0805 composite_cost=473.251 (6s)
+  budget= 50 rep=1  sla_breach=0.0749 composite_cost=440.234 (6s)
+  budget= 50 rep=2  sla_breach=0.0862 composite_cost=467.372 (6s)
+  budget= 50 rep=3  sla_breach=0.0866 composite_cost=495.403 (6s)
+  budget= 50 rep=4  sla_breach=0.0881 composite_cost=538.299 (6s)
+  budget=100 rep=0  sla_breach=0.0791 composite_cost=458.592 (7s)
+  budget=100 rep=1  sla_breach=0.0817 composite_cost=505.367 (6s)
+  budget=100 rep=2  sla_breach=0.0780 composite_cost=461.774 (6s)
+  budget=100 rep=3  sla_breach=0.0795 composite_cost=462.439 (6s)
+  budget=100 rep=4  sla_breach=0.0704 composite_cost=392.157 (6s)
+  budget=150 rep=0  sla_breach=0.0714 composite_cost=394.481 (7s)
+  budget=150 rep=1  sla_breach=0.0807 composite_cost=460.734 (7s)
+  budget=150 rep=2  sla_breach=0.0725 composite_cost=403.857 (7s)
+  budget=150 rep=3  sla_breach=0.0720 composite_cost=398.693 (7s)
+  budget=150 rep=4  sla_breach=0.0704 composite_cost=401.573 (7s)
+  budget=250 rep=0  sla_breach=0.0724 composite_cost=396.798 (8s)
+
+[e9 data_efficiency] offline_fqi by budget -> data_efficiency_offline_fqi.parquet:
+ budget  service_failure_mean  service_failure_std  composite_cost_mean  composite_cost_std
+     25              0.090838             0.009067           579.760616          115.769835
+     50              0.083231             0.005486           482.911770           36.674126
+    100              0.077757             0.004327           456.065937           40.603259
+    150              0.073396             0.004140           411.867572           27.540489
+    250              0.072366                  NaN           396.798387                 NaN
+########## rc=0  06:06:00
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi summary ##########  06:06:00
+[e9 summary] main comparison (means over 50 test shifts):
+  ours           sla_breach=0.0689  composite_cost=381.4196  mean_tardiness=0.7753
+  offline_fqi    sla_breach=0.0724  composite_cost=396.7984  mean_tardiness=0.8016
+  greedy_mpc     sla_breach=0.0607  composite_cost=356.1368  mean_tardiness=0.7252
+  snapshot_xgb   sla_breach=0.0671  composite_cost=388.1294  mean_tardiness=0.7340
+
+[e9 summary] paired DAHS - offline_fqi (negative => DAHS better; 95% bootstrap CI):
+  service_failure_rate mean=-0.0034  CI=[-0.0061, -0.0010]  -> DAHS better
+  composite_cost     mean=-15.3788  CI=[-30.4303, -3.0765]  -> DAHS better
+  mean_tardiness     mean=-0.0263  CI=[-0.0408, -0.0135]  -> DAHS better
+[e9 summary] wrote C:\CAOR\figures\E9\data_efficiency_offline_fqi.png
+########## rc=0  06:06:02
+
+########## .venv/Scripts/python.exe -m experiments.fig_data_efficiency ##########  06:06:02
+[fig] wrote figures\data_efficiency/data_efficiency_curve.{png,pdf}
+########## rc=0  06:06:03
+
+########## .venv/Scripts/python.exe -m experiments.e2_main stats --scenario default --baseline ours ##########  06:06:03
+[E2 stats] 800 rows across 16 methods, 50 seeds.
+
+[E2 stats] service_failure_rate (scenario=default):
+      method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+        eedd 0.0943 0.0567 0.1378      0.0253 0.0102    0.0109      True
+      covert 0.0836 0.0599 0.1108      0.0147 0.0000    0.0000      True
+          ms 0.1040 0.0665 0.1481      0.0351 0.0000    0.0000      True
+         atc 0.1108 0.0866 0.1378      0.0419 0.0000    0.0000      True
+         mdd 0.0999 0.0642 0.1417      0.0310 0.0000    0.0000      True
+         edd 0.1014 0.0652 0.1439      0.0325 0.0000    0.0000      True
+        fifo 0.1894 0.1560 0.2265      0.1205 0.0000    0.0000      True
+        wspt 0.0987 0.0918 0.1061      0.0298 0.0019    0.0022      True
+        fefo 0.2032 0.1700 0.2393      0.1343 0.0000    0.0000      True
+      linucb 0.0863 0.0566 0.1217      0.0174 0.0000    0.0000      True
+ rolling_mpc 0.0642 0.0416 0.0902     -0.0047 0.0000    0.0001      True
+  greedy_mpc 0.0607 0.0385 0.0864     -0.0082 0.0001    0.0002      True
+snapshot_xgb 0.0671 0.0438 0.0939     -0.0018 0.3356    0.3356     False
+    ppo_fair 0.0951 0.0645 0.1312      0.0262 0.0000    0.0000      True
+ offline_fqi 0.0724 0.0483 0.0998      0.0034 0.0009    0.0011      True
+        ours 0.0689 0.0453 0.0958      0.0000    NaN       NaN     False
+
+[E2 stats] mean_tardiness (scenario=default):
+      method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+        eedd 0.7843 0.3400 1.3483      0.0090 0.0396    0.0494      True
+      covert 0.8112 0.4210 1.2966      0.0359 0.0000    0.0000      True
+          ms 0.7816 0.3274 1.3616      0.0063 0.0494    0.0571     False
+         atc 1.1667 0.7113 1.7197      0.3914 0.0000    0.0000      True
+         mdd 0.6526 0.2885 1.1165     -0.1227 0.0000    0.0001      True
+         edd 0.7458 0.3149 1.2966     -0.0296 0.0134    0.0183      True
+        fifo 2.0225 1.4427 2.7071      1.2472 0.0000    0.0000      True
+        wspt 5.5539 4.5520 6.6574      4.7786 0.0000    0.0000      True
+        fefo 2.8211 2.0635 3.7060      2.0458 0.0000    0.0000      True
+      linucb 0.7726 0.3522 1.3040     -0.0027 0.2451    0.2626     False
+ rolling_mpc 0.7700 0.3720 1.2669     -0.0053 0.3613    0.3613     False
+  greedy_mpc 0.7252 0.3384 1.2112     -0.0501 0.0018    0.0026      True
+snapshot_xgb 0.7340 0.3480 1.2163     -0.0413 0.0009    0.0015      True
+    ppo_fair 0.8761 0.4326 1.4356      0.1008 0.0000    0.0000      True
+ offline_fqi 0.8016 0.4059 1.2930      0.0263 0.0001    0.0003      True
+        ours 0.7753 0.3830 1.2650      0.0000    NaN       NaN     False
+
+[E2 stats] composite_cost (scenario=default):
+      method     point     ci_lo     ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+        eedd  695.7708  378.7023 1083.0332    314.3512 0.0020    0.0024      True
+      covert  454.3620  304.3359  631.7882     72.9424 0.0000    0.0000      True
+          ms  789.8243  463.2448 1191.2392    408.4047 0.0000    0.0000      True
+         atc  559.9183  403.9044  741.7168    178.4986 0.0000    0.0000      True
+         mdd  733.1523  438.7552 1092.9895    351.7326 0.0000    0.0000      True
+         edd  763.0576  449.8897 1148.0709    381.6379 0.0000    0.0000      True
+        fifo 1485.9735 1134.7667 1894.8139   1104.5538 0.0000    0.0000      True
+        wspt 1215.6961 1021.6158 1428.8339    834.2764 0.0000    0.0000      True
+        fefo 1698.9586 1321.8672 2131.8506   1317.5390 0.0000    0.0000      True
+      linucb  551.5475  335.7003  817.7428    170.1278 0.0000    0.0000      True
+ rolling_mpc  362.5789  217.3544  536.8734    -18.8407 0.0001    0.0001      True
+  greedy_mpc  356.1368  210.6451  531.9120    -25.2828 0.0058    0.0066      True
+snapshot_xgb  388.1294  235.7307  569.1329      6.7097 0.0293    0.0293      True
+    ppo_fair  610.9285  355.8995  927.9244    229.5088 0.0000    0.0000      True
+ offline_fqi  396.7984  244.6083  577.9018     15.3788 0.0080    0.0086      True
+        ours  381.4196  233.4644  557.2511      0.0000    NaN       NaN     False
+
+[E2 stats] throughput (scenario=default):
+      method    point    ci_lo    ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+        eedd 729.8400 726.3195 733.3400     -2.0600 0.0015    0.0057      True
+      covert 732.1000 728.3400 735.8200      0.2000 0.2431    0.3129     False
+          ms 729.1400 725.7600 732.4800     -2.7600 0.0001    0.0004      True
+         atc 734.3000 730.4795 738.0800      2.4000 0.0000    0.0000      True
+         mdd 730.5000 726.9200 734.0000     -1.4000 0.0034    0.0085      True
+         edd 729.7800 726.3000 733.2000     -2.1200 0.0027    0.0081      True
+        fifo 730.1600 726.6800 733.5400     -1.7400 0.0275    0.0413      True
+        wspt 743.3400 739.0000 747.7200     11.4400 0.0000    0.0000      True
+        fefo 730.3400 726.8200 733.8200     -1.5600 0.0198    0.0330      True
+      linucb 731.1600 727.5800 734.7200     -0.7400 0.2711    0.3129     False
+ rolling_mpc 732.4600 728.7200 736.2000      0.5600 0.0072    0.0135      True
+  greedy_mpc 732.5400 728.8000 736.2800      0.6400 0.0064    0.0135      True
+snapshot_xgb 731.9800 728.2600 735.6805      0.0800 0.6193    0.6193     False
+    ppo_fair 730.4800 726.9600 733.9400     -1.4200 0.2656    0.3129     False
+ offline_fqi 732.0200 728.1795 735.8400      0.1200 0.3836    0.4110     False
+        ours 731.9000 728.1000 735.6400      0.0000    NaN       NaN     False
+
+[E2 stats] picker_utilization (scenario=default):
+      method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+        eedd 0.9558 0.9526 0.9587      0.0000 1.0000    1.0000     False
+      covert 0.9557 0.9526 0.9587     -0.0000 0.8375    0.9663     False
+          ms 0.9559 0.9527 0.9588      0.0001 0.0178    0.0891     False
+         atc 0.9556 0.9524 0.9586     -0.0001 0.0067    0.0504     False
+         mdd 0.9558 0.9526 0.9588      0.0000 0.6736    0.8938     False
+         edd 0.9558 0.9526 0.9588      0.0000 0.6736    0.8938     False
+        fifo 0.9557 0.9526 0.9587     -0.0000 0.5657    0.8938     False
+        wspt 0.9550 0.9518 0.9580     -0.0008 0.0000    0.0000      True
+        fefo 0.9558 0.9526 0.9588      0.0000 0.7043    0.8938     False
+      linucb 0.9557 0.9526 0.9587     -0.0000 0.9615    1.0000     False
+ rolling_mpc 0.9557 0.9525 0.9587     -0.0000 0.3535    0.7575     False
+  greedy_mpc 0.9557 0.9526 0.9587     -0.0000 0.2919    0.7575     False
+snapshot_xgb 0.9558 0.9526 0.9588      0.0000 0.7150    0.8938     False
+    ppo_fair 0.9557 0.9525 0.9587     -0.0001 0.0309    0.1158     False
+ offline_fqi 0.9557 0.9526 0.9587     -0.0000 0.3139    0.7575     False
+        ours 0.9558 0.9526 0.9587      0.0000    NaN       NaN     False
+
+[E2 stats] wrote results\E2\default_stats.parquet
+########## rc=0  06:06:06
+
+########## .venv/Scripts/python.exe -m experiments.e2_main eval --scenario low_load --n-jobs=-1 ##########  06:06:06
+C:\CAOR\.venv\Lib\site-packages\joblib\externals\loky\process_executor.py:782: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+[E2 eval] scenario=low_load  method=eedd  n_seeds=50
+[E2 eval] scenario=low_load  method=covert  n_seeds=50
+[E2 eval] scenario=low_load  method=ms  n_seeds=50
+[E2 eval] scenario=low_load  method=atc  n_seeds=50
+[E2 eval] scenario=low_load  method=mdd  n_seeds=50
+[E2 eval] scenario=low_load  method=edd  n_seeds=50
+[E2 eval] scenario=low_load  method=fifo  n_seeds=50
+[E2 eval] scenario=low_load  method=wspt  n_seeds=50
+[E2 eval] scenario=low_load  method=fefo  n_seeds=50
+[E2 eval] scenario=low_load  method=linucb  n_seeds=50
+  [eval] linucb: policy retains state across shifts; ignoring n_jobs=-1 and running serially.
+[E2 eval] scenario=low_load  method=rolling_mpc  n_seeds=50
+[E2 eval] scenario=low_load  method=greedy_mpc  n_seeds=50
+[E2 eval] scenario=low_load  method=snapshot_xgb  n_seeds=50
+[E2 eval] scenario=low_load  method=ppo_fair  n_seeds=50
+[E2 eval] scenario=low_load  method=offline_fqi  n_seeds=50
+[E2 eval] scenario=low_load  method=ours  n_seeds=50
+
+[E2 eval] wrote results\scenario_low_load/
+########## rc=0  06:07:31
+
+########## .venv/Scripts/python.exe -m experiments.e2_main eval --scenario balanced --n-jobs=-1 ##########  06:07:31
+C:\CAOR\.venv\Lib\site-packages\joblib\externals\loky\process_executor.py:782: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+[E2 eval] scenario=balanced  method=eedd  n_seeds=50
+[E2 eval] scenario=balanced  method=covert  n_seeds=50
+[E2 eval] scenario=balanced  method=ms  n_seeds=50
+[E2 eval] scenario=balanced  method=atc  n_seeds=50
+[E2 eval] scenario=balanced  method=mdd  n_seeds=50
+[E2 eval] scenario=balanced  method=edd  n_seeds=50
+[E2 eval] scenario=balanced  method=fifo  n_seeds=50
+[E2 eval] scenario=balanced  method=wspt  n_seeds=50
+[E2 eval] scenario=balanced  method=fefo  n_seeds=50
+[E2 eval] scenario=balanced  method=linucb  n_seeds=50
+  [eval] linucb: policy retains state across shifts; ignoring n_jobs=-1 and running serially.
+[E2 eval] scenario=balanced  method=rolling_mpc  n_seeds=50
+[E2 eval] scenario=balanced  method=greedy_mpc  n_seeds=50
+[E2 eval] scenario=balanced  method=snapshot_xgb  n_seeds=50
+[E2 eval] scenario=balanced  method=ppo_fair  n_seeds=50
+[E2 eval] scenario=balanced  method=offline_fqi  n_seeds=50
+[E2 eval] scenario=balanced  method=ours  n_seeds=50
+
+[E2 eval] wrote results\scenario_balanced/
+########## rc=0  06:09:21
+
+########## .venv/Scripts/python.exe -m experiments.e2_main eval --scenario high_load_perish --n-jobs=-1 ##########  06:09:21
+C:\CAOR\.venv\Lib\site-packages\joblib\externals\loky\process_executor.py:782: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+[E2 eval] scenario=high_load_perish  method=eedd  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=covert  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=ms  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=atc  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=mdd  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=edd  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=fifo  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=wspt  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=fefo  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=linucb  n_seeds=50
+  [eval] linucb: policy retains state across shifts; ignoring n_jobs=-1 and running serially.
+[E2 eval] scenario=high_load_perish  method=rolling_mpc  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=greedy_mpc  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=snapshot_xgb  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=ppo_fair  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=offline_fqi  n_seeds=50
+[E2 eval] scenario=high_load_perish  method=ours  n_seeds=50
+
+[E2 eval] wrote results\scenario_high_load_perish/
+########## rc=0  06:11:49
+
+########## .venv/Scripts/python.exe -m experiments.e8_robustness_grid eval --n-jobs -1 ##########  06:11:49
+
+[E8 grid] cell 1/12: arr1.40_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 2/12: arr1.40_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 3/12: arr1.40_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 4/12: arr1.50_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 5/12: arr1.50_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 6/12: arr1.50_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 7/12: arr1.65_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 8/12: arr1.65_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 9/12: arr1.65_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 10/12: arr1.80_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 11/12: arr1.80_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+[E8 grid] cell 12/12: arr1.80_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK
+
+[E8 grid] summary written to results\E8\robustness_grid_summary.parquet
+########## rc=0  06:20:16
+
+########## .venv/Scripts/python.exe -m experiments.e8_robustness_grid summary ##########  06:20:16
+
+[E8 grid] Robustness Grid Summary
+====================================================================================================
+
+SERVICE_FAILURE_RATE
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours              0.0423 [  0.0391,   0.0461]
+      greedy_mpc        0.0403 [  0.0373,   0.0436]
+      snapshot_xgb      0.0419 [  0.0387,   0.0455]
+      eedd              0.0418 [  0.0386,   0.0455]
+    arrival_rate=1.5
+      ours              0.0903 [  0.0619,   0.1264]
+      greedy_mpc        0.0710 [  0.0533,   0.0932]
+      snapshot_xgb      0.0908 [  0.0614,   0.1281]
+      eedd              0.0908 [  0.0613,   0.1281]
+    arrival_rate=1.65
+      ours              0.3562 [  0.3077,   0.4038]
+      greedy_mpc        0.2632 [  0.2283,   0.2985]
+      snapshot_xgb      0.3836 [  0.3295,   0.4371]
+      eedd              0.4273 [  0.3637,   0.4922]
+    arrival_rate=1.8
+      ours              0.4912 [  0.4736,   0.5081]
+      greedy_mpc        0.4353 [  0.4190,   0.4507]
+      snapshot_xgb      0.5305 [  0.5137,   0.5471]
+      eedd              0.7202 [  0.6901,   0.7488]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours              0.0042 [  0.0034,   0.0050]
+      greedy_mpc        0.0042 [  0.0035,   0.0050]
+      snapshot_xgb      0.0045 [  0.0037,   0.0053]
+      eedd              0.0042 [  0.0034,   0.0050]
+    arrival_rate=1.5
+      ours              0.0038 [  0.0033,   0.0044]
+      greedy_mpc        0.0040 [  0.0034,   0.0045]
+      snapshot_xgb      0.0045 [  0.0038,   0.0051]
+      eedd              0.0038 [  0.0032,   0.0044]
+    arrival_rate=1.65 [TUNED]
+      ours              0.0689 [  0.0453,   0.0957]
+      greedy_mpc        0.0607 [  0.0384,   0.0864]
+      snapshot_xgb      0.0671 [  0.0433,   0.0941]
+      eedd              0.0943 [  0.0565,   0.1380]
+    arrival_rate=1.8
+      ours              0.2892 [  0.2651,   0.3127]
+      greedy_mpc        0.2788 [  0.2544,   0.3030]
+      snapshot_xgb      0.2878 [  0.2634,   0.3118]
+      eedd              0.4544 [  0.4121,   0.4956]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              0.0004 [  0.0002,   0.0006]
+      greedy_mpc        0.0003 [  0.0002,   0.0006]
+      snapshot_xgb      0.0004 [  0.0002,   0.0007]
+      eedd              0.0003 [  0.0002,   0.0006]
+    arrival_rate=1.5
+      ours              0.0002 [  0.0000,   0.0004]
+      greedy_mpc        0.0003 [  0.0001,   0.0005]
+      snapshot_xgb      0.0003 [  0.0001,   0.0005]
+      eedd              0.0002 [  0.0000,   0.0004]
+    arrival_rate=1.65
+      ours              0.0182 [  0.0064,   0.0329]
+      greedy_mpc        0.0122 [  0.0035,   0.0233]
+      snapshot_xgb      0.0169 [  0.0055,   0.0313]
+      eedd              0.0199 [  0.0046,   0.0393]
+    arrival_rate=1.8
+      ours              0.1571 [  0.1301,   0.1841]
+      greedy_mpc        0.1347 [  0.1079,   0.1627]
+      snapshot_xgb      0.1584 [  0.1283,   0.1886]
+      eedd              0.2165 [  0.1728,   0.2621]
+
+COMPOSITE_COST
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours            178.4833 [163.0432, 195.7627]
+      greedy_mpc      169.9470 [156.3215, 184.5757]
+      snapshot_xgb    177.3009 [162.0215, 194.5131]
+      eedd            177.1109 [161.8344, 194.3354]
+    arrival_rate=1.5
+      ours            437.8596 [285.2861, 635.0861]
+      greedy_mpc      319.3967 [237.9218, 423.0014]
+      snapshot_xgb    446.9346 [285.8233, 654.4605]
+      eedd            446.7089 [285.7128, 654.2738]
+    arrival_rate=1.65
+      ours            2236.8006 [1885.4205, 2601.4757]
+      greedy_mpc      1563.2023 [1285.2597, 1858.4585]
+      snapshot_xgb    2526.6266 [2111.6795, 2953.7783]
+      eedd            3223.1686 [2566.6167, 3932.9981]
+    arrival_rate=1.8
+      ours            4450.4181 [4139.4223, 4774.3676]
+      greedy_mpc      3969.7558 [3645.6929, 4312.2742]
+      snapshot_xgb    4868.4206 [4568.5369, 5184.2776]
+      eedd            8970.0410 [8167.8142, 9807.7176]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours             16.0933 [ 12.9079,  19.6328]
+      greedy_mpc       16.1338 [ 13.0277,  19.6110]
+      snapshot_xgb     17.0915 [ 13.9331,  20.5925]
+      eedd             16.0826 [ 12.8912,  19.6223]
+    arrival_rate=1.5
+      ours             17.0489 [ 14.1921,  19.9753]
+      greedy_mpc       17.2395 [ 14.4087,  20.1466]
+      snapshot_xgb     18.9904 [ 15.7188,  22.3393]
+      eedd             16.9453 [ 14.1091,  19.8886]
+    arrival_rate=1.65 [TUNED]
+      ours            381.4196 [232.6537, 555.0741]
+      greedy_mpc      356.1368 [208.2928, 528.7411]
+      snapshot_xgb    388.1294 [235.7635, 566.3278]
+      eedd            695.7708 [375.8357, 1075.5894]
+    arrival_rate=1.8
+      ours            2247.1997 [1960.2366, 2555.0012]
+      greedy_mpc      2216.3575 [1928.9052, 2526.1598]
+      snapshot_xgb    2279.0920 [1993.0813, 2587.9749]
+      eedd            4756.6106 [4078.3733, 5481.1719]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              1.3743 [  0.6242,   2.2777]
+      greedy_mpc        1.1894 [  0.5036,   2.0460]
+      snapshot_xgb      1.6743 [  0.8391,   2.6407]
+      eedd              1.1742 [  0.5017,   2.0122]
+    arrival_rate=1.5
+      ours              0.6033 [  0.1544,   1.1839]
+      greedy_mpc        1.3733 [  0.4756,   2.4960]
+      snapshot_xgb      1.2041 [  0.3557,   2.2803]
+      eedd              0.5036 [  0.0933,   1.0439]
+    arrival_rate=1.65
+      ours            105.0870 [ 37.4635, 190.4589]
+      greedy_mpc       67.6372 [ 19.6304, 128.0257]
+      snapshot_xgb     95.3586 [ 30.1363, 177.0689]
+      eedd            122.2450 [ 24.4728, 244.0100]
+    arrival_rate=1.8
+      ours            1150.9095 [923.6479, 1394.9218]
+      greedy_mpc      976.5879 [746.2594, 1225.4108]
+      snapshot_xgb    1160.2019 [903.1166, 1430.7197]
+      eedd            1965.1083 [1480.5873, 2493.8695]
+
+MEAN_TARDINESS
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours              0.1335 [  0.1220,   0.1456]
+      greedy_mpc        0.1318 [  0.1195,   0.1457]
+      snapshot_xgb      0.1310 [  0.1196,   0.1430]
+      eedd              0.1309 [  0.1195,   0.1430]
+    arrival_rate=1.5
+      ours              0.3396 [  0.1858,   0.5417]
+      greedy_mpc        0.3863 [  0.2073,   0.6199]
+      snapshot_xgb      0.3372 [  0.1833,   0.5388]
+      eedd              0.3371 [  0.1833,   0.5386]
+    arrival_rate=1.65
+      ours              3.9660 [  2.9473,   5.0981]
+      greedy_mpc        4.0657 [  3.0724,   5.1617]
+      snapshot_xgb      4.0624 [  3.0141,   5.2311]
+      eedd              4.4495 [  3.2212,   5.8402]
+    arrival_rate=1.8
+      ours             13.5848 [ 12.1416,  15.1088]
+      greedy_mpc       13.4238 [ 12.0068,  14.9266]
+      snapshot_xgb     13.8261 [ 12.3784,  15.3595]
+      eedd             16.7731 [ 14.8605,  18.8113]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours              0.0089 [  0.0067,   0.0112]
+      greedy_mpc        0.0088 [  0.0067,   0.0112]
+      snapshot_xgb      0.0091 [  0.0070,   0.0115]
+      eedd              0.0088 [  0.0066,   0.0112]
+    arrival_rate=1.5
+      ours              0.0082 [  0.0064,   0.0101]
+      greedy_mpc        0.0083 [  0.0066,   0.0103]
+      snapshot_xgb      0.0094 [  0.0074,   0.0114]
+      eedd              0.0082 [  0.0064,   0.0101]
+    arrival_rate=1.65 [TUNED]
+      ours              0.7753 [  0.3844,   1.2491]
+      greedy_mpc        0.7252 [  0.3384,   1.1931]
+      snapshot_xgb      0.7340 [  0.3481,   1.2011]
+      eedd              0.7843 [  0.3420,   1.3283]
+    arrival_rate=1.8
+      ours              6.2185 [  5.1390,   7.3931]
+      greedy_mpc        6.1764 [  5.0970,   7.3522]
+      snapshot_xgb      6.1492 [  5.0612,   7.3338]
+      eedd              7.2881 [  5.8877,   8.8026]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              0.0003 [  0.0001,   0.0006]
+      greedy_mpc        0.0004 [  0.0001,   0.0008]
+      snapshot_xgb      0.0003 [  0.0001,   0.0006]
+      eedd              0.0003 [  0.0001,   0.0006]
+    arrival_rate=1.5
+      ours              0.0001 [  0.0000,   0.0003]
+      greedy_mpc        0.0002 [  0.0000,   0.0004]
+      snapshot_xgb      0.0001 [  0.0000,   0.0003]
+      eedd              0.0001 [  0.0000,   0.0003]
+    arrival_rate=1.65
+      ours              0.0836 [  0.0079,   0.1787]
+      greedy_mpc        0.0785 [  0.0098,   0.1648]
+      snapshot_xgb      0.1015 [  0.0126,   0.2139]
+      eedd              0.0835 [  0.0096,   0.1759]
+    arrival_rate=1.8
+      ours              2.0562 [  1.4436,   2.7564]
+      greedy_mpc        2.0372 [  1.4171,   2.7492]
+      snapshot_xgb      2.2070 [  1.5693,   2.9306]
+      eedd              2.3982 [  1.6399,   3.2729]
+
+[E8 grid] heatmaps written to figures\E8/
+[E8 grid] summary parquet -> results\E8\robustness_grid_summary.parquet
+########## rc=0  06:20:18
+
+########## .venv/Scripts/python.exe -m experiments.e9_offline_fqi robustness_grid --n-jobs=-1 ##########  06:20:18
+  arr1.40_tight        sla_breach=0.0536  composite_cost=207.068
+  arr1.40_default      sla_breach=0.0042  composite_cost=16.201
+  arr1.40_loose        sla_breach=0.0006  composite_cost=2.172
+  arr1.50_tight        sla_breach=0.0994  composite_cost=405.206
+  arr1.50_default      sla_breach=0.0041  composite_cost=17.818
+  arr1.50_loose        sla_breach=0.0006  composite_cost=3.307
+  arr1.65_tight        sla_breach=0.3032  composite_cost=1714.186
+  arr1.65_default      sla_breach=0.0724  composite_cost=396.798
+  arr1.65_loose        sla_breach=0.0198  composite_cost=111.159
+  arr1.80_tight        sla_breach=0.4676  composite_cost=4185.306
+  arr1.80_default      sla_breach=0.2881  composite_cost=2251.214
+  arr1.80_loose        sla_breach=0.1545  composite_cost=1102.899
+
+[e9 robustness_grid] offline_fqi vs DAHS — SLA breach, 12 untuned cells:
+  cell                  offline_fqi       DAHS       winner
+  arr1.40_tight              0.0536     0.0423         DAHS
+  arr1.40_default            0.0042     0.0042         DAHS
+  arr1.40_loose              0.0006     0.0004         DAHS
+  arr1.50_tight              0.0994     0.0903         DAHS
+  arr1.50_default            0.0041     0.0038         DAHS
+  arr1.50_loose              0.0006     0.0002         DAHS
+  arr1.65_tight              0.3032     0.3562  offline_fqi
+  arr1.65_default            0.0724     0.0689         DAHS
+  arr1.65_loose              0.0198     0.0182         DAHS
+  arr1.80_tight              0.4676     0.4912  offline_fqi
+  arr1.80_default            0.2881     0.2892  offline_fqi
+  arr1.80_loose              0.1545     0.1571  offline_fqi
+
+[e9 robustness_grid] DAHS <= offline_fqi in 8/12 cells -> robustness_grid_offline_fqi.parquet
+########## rc=0  06:20:40
+
+########## .venv/Scripts/python.exe -m experiments.misspecification run --n-jobs -1 ##########  06:20:40
+
+[misspec] arrival_rate_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=  15.842  fail=0.0041
+    rolling_mpc    cost=  15.582  fail=0.0041
+    offline_fqi    cost=  15.851  fail=0.0041
+    EEDD           cost=  15.837  fail=0.0041
+    COVERT         cost=  16.939  fail=0.0043
+
+[misspec] arrival_rate_scale=0.9   (5 methods x 50 shifts)
+    ours           cost=  19.035  fail=0.0044
+    rolling_mpc    cost=  18.500  fail=0.0043
+    offline_fqi    cost=  19.667  fail=0.0045
+    EEDD           cost=  19.035  fail=0.0044
+    COVERT         cost=  33.343  fail=0.0068
+
+[misspec] arrival_rate_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 381.420  fail=0.0689
+    rolling_mpc    cost= 362.579  fail=0.0642
+    offline_fqi    cost= 396.798  fail=0.0724
+    EEDD           cost= 695.771  fail=0.0943
+    COVERT         cost= 454.362  fail=0.0836
+
+[misspec] arrival_rate_scale=1.1   (5 methods x 50 shifts)
+    ours           cost=2473.398  fail=0.3044
+    rolling_mpc    cost=2408.851  fail=0.2911
+    offline_fqi    cost=2483.473  fail=0.3042
+    EEDD           cost=5294.658  fail=0.4835
+    COVERT         cost=2509.917  fail=0.3114
+
+[misspec] arrival_rate_scale=1.25   (5 methods x 50 shifts)
+    ours           cost=6609.172  fail=0.4564
+    rolling_mpc    cost=6535.935  fail=0.4464
+    offline_fqi    cost=6600.378  fail=0.4532
+    EEDD           cost=14375.967  fail=0.7000
+    COVERT         cost=6628.076  fail=0.4602
+
+[misspec] processing_time_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=   9.136  fail=0.0020
+    rolling_mpc    cost=   9.130  fail=0.0020
+    offline_fqi    cost=   9.537  fail=0.0020
+    EEDD           cost=   9.136  fail=0.0020
+    COVERT         cost=  10.661  fail=0.0021
+
+[misspec] processing_time_scale=0.9   (5 methods x 50 shifts)
+    ours           cost=  14.909  fail=0.0033
+    rolling_mpc    cost=  14.856  fail=0.0033
+    offline_fqi    cost=  15.290  fail=0.0033
+    EEDD           cost=  14.909  fail=0.0033
+    COVERT         cost=  26.331  fail=0.0051
+
+[misspec] processing_time_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 381.420  fail=0.0689
+    rolling_mpc    cost= 362.579  fail=0.0642
+    offline_fqi    cost= 396.798  fail=0.0724
+    EEDD           cost= 695.771  fail=0.0943
+    COVERT         cost= 454.362  fail=0.0836
+
+[misspec] processing_time_scale=1.1   (5 methods x 50 shifts)
+    ours           cost=2266.239  fail=0.2917
+    rolling_mpc    cost=2228.311  fail=0.2838
+    offline_fqi    cost=2316.882  fail=0.2947
+    EEDD           cost=4952.787  fail=0.4880
+    COVERT         cost=2292.974  fail=0.2989
+
+[misspec] processing_time_scale=1.25   (5 methods x 50 shifts)
+    ours           cost=5316.130  fail=0.4182
+    rolling_mpc    cost=5267.142  fail=0.4127
+    offline_fqi    cost=5452.605  fail=0.4308
+    EEDD           cost=11837.382  fail=0.7083
+    COVERT         cost=5326.387  fail=0.4235
+
+[misspec] sla_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=1073.677  fail=0.1822
+    rolling_mpc    cost= 922.225  fail=0.1591
+    offline_fqi    cost=1020.654  fail=0.1877
+    EEDD           cost=1855.695  fail=0.2529
+    COVERT         cost=1016.999  fail=0.1890
+
+[misspec] sla_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 381.420  fail=0.0689
+    rolling_mpc    cost= 362.579  fail=0.0642
+    offline_fqi    cost= 396.798  fail=0.0724
+    EEDD           cost= 695.771  fail=0.0943
+    COVERT         cost= 454.362  fail=0.0836
+
+[misspec] sla_scale=1.25   (5 methods x 50 shifts)
+    ours           cost= 132.247  fail=0.0229
+    rolling_mpc    cost= 116.209  fail=0.0206
+    offline_fqi    cost= 145.187  fail=0.0256
+    EEDD           cost= 202.566  fail=0.0303
+    COVERT         cost= 204.042  fail=0.0340
+
+[misspec] shelf_life_scale=0.8   (5 methods x 50 shifts)
+    ours           cost= 427.963  fail=0.0738
+    rolling_mpc    cost= 407.608  fail=0.0693
+    offline_fqi    cost= 455.793  fail=0.0791
+    EEDD           cost= 762.416  fail=0.1027
+    COVERT         cost= 558.462  fail=0.0962
+
+[misspec] shelf_life_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 381.420  fail=0.0689
+    rolling_mpc    cost= 362.579  fail=0.0642
+    offline_fqi    cost= 396.798  fail=0.0724
+    EEDD           cost= 695.771  fail=0.0943
+    COVERT         cost= 454.362  fail=0.0836
+
+[misspec] shelf_life_scale=1.25   (5 methods x 50 shifts)
+    ours           cost= 351.232  fail=0.0642
+    rolling_mpc    cost= 339.509  fail=0.0618
+    offline_fqi    cost= 367.077  fail=0.0686
+    EEDD           cost= 659.137  fail=0.0909
+    COVERT         cost= 394.962  fail=0.0764
+
+[misspec] n_pickers_delta=-2   (5 methods x 50 shifts)
+    ours           cost=5328.472  fail=0.4598
+    rolling_mpc    cost=5238.079  fail=0.4459
+    offline_fqi    cost=5358.209  fail=0.4607
+    EEDD           cost=11584.051  fail=0.7022
+    COVERT         cost=5344.761  fail=0.4643
+
+[misspec] n_pickers_delta=-1   (5 methods x 50 shifts)
+    ours           cost=2504.280  fail=0.3198
+    rolling_mpc    cost=2445.282  fail=0.3079
+    offline_fqi    cost=2520.705  fail=0.3219
+    EEDD           cost=5411.060  fail=0.5119
+    COVERT         cost=2538.189  fail=0.3288
+
+[misspec] n_pickers_delta=0   (5 methods x 50 shifts)
+    ours           cost= 381.420  fail=0.0689
+    rolling_mpc    cost= 362.579  fail=0.0642
+    offline_fqi    cost= 396.798  fail=0.0724
+    EEDD           cost= 695.771  fail=0.0943
+    COVERT         cost= 454.362  fail=0.0836
+
+[misspec] n_pickers_delta=1   (5 methods x 50 shifts)
+    ours           cost=  19.202  fail=0.0041
+    rolling_mpc    cost=  19.657  fail=0.0042
+    offline_fqi    cost=  20.325  fail=0.0044
+    EEDD           cost=  19.202  fail=0.0041
+    COVERT         cost=  37.764  fail=0.0071
+
+[misspec] n_pickers_delta=2   (5 methods x 50 shifts)
+    ours           cost=  18.047  fail=0.0039
+    rolling_mpc    cost=  18.164  fail=0.0040
+    offline_fqi    cost=  18.792  fail=0.0040
+    EEDD           cost=  18.047  fail=0.0039
+    COVERT         cost=  20.618  fail=0.0042
+
+[misspec] wrote results\E10_misspecification/misspecification.parquet
+########## rc=0  06:37:13
+
+########## .venv/Scripts/python.exe -m experiments.misspecification summary ##########  06:37:13
+                 axis      method  nominal_cost  worst_cost  relative_degradation_slope
+   arrival_rate_scale      COVERT      454.3620   6628.0760                     38.2949
+   arrival_rate_scale offline_fqi      396.7984   6600.3782                     44.2010
+   arrival_rate_scale        ours      381.4196   6609.1715                     46.2160
+   arrival_rate_scale rolling_mpc      362.5789   6535.9349                     48.2978
+   arrival_rate_scale        EEDD      695.7708  14375.9665                     55.8398
+      n_pickers_delta      COVERT      454.3620   5344.7609                     25.4036
+      n_pickers_delta offline_fqi      396.7984   5358.2088                     29.8572
+      n_pickers_delta        ours      381.4196   5328.4723                     31.0383
+      n_pickers_delta rolling_mpc      362.5789   5238.0795                     32.2778
+      n_pickers_delta        EEDD      695.7708  11584.0513                     37.7829
+processing_time_scale      COVERT      454.3620   5326.3872                     29.6116
+processing_time_scale offline_fqi      396.7984   5452.6053                     35.3773
+processing_time_scale        ours      381.4196   5316.1298                     35.9154
+processing_time_scale rolling_mpc      362.5789   5267.1422                     37.6155
+processing_time_scale        EEDD      695.7708  11837.3824                     44.6927
+     shelf_life_scale        ours      381.4196    427.9627                     -0.0518
+     shelf_life_scale      COVERT      454.3620    558.4620                     -0.0462
+     shelf_life_scale        EEDD      695.7708    762.4164                     -0.0136
+     shelf_life_scale rolling_mpc      362.5789    407.6076                     -0.0044
+     shelf_life_scale offline_fqi      396.7984    455.7935                     -0.0016
+            sla_scale      COVERT      454.3620   1016.9991                      0.1949
+            sla_scale rolling_mpc      362.5789    922.2248                      0.2636
+            sla_scale        EEDD      695.7708   1855.6954                      0.3563
+            sla_scale offline_fqi      396.7984   1020.6539                      0.4343
+            sla_scale        ours      381.4196   1073.6768                      0.7263
+
+[misspec] most robust: COVERT   least robust: EEDD
+########## rc=0  06:37:14
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity weights --n-jobs -1 ##########  06:37:14
+
+[E4 weights] w_breach: [1.0, 3.0, 6.0]  (nominal 3.0)
+  w_breach=1.0      ours           cost=  251.820  fail=0.0689
+  w_breach=1.0      rolling_mpc    cost=  240.354  fail=0.0651
+  w_breach=1.0      eedd           cost=  425.211  fail=0.0943
+  w_breach=1.0      edd            cost=  502.378  fail=0.1014
+  w_breach=3.0      ours           cost=  381.420  fail=0.0689
+  w_breach=3.0      rolling_mpc    cost=  362.579  fail=0.0642
+  w_breach=3.0      eedd           cost=  695.771  fail=0.0943
+  w_breach=3.0      edd            cost=  763.058  fail=0.1014
+  w_breach=6.0      ours           cost=  575.820  fail=0.0689
+  w_breach=6.0      rolling_mpc    cost=  539.748  fail=0.0641
+  w_breach=6.0      eedd           cost= 1101.611  fail=0.0943
+  w_breach=6.0      edd            cost= 1154.078  fail=0.1014
+
+[E4 weights] w_spoil: [1.0, 3.0, 5.0, 10.0]  (nominal 5.0)
+  w_spoil=1.0      ours           cost=  343.260  fail=0.0689
+  w_spoil=1.0      rolling_mpc    cost=  324.936  fail=0.0652
+  w_spoil=1.0      eedd           cost=  654.251  fail=0.0943
+  w_spoil=1.0      edd            cost=  646.498  fail=0.1014
+  w_spoil=3.0      ours           cost=  362.340  fail=0.0689
+  w_spoil=3.0      rolling_mpc    cost=  346.836  fail=0.0646
+  w_spoil=3.0      eedd           cost=  675.011  fail=0.0943
+  w_spoil=3.0      edd            cost=  704.778  fail=0.1014
+  w_spoil=5.0      ours           cost=  381.420  fail=0.0689
+  w_spoil=5.0      rolling_mpc    cost=  362.579  fail=0.0642
+  w_spoil=5.0      eedd           cost=  695.771  fail=0.0943
+  w_spoil=5.0      edd            cost=  763.058  fail=0.1014
+  w_spoil=10.0     ours           cost=  429.120  fail=0.0689
+  w_spoil=10.0     rolling_mpc    cost=  401.298  fail=0.0641
+  w_spoil=10.0     eedd           cost=  747.671  fail=0.0943
+  w_spoil=10.0     edd            cost=  908.758  fail=0.1014
+
+[E4 weights] w_tardy: [0.1, 0.2, 0.5]  (nominal 0.2)
+  w_tardy=0.1      ours           cost=  311.848  fail=0.0689
+  w_tardy=0.1      rolling_mpc    cost=  291.255  fail=0.0635
+  w_tardy=0.1      eedd           cost=  576.848  fail=0.0943
+  w_tardy=0.1      edd            cost=  649.982  fail=0.1014
+  w_tardy=0.2      ours           cost=  381.420  fail=0.0689
+  w_tardy=0.2      rolling_mpc    cost=  362.579  fail=0.0642
+  w_tardy=0.2      eedd           cost=  695.771  fail=0.0943
+  w_tardy=0.2      edd            cost=  763.058  fail=0.1014
+  w_tardy=0.5      ours           cost=  590.136  fail=0.0689
+  w_tardy=0.5      rolling_mpc    cost=  565.760  fail=0.0637
+  w_tardy=0.5      eedd           cost= 1052.538  fail=0.0943
+  w_tardy=0.5      edd            cost= 1102.285  fail=0.1014
+
+[E4 weights] w_holding: [0.0, 0.005, 0.05]  (nominal 0.005)
+  w_holding=0.0      ours           cost=  381.244  fail=0.0689
+  w_holding=0.0      rolling_mpc    cost=  362.279  fail=0.0644
+  w_holding=0.0      eedd           cost=  695.585  fail=0.0943
+  w_holding=0.0      edd            cost=  762.871  fail=0.1014
+  w_holding=0.005    ours           cost=  381.420  fail=0.0689
+  w_holding=0.005    rolling_mpc    cost=  362.579  fail=0.0642
+  w_holding=0.005    eedd           cost=  695.771  fail=0.0943
+  w_holding=0.005    edd            cost=  763.058  fail=0.1014
+  w_holding=0.05     ours           cost=  382.999  fail=0.0689
+  w_holding=0.05     rolling_mpc    cost=  364.786  fail=0.0644
+  w_holding=0.05     eedd           cost=  697.443  fail=0.0943
+  w_holding=0.05     edd            cost=  764.732  fail=0.1014
+
+[E4 weights] winner by cell (lowest composite cost):
+  w_breach=1.0      -> rolling_mpc
+  w_breach=3.0      -> rolling_mpc
+  w_breach=6.0      -> rolling_mpc
+  w_holding=0.0      -> rolling_mpc
+  w_holding=0.005    -> rolling_mpc
+  w_holding=0.05     -> rolling_mpc
+  w_spoil=1.0      -> rolling_mpc
+  w_spoil=3.0      -> rolling_mpc
+  w_spoil=5.0      -> rolling_mpc
+  w_spoil=10.0     -> rolling_mpc
+  w_tardy=0.1      -> rolling_mpc
+  w_tardy=0.2      -> rolling_mpc
+  w_tardy=0.5      -> rolling_mpc
+
+[E4 weights] RANKING INVARIANT: rolling_mpc wins all 13 cells. The conclusion does not depend on the objective weights over the swept ranges.
+[E4 weights] summary -> results\E4\weights_summary.parquet
+########## rc=0  06:47:12
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity t_min --n-jobs=-1 ##########  06:47:12
+[E4 t_min] T_min=0  on 50 shifts
+  sla_breach=0.0687  composite_cost=380.4286
+[E4 t_min] T_min=1  on 50 shifts
+  sla_breach=0.0687  composite_cost=380.4286
+[E4 t_min] T_min=2  on 50 shifts
+  sla_breach=0.0689  composite_cost=381.4196
+[E4 t_min] T_min=3  on 50 shifts
+  sla_breach=0.0692  composite_cost=381.8769
+[E4 t_min] T_min=4  on 50 shifts
+  sla_breach=0.0695  composite_cost=382.7063
+
+[E4 t_min] summary -> results\E4\t_min_summary.parquet
+########## rc=0  06:47:31
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity arrival_noise --n-jobs=-1 ##########  06:47:31
+[E4 arrival_noise] x=0.5  (rate=0.825)
+  sla_breach=0.0034  composite_cost=7.3423
+[E4 arrival_noise] x=1.0  (rate=1.650)
+  sla_breach=0.0689  composite_cost=381.4196
+[E4 arrival_noise] x=1.5  (rate=2.475)
+  sla_breach=0.5861  composite_cost=17620.7171
+[E4 arrival_noise] x=2.0  (rate=3.300)
+  sla_breach=0.6944  composite_cost=45864.8103
+
+[E4 arrival_noise] summary -> results\E4\arrival_noise_summary.parquet
+########## rc=0  06:47:47
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity theta ##########  06:47:47
+[E4 theta] uniform multiples=[1.5, 2.0, 2.2, 3.0, 4.0]  |H|=6  (absolute theta = multiple/|H|; re-labeling pipeline)
+  For each multiple m:
+    1) python -m experiments.generate_labels --theta-uniform-multiple <m> --train-out data/e4_theta_m<m>/train.parquet --test-out data/e4_theta_m<m>/test.parquet
+    2) python -m experiments.train_ranker --run-id e4_theta_m<m> --train-path data/e4_theta_m<m>/train.parquet --test-path data/e4_theta_m<m>/test.parquet
+    3) python -m experiments.evaluate --method ours --run-dir runs/e4_theta_m<m> --results-dir results/E4/theta/m_<m>
+  This is multi-hour compute. Exiting 2 so a campaign cannot treat the printed recipe as a finished sweep.
+########## rc=2  06:47:48
+
+########## .venv/Scripts/python.exe -m experiments.generate_labels --tau 2 --train-out data/tau2/train.parquet --test-out data/tau2/test.parquet ##########  06:47:48
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:  1.4min
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  5.6min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed: 12.0min remaining:   36.2s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed: 12.1min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:  1.5min remaining:  6.7min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:  1.6min remaining:  2.4min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:  1.7min remaining:  1.0min
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  2.6min remaining:   29.3s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  2.6min finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=2  M=20  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 2,313,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=2, M=20, |H|=6)...
+  train: 726.9s  (2.91s/shift)  1,898,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=2, M=20, |H|=6)...
+  test: 157.0s  (3.14s/shift)  379,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.237137
+  median train row entropy = 0.6491 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1273/1600 (dropped 327)
+  rollout SE: mean=0.9525  median=0.6967
+  epochs with best/second gap < 1 SE: 56.3%
+
+[stage2] saved:
+  data\tau2\train.parquet  (8000 rows)
+  data\tau2\test.parquet  (1273 rows)
+  data\tau2\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\tau2\label_meta.json
+[stage2] simulated interval-steps: 2,277,600 (a priori budget 2,313,600)
+[stage2] total wall-clock: 883.8s
+########## rc=0  07:02:33
+
+########## .venv/Scripts/python.exe -m experiments.train_ranker --run-id phase4_tau2 --train-path data/tau2/train.parquet --test-path data/tau2/test.parquet --skip-cv-cal ##########  07:02:33
+[Phase 4] run_id=phase4_tau2  smoke=False  seed=1337
+[Phase 4] data: data\tau2\train.parquet / data\tau2\test.parquet
+[Phase 4] train: 8000 rows; test: 1273 rows
+[Phase 4] labels: tau=2 M=20 beta=0.2371 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (91.5s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 1.23440  per-fold = ['1.2098', '1.2658', '1.2351', '1.2629', '1.1984']
+  HP-search wall: 1808.1s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 20.2s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1112   post=0.0527
+  Brier pre=0.3642  post=0.3546
+  soft-xent  pre=1.02144  post=1.89059
+  test rows: 1273
+
+Saved artifacts under runs\phase4_tau2/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  07:34:35
+
+########## .venv/Scripts/python.exe -m experiments.generate_labels --tau 3 --train-out data/tau3/train.parquet --test-out data/tau3/test.parquet ##########  07:34:35
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:  1.4min
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  5.6min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed: 12.2min remaining:   36.9s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed: 12.3min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:  1.5min remaining:  6.8min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:  1.6min remaining:  2.4min
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:  1.7min remaining:  1.0min
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:  2.6min remaining:   29.8s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:  2.7min finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=3  M=20  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 3,465,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=3, M=20, |H|=6)...
+  train: 740.2s  (2.96s/shift)  2,798,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=3, M=20, |H|=6)...
+  test: 159.8s  (3.20s/shift)  559,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.378552
+  median train row entropy = 0.6383 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1444/1600 (dropped 156)
+  rollout SE: mean=2.1467  median=1.2817
+  epochs with best/second gap < 1 SE: 40.3%
+
+[stage2] saved:
+  data\tau3\train.parquet  (8000 rows)
+  data\tau3\test.parquet  (1444 rows)
+  data\tau3\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\tau3\label_meta.json
+[stage2] simulated interval-steps: 3,357,600 (a priori budget 3,465,600)
+[stage2] total wall-clock: 900.0s
+########## rc=0  07:49:36
+
+########## .venv/Scripts/python.exe -m experiments.train_ranker --run-id phase4_tau3 --train-path data/tau3/train.parquet --test-path data/tau3/test.parquet --skip-cv-cal ##########  07:49:36
+[Phase 4] run_id=phase4_tau3  smoke=False  seed=1337
+[Phase 4] data: data\tau3\train.parquet / data\tau3\test.parquet
+[Phase 4] train: 8000 rows; test: 1444 rows
+[Phase 4] labels: tau=3 M=20 beta=0.3786 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (89.8s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.98407  per-fold = ['0.9188', '1.0092', '1.0207', '0.9952', '0.9764']
+  HP-search wall: 1535.8s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 28.9s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1553   post=0.0416
+  Brier pre=0.2144  post=0.1749
+  soft-xent  pre=0.84876  post=1.80156
+  test rows: 1444
+
+Saved artifacts under runs\phase4_tau3/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  08:17:12
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity tau --n-jobs=-1 ##########  08:17:12
+[E4 tau] tau=1  run_dir=runs\phase4_tau1
+  sla_breach=0.0671  composite_cost=388.1294
+[E4 tau] tau=2  run_dir=runs\phase4_tau2
+  sla_breach=0.0653  composite_cost=372.3137
+[E4 tau] tau=3  run_dir=runs\phase4_tau3
+  sla_breach=0.0657  composite_cost=373.3822
+[E4 tau] tau=4  run_dir=runs\phase4
+  sla_breach=0.0689  composite_cost=381.4196
+
+[E4 tau] summary -> results\E4\tau_summary.parquet
+########## rc=0  08:17:27
+
+########## .venv/Scripts/python.exe -m experiments.e4_sensitivity n_samples ##########  08:17:27
+[E4 n_samples] M=[1, 5, 10, 20, 40]  (each M needs its own labelling pass)
+  For each M:
+    1) python -m experiments.generate_labels --n-samples <M> --train-out data/e4_M<M>/train.parquet --test-out data/e4_M<M>/test.parquet
+    2) python -m experiments.train_ranker --run-id e4_M<M> --train-path data/e4_M<M>/train.parquet --test-path data/e4_M<M>/test.parquet --skip-cv-cal
+    3) python -m experiments.evaluate --method ours --run-dir runs/e4_M<M> --results-dir results/E4/n_samples/M_<M>
+  Exiting 2: a printed recipe is not a completed experiment.
+########## rc=2  08:17:29
+
+########## .venv/Scripts/python.exe -m experiments.e5_calibration reliability ##########  08:17:29
+[E5] run_dir=C:\CAOR\runs\phase4  test_path=C:\CAOR\data\test.parquet
+[E5] 1525 test rows.
+  ECE  pre=0.1700   post=0.0213
+  Brier pre=0.1730  post=0.1240
+  soft-xent pre=0.8280  post=2.3577
+  wrote results\E5\calibration_table.parquet
+########## rc=0  08:17:31
+
+########## .venv/Scripts/python.exe -m experiments.e5_calibration shap ##########  08:17:31
+[E5 SHAP] sampling 500 rows from 1525 test rows.
+
+[E5 SHAP] Top 10 features by mean |SHAP|:
+                         feature  mean_abs_shap
+                  f_queue_length         0.3695
+            f_queue_length_lag_1         0.1516
+            f_mean_slack_minutes         0.1198
+       f_interval_index_in_shift         0.0526
+            f_queue_length_lag_2         0.0522
+                   regime_post_9         0.0401
+f_mean_processing_time_remaining         0.0318
+            f_pct_expiring_30min         0.0309
+                  f_pct_critical         0.0217
+             f_mean_expiry_slack         0.0201
+
+[E5 SHAP] figures -> figures\E5/
+########## rc=0  08:17:35
+
+########## .venv/Scripts/python.exe -m experiments.feature_analysis ##########  08:17:35
+[features] wrote provenance table for 26 features
+[features] matrix 8000 rows x 26 features
+
+[features] near-constant columns : none
+[features] |r| >= 0.95 pairs      : 10
+    labor_utilization                ~ n_pickers_busy                   r=+1.000
+    failure_rate_lag_1               ~ failure_rate_lag_2               r=+0.995
+    failure_rate_lag_2               ~ failure_rate_lag_3               r=+0.995
+    failure_rate_lag_1               ~ failure_rate_lag_3               r=+0.985
+    n_orders_late_so_far             ~ failure_rate_lag_2               r=+0.985
+    n_orders_late_so_far             ~ failure_rate_lag_3               r=+0.984
+    n_orders_late_so_far             ~ failure_rate_lag_1               r=+0.979
+    queue_length_lag_1               ~ queue_length_lag_2               r=+0.969
+    queue_length_lag_2               ~ queue_length_lag_3               r=+0.969
+    mean_queue_age                   ~ max_queue_age                    r=+0.954
+[features] VIF >= 10              : ['queue_length', 'n_arrivals_last_interval', 'n_pickers_busy', 'labor_utilization', 'queue_length_lag_1', 'failure_rate_lag_2', 'failure_rate_lag_1', 'failure_rate_lag_3', 'n_orders_late_so_far', 'mean_queue_age', 'queue_length_lag_2', 'queue_length_lag_3', 'max_queue_age', 'mean_slack_minutes']
+[features] recommended drop      : ['failure_rate_lag_1', 'failure_rate_lag_2', 'failure_rate_lag_3', 'labor_utilization', 'mean_queue_age', 'queue_length_lag_1', 'queue_length_lag_2']
+[features] top-5 subset for the parsimony ablation: ['f_queue_length', 'f_queue_length_lag_1', 'f_mean_slack_minutes', 'f_interval_index_in_shift', 'f_queue_length_lag_2']
+########## rc=0  08:17:36
+
+########## .venv/Scripts/python.exe -m experiments.observability_analysis ##########  08:17:36
+[observability] strongest constructive witness: ATC, tau=4, 1 picker(s)
+  phi max |A - B|   = 0.00e+00  (identical)
+  cost(queue A)     = 3.7900
+  cost(queue B)     = -0.0100
+  gap               = +3.8000
+  admits a witness  : ATC, COVERT
+  does not          : EDD, EEDD, MDD, MS (slack-only rules order both queues identically)
+
+[observability] empirical aliasing over 8,000 states
+  near-identical pairs                 : 1,927
+  disagree on the best rule            : 14.5%
+  mean regret | disagreement           : 2.0825
+  as a share of achievable benefit     : 3.7%
+########## rc=0  08:17:40
+
+########## .venv/Scripts/python.exe -m experiments.saturation_analysis trace ##########  08:17:40
+[saturation] low_load           eff.rules=1.01  switch=0.001  blocked=0.000
+[saturation] balanced           eff.rules=1.03  switch=0.006  blocked=0.000
+[saturation] default            eff.rules=1.61  switch=0.039  blocked=0.008
+[saturation] high_load_perish   eff.rules=1.58  switch=0.031  blocked=0.001
+
+        scenario  selection_entropy_effective_rules  switch_rate  blocked_switch_rate  gate_open_rate  share_EEDD  share_COVERT  share_MS  share_ATC  share_MDD  share_EDD  composite_cost  service_failure_rate  picker_utilization  n_epochs
+        low_load                             1.0052       0.0006               0.0000          0.9306      0.9994        0.0000    0.0006     0.0000     0.0000     0.0000          9.0362                0.0034              0.6139      1600
+        balanced                             1.0339       0.0056               0.0000          0.9525      0.9950        0.0044    0.0000     0.0006     0.0000     0.0000         17.0489                0.0038              0.9094      1600
+         default                             1.6103       0.0394               0.0081          0.9294      0.8488        0.1375    0.0119     0.0019     0.0000     0.0000        381.4196                0.0689              0.9558      1600
+high_load_perish                             1.5838       0.0312               0.0006          0.9631      0.1725        0.8275    0.0000     0.0000     0.0000     0.0000      11426.9542                0.5595              0.9683      1600
+
+  selection entropy low_load -> high_load_perish: 1.01 -> 1.58
+  blocked-switch rate low_load -> high_load_perish: 0.000 -> 0.001
+  A rising blocked-switch rate under load is direct evidence that the dwell is preventing timely adaptation; a falling selection entropy means the selector is collapsing onto one rule.
+########## rc=0  08:17:51
+
+########## .venv/Scripts/python.exe -m experiments.saturation_analysis dwell --scenario high_load_perish ##########  08:17:51
+  t_min=0  cost=11427.036  fail=0.5595  switch=0.033  blocked=0.000
+  t_min=1  cost=11427.036  fail=0.5595  switch=0.033  blocked=0.000
+  t_min=2  cost=11426.954  fail=0.5595  switch=0.031  blocked=0.001
+  t_min=3  cost=11426.954  fail=0.5595  switch=0.031  blocked=0.001
+  t_min=4  cost=11429.343  fail=0.5594  switch=0.031  blocked=0.001
+
+[saturation] best t_min in high_load_perish: 2 (deployed 2)
+########## rc=0  08:18:09
+
+########## .venv/Scripts/python.exe -m experiments.fit_input_distributions ##########  08:18:09
+[fit] Olist orders: 99,441
+
+[fit] inter-arrival shape (n=98,241, CV=2.68, skew=11.0)
+     family         aic  ks_stat
+    lognorm 161983.6127   0.0541
+weibull_min 166202.5333   0.0532
+      gamma 177461.8625   0.0920
+      expon 196486.0000   0.1544
+  best: lognorm   (exponential, i.e. the submitted Poisson assumption, ranks 4 of 4, dAIC = 34502)
+
+[fit] due-date window (n=99,441)
+ family         aic  ks_stat
+lognorm  78097.0326   0.0420
+  gamma  78566.1057   0.0423
+   norm  85330.6686   0.0542
+ triang 257598.8864   0.5706
+  fitted triangular, rescaled to mean 50.0 min: [1.405, 10.17, 138.425]
+
+[fit] wrote results\S1_fit/{config_fitted.yaml, fit_report.json}
+[fit] every simulator input now carries a provenance tag: fitted | literature | operating point | design parameter
+########## rc=0  08:18:13
+
+########## .venv/Scripts/python.exe -m experiments.a_realdata_validation ##########  08:18:13
+C:\CAOR\experiments\a_realdata_validation.py:164: UserWarning: Parameter `variant` has been introduced to replace `midrank`; `midrank` will be removed in SciPy 1.19.0. Specify `variant` to silence this warning. Note that the returned object will no longer be unpackable as a tuple, and `critical_values` will be omitted.
+  ad = stats.anderson_ksamp([s_ad, r_ad])
+C:\CAOR\experiments\a_realdata_validation.py:164: UserWarning: p-value floored: true value smaller than 0.001. Consider specifying `method` (e.g. `method=stats.PermutationMethod()`.)
+  ad = stats.anderson_ksamp([s_ad, r_ad])
+[A] loading simulator draws (250 shifts)...
+[A] loading Olist trace...
+
+=== Deliverable A — distributional-shape comparison ===
+
+inter_arrival:
+  n: sim=197,387  olist=98,241
+  mean: sim=0.606  olist=8.607  (different scales — expected)
+  CV:   sim=1.002  olist=2.677
+  skew: sim=1.998  olist=11.041
+  KS D=0.1525 (full-n p=0.00e+00)
+  KS D=0.1520 (n=2000 p=0.0000)
+  Anderson-Darling stat=1945.914 (p=0.0010)
+  Wasserstein (normalized)=0.4434
+
+processing_time:
+  n: sim=197,637  olist=97,985
+  mean: sim=6.336  olist=633.414  (different scales — expected)
+  CV:   sim=0.331  olist=2.480
+  skew: sim=0.353  olist=56.767
+  KS D=0.6855 (full-n p=0.00e+00)
+  KS D=0.6985 (n=2000 p=0.0000)
+  Anderson-Darling stat=20080.323 (p=0.0010)
+  Wasserstein (normalized)=1.1002
+
+sla_window:
+  n: sim=197,637  olist=99,441
+  mean: sim=49.995  olist=34225.416  (different scales — expected)
+  CV:   sim=0.308  olist=0.372
+  skew: sim=0.194  olist=0.987
+  KS D=0.0388 (full-n p=7.02e-87)
+  KS D=0.0475 (n=2000 p=0.0219)
+  Anderson-Darling stat=153.288 (p=0.0010)
+  Wasserstein (normalized)=0.0350
+
+perishable_frac: sim=0.199  olist(food+drink)=0.0099  abs_diff=0.190
+
+[A] artifacts written:
+  C:\CAOR\figures\A\olist_validation.png
+  C:\CAOR\results\A\validation_stats.csv
+  C:\CAOR\results\A\validation_stats.json
+########## rc=0  08:18:18
+
+########## .venv/Scripts/python.exe -m experiments.a2_olist_arrivals eval ##########  08:18:18
+
+[A2] arrival_mode = poisson  (n_test=50)
+  ours... OK
+  greedy_mpc... OK
+  snapshot_xgb... OK
+  eedd... OK
+
+[A2] arrival_mode = olist  (n_test=50)
+  ours... OK
+  greedy_mpc... OK
+  snapshot_xgb... OK
+  eedd... OK
+
+[A2] summary written to results\A2\olist_arrivals_summary.parquet
+########## rc=0  08:33:09
+
+########## .venv/Scripts/python.exe -m experiments.a2_olist_arrivals summary ##########  08:33:09
+
+[A2] Olist-arrival robustness -- poisson vs olist
+======================================================================================
+
+SERVICE_FAILURE_RATE  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours            0.0689 [0.0453,0.0957] #3  0.2111 [0.1655,0.2575] #3     +0.1422
+  greedy_mpc      0.0607 [0.0384,0.0864] #1  0.2010 [0.1562,0.2472] #1     +0.1403
+  snapshot_xgb    0.0671 [0.0433,0.0941] #2  0.2099 [0.1643,0.2565] #2     +0.1428
+  eedd            0.0943 [0.0565,0.1380] #4  0.3235 [0.2494,0.3994] #4     +0.2293
+  best: poisson=greedy_mpc  olist=greedy_mpc   [RANK SHIFT -> greedy_mpc]
+
+COMPOSITE_COST  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours           381.4196 [232.6537,555.0741] #2 1814.5903 [1297.9630,2379.5558] #2  +1433.1707
+  greedy_mpc     356.1368 [208.2928,528.7411] #1 1782.6614 [1264.6775,2351.7362] #1  +1426.5246
+  snapshot_xgb   388.1294 [235.7635,566.3278] #3 1838.5047 [1313.9183,2412.9582] #3  +1450.3754
+  eedd           695.7708 [375.8357,1075.5894] #4 3806.0708 [2650.2719,5061.2488] #4  +3110.3000
+  best: poisson=greedy_mpc  olist=greedy_mpc   [RANK SHIFT -> greedy_mpc]
+
+MEAN_TARDINESS  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours            0.7753 [0.3844,1.2491] #3  5.7010 [3.8529,7.7422] #3     +4.9257
+  greedy_mpc      0.7252 [0.3384,1.1931] #1  5.6764 [3.8080,7.7295] #2     +4.9512
+  snapshot_xgb    0.7340 [0.3481,1.2011] #2  5.6717 [3.8071,7.7188] #1     +4.9377
+  eedd            0.7843 [0.3420,1.3283] #4  6.7912 [4.4502,9.3686] #4     +6.0069
+  best: poisson=greedy_mpc  olist=snapshot_xgb   [RANK SHIFT -> snapshot_xgb]
+
+[A2] figure -> figures\A2/olist_arrivals_compare.png
+########## rc=0  08:33:10
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations inference ##########  08:33:10
+
+[E3 inference] running no_calibration on 50 test shifts (scenario=default)
+  sla_breach=0.0685  mean_tard=0.7744  composite_cost=381.4599  throughput=732.18  inference=0.543ms/decision
+
+[E3 inference] running no_switching_controller on 50 test shifts (scenario=default)
+  sla_breach=0.0687  mean_tard=0.7709  composite_cost=380.4286  throughput=732.00  inference=0.889ms/decision
+########## rc=0  08:33:16
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations retrain no_regime ##########  08:33:16
+[Phase 4] run_id=e3_no_regime  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\data\train.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] --no-regime: skipping the regime layer entirely.
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87537  per-fold = ['0.8349', '0.8897', '0.8933', '0.8713', '0.8876']
+  HP-search wall: 1099.4s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 22.3s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1713   post=0.0236
+  Brier pre=0.1726  post=0.1257
+  soft-xent  pre=0.82647  post=2.22039
+  test rows: 1525
+
+Saved artifacts under runs\e3_no_regime/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  ranker_meta.joblib
+[E3 retrain] no_regime: train=C:\CAOR\data\train.parquet  test=C:\CAOR\data\test.parquet
+[E3 retrain] no_regime: training wall-clock 1123.5s
+
+[E3 retrain] no_regime: sla_breach=0.0691  composite_cost=383.5620  train=1123.5s  inference=0.704ms/decision
+########## rc=0  08:52:03
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations retrain hard_labels ##########  08:52:03
+[Phase 4] run_id=e3_hard_labels  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\data\e3_hard_labels\train.parquet / C:\CAOR\data\e3_hard_labels\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] derived labels: hard labels: one-hot argmax(p) replacing the soft target
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (90.2s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.32793  per-fold = ['0.3389', '0.3293', '0.3173', '0.3403', '0.3139']
+  HP-search wall: 1191.9s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 18.2s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.0196   post=0.0198
+  Brier pre=0.1172  post=0.1207
+  soft-xent  pre=0.25782  post=0.39618
+  test rows: 1525
+
+Saved artifacts under runs\e3_hard_labels/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+[E3 retrain] hard_labels: train=C:\CAOR\data\e3_hard_labels\train.parquet  test=C:\CAOR\data\e3_hard_labels\test.parquet
+[E3 retrain] hard_labels: training wall-clock 1301.8s
+
+[E3 retrain] hard_labels: sla_breach=0.0685  composite_cost=382.4306  train=1301.8s  inference=0.869ms/decision
+########## rc=0  09:13:49
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations retrain random_ambiguity_filter ##########  09:13:49
+[Phase 4] run_id=e3_random_ambiguity_filter  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\data\e3_random_ambiguity_filter\train.parquet / C:\CAOR\data\e3_random_ambiguity_filter\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] derived labels: random test filter: 1525/1600 rows kept at random instead of by confidence
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (89.5s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 6, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.87583  per-fold = ['0.8372', '0.8883', '0.8937', '0.8722', '0.8877']
+  HP-search wall: 1502.0s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 30.5s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1576   post=0.0129
+  Brier pre=0.1974  post=0.1530
+  soft-xent  pre=0.88474  post=2.61176
+  test rows: 1525
+
+Saved artifacts under runs\e3_random_ambiguity_filter/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+[E3 random_filter] kept 1525/1600 test rows at random (theta-filter kept the same count by confidence)
+[E3 retrain] random_ambiguity_filter: train=C:\CAOR\data\e3_random_ambiguity_filter\train.parquet  test=C:\CAOR\data\e3_random_ambiguity_filter\test.parquet
+[E3 retrain] random_ambiguity_filter: training wall-clock 1623.8s
+
+[E3 retrain] random_ambiguity_filter: sla_breach=0.0689  composite_cost=381.4196  train=1623.8s  inference=0.914ms/decision
+########## rc=0  09:40:57
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations retrain top5_features ##########  09:40:57
+[Phase 4] run_id=e3_top5_features  smoke=False  seed=1337
+[Phase 4] data: C:\CAOR\data\train.parquet / C:\CAOR\data\test.parquet
+[Phase 4] train: 8000 rows; test: 1525 rows
+[Phase 4] labels: tau=4 M=20 beta=0.4698 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] restricted state (5 features): ['f_queue_length', 'f_queue_length_lag_1', 'f_mean_slack_minutes', 'f_interval_index_in_shift', 'f_queue_length_lag_2']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (89.3s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 0.88020  per-fold = ['0.8410', '0.8936', '0.8968', '0.8773', '0.8923']
+  HP-search wall: 794.7s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 11.4s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1665   post=0.0208
+  Brier pre=0.1713  post=0.1257
+  soft-xent  pre=0.83024  post=2.55607
+  test rows: 1525
+
+Saved artifacts under runs\e3_top5_features/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+[E3 top5_features] retaining ['f_queue_length', 'f_queue_length_lag_1', 'f_mean_slack_minutes', 'f_interval_index_in_shift', 'f_queue_length_lag_2']
+[E3 retrain] top5_features: train=C:\CAOR\data\train.parquet  test=C:\CAOR\data\test.parquet
+[E3 retrain] top5_features: training wall-clock 896.9s
+
+[E3 retrain] top5_features: sla_breach=0.0691  composite_cost=383.1432  train=896.9s  inference=0.875ms/decision
+########## rc=0  09:55:58
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations relabel single_sample_rollout ##########  09:55:58
+[E3 relabel] single_sample_rollout — changes the estimator, so it needs a full labelling pass.
+
+  1) python -m experiments.generate_labels --n-samples 1 \
+       --train-out data/e3_single_sample_rollout/train.parquet \
+       --test-out data/e3_single_sample_rollout/test.parquet
+  2) python -m experiments.train_ranker --run-id e3_single_sample_rollout \
+       --train-path data/e3_single_sample_rollout/train.parquet \
+       --test-path data/e3_single_sample_rollout/test.parquet --skip-cv-cal
+  3) python -m experiments.evaluate --method ours \
+       --run-dir runs/e3_single_sample_rollout --results-dir results/E3
+
+  Step 1 is the expensive one; run it from a detached session.
+  Exiting 2: a printed recipe is not a completed ablation.
+########## rc=2  09:55:59
+
+########## .venv/Scripts/python.exe -m experiments.e3_ablations summary ##########  09:55:59
+
+[E3 summary] service_failure_rate:
+                 method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 0.0689 0.0453 0.0958      0.0000    NaN       NaN     False
+            hard_labels 0.0685 0.0452 0.0952     -0.0004 0.4603    0.7755     False
+         no_calibration 0.0685 0.0451 0.0950     -0.0004 0.5525    0.7755     False
+              no_regime 0.0691 0.0454 0.0960      0.0002 0.3743    0.7755     False
+no_switching_controller 0.0687 0.0452 0.0956     -0.0002 0.5754    0.7755     False
+random_ambiguity_filter 0.0689 0.0453 0.0958      0.0000 1.0000    1.0000     False
+          top5_features 0.0691 0.0455 0.0962      0.0002 0.6462    0.7755     False
+
+[E3 summary] mean_tardiness:
+                 method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 0.7753 0.3830 1.2650      0.0000    NaN       NaN     False
+            hard_labels 0.7680 0.3751 1.2581     -0.0074 0.2668    0.6901     False
+         no_calibration 0.7744 0.3816 1.2632     -0.0009 0.4997    0.6901     False
+              no_regime 0.7777 0.3842 1.2664      0.0023 0.5751    0.6901     False
+no_switching_controller 0.7709 0.3786 1.2606     -0.0045 0.0382    0.2289     False
+random_ambiguity_filter 0.7753 0.3830 1.2650      0.0000 1.0000    1.0000     False
+          top5_features 0.7738 0.3825 1.2617     -0.0015 0.5695    0.6901     False
+
+[E3 summary] composite_cost:
+                 method    point    ci_lo    ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 381.4196 233.4644 557.2511      0.0000    NaN       NaN     False
+            hard_labels 382.4306 235.2507 557.7559      1.0110 0.4651    0.7127     False
+         no_calibration 381.4599 233.2321 556.8960      0.0403 0.5699    0.7127     False
+              no_regime 383.5620 235.2497 560.0685      2.1424 0.0479    0.2876     False
+no_switching_controller 380.4286 232.2464 555.7957     -0.9911 0.5940    0.7127     False
+random_ambiguity_filter 381.4196 233.4644 557.2511      0.0000 1.0000    1.0000     False
+          top5_features 383.1432 234.2228 561.0040      1.7235 0.4204    0.7127     False
+
+[E3 summary] wrote results\E3\e3_summary.parquet
+
+[E3 summary] cost of each ablation (training wall-clock, inference latency):
+               ablation  retrained  train_wall_clock_s  decision_latency_ms_mean  decision_latency_ms_p95
+            hard_labels       True            1301.836                     0.869                    1.084
+         no_calibration      False                 n/a                     0.543                    0.683
+              no_regime       True            1123.505                     0.704                    0.891
+no_switching_controller      False                 n/a                     0.889                    1.125
+random_ambiguity_filter       True            1623.790                     0.914                    1.117
+          top5_features       True             896.877                     0.875                    1.079
+[E3 summary] wrote results\E3\e3_cost_summary.parquet
+########## rc=0  09:56:00
+RERUN END 09:56:00
+RERUN COMPLETE
+--- failures ---
+rc=2  .venv/Scripts/python.exe -m experiments.e4_sensitivity theta
+rc=2  .venv/Scripts/python.exe -m experiments.e4_sensitivity n_samples
+rc=2  .venv/Scripts/python.exe -m experiments.e3_ablations relabel single_sample_rollout

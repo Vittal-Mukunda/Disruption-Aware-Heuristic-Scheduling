@@ -1,122 +1,128 @@
 [
   {
-    "budget": 10,
-    "rep": 0,
-    "service_failure_rate_mean": 0.07132932929807699,
-    "composite_cost_mean": 388.86624812602184
-  },
-  {
-    "budget": 10,
-    "rep": 1,
-    "service_failure_rate_mean": 0.07114987510350607,
-    "composite_cost_mean": 392.35458561444005
-  },
-  {
-    "budget": 10,
-    "rep": 2,
-    "service_failure_rate_mean": 0.0720614766644458,
-    "composite_cost_mean": 391.13162850500817
-  },
-  {
-    "budget": 10,
-    "rep": 3,
-    "service_failure_rate_mean": 0.07094573306239822,
-    "composite_cost_mean": 396.6652429912914
-  },
-  {
-    "budget": 10,
-    "rep": 4,
-    "service_failure_rate_mean": 0.070563049658681,
-    "composite_cost_mean": 383.01836926665646
-  },
-  {
     "budget": 25,
     "rep": 0,
-    "service_failure_rate_mean": 0.07130218644852976,
-    "composite_cost_mean": 411.07080744144724
+    "service_failure_rate_mean": 0.0942538407070296,
+    "composite_cost_mean": 695.7707970245864
   },
   {
     "budget": 25,
     "rep": 1,
-    "service_failure_rate_mean": 0.07009645507850806,
-    "composite_cost_mean": 382.6917182951527
+    "service_failure_rate_mean": 0.06843547108623836,
+    "composite_cost_mean": 385.4236844222282
   },
   {
     "budget": 25,
     "rep": 2,
-    "service_failure_rate_mean": 0.07067840752275427,
-    "composite_cost_mean": 388.63490783971446
+    "service_failure_rate_mean": 0.06848859967276102,
+    "composite_cost_mean": 378.9549917851983
   },
   {
     "budget": 25,
     "rep": 3,
-    "service_failure_rate_mean": 0.06921562646028522,
-    "composite_cost_mean": 384.12034839532004
+    "service_failure_rate_mean": 0.06949641326458295,
+    "composite_cost_mean": 396.8565063382984
   },
   {
     "budget": 25,
     "rep": 4,
-    "service_failure_rate_mean": 0.06926577713491439,
-    "composite_cost_mean": 386.1769828212049
+    "service_failure_rate_mean": 0.06827921949934751,
+    "composite_cost_mean": 384.60480877598866
   },
   {
     "budget": 50,
     "rep": 0,
-    "service_failure_rate_mean": 0.06997411399781286,
-    "composite_cost_mean": 384.37634762168767
+    "service_failure_rate_mean": 0.06811756808269151,
+    "composite_cost_mean": 383.31605916863873
   },
   {
     "budget": 50,
     "rep": 1,
-    "service_failure_rate_mean": 0.06976918996481571,
-    "composite_cost_mean": 380.6271576001759
+    "service_failure_rate_mean": 0.06881340790019429,
+    "composite_cost_mean": 383.0071452381742
   },
   {
     "budget": 50,
     "rep": 2,
-    "service_failure_rate_mean": 0.07079146786262297,
-    "composite_cost_mean": 385.24272022057704
+    "service_failure_rate_mean": 0.06868331473221877,
+    "composite_cost_mean": 381.3428675373406
   },
   {
     "budget": 50,
     "rep": 3,
-    "service_failure_rate_mean": 0.06890486541034319,
-    "composite_cost_mean": 377.52135641528184
+    "service_failure_rate_mean": 0.06932904801388626,
+    "composite_cost_mean": 383.8083133211813
   },
   {
     "budget": 50,
     "rep": 4,
-    "service_failure_rate_mean": 0.0696670663147364,
-    "composite_cost_mean": 382.7977403930581
+    "service_failure_rate_mean": 0.06785230997666576,
+    "composite_cost_mean": 381.57905149870663
   },
   {
     "budget": 100,
     "rep": 0,
-    "service_failure_rate_mean": 0.07216432778443924,
-    "composite_cost_mean": 388.7123864682793
+    "service_failure_rate_mean": 0.06999727237053999,
+    "composite_cost_mean": 385.3973901988692
   },
   {
     "budget": 100,
     "rep": 1,
-    "service_failure_rate_mean": 0.07048265849582398,
-    "composite_cost_mean": 382.01303845724993
+    "service_failure_rate_mean": 0.06787939347012524,
+    "composite_cost_mean": 380.58809224908407
   },
   {
     "budget": 100,
     "rep": 2,
-    "service_failure_rate_mean": 0.06964391241109982,
-    "composite_cost_mean": 382.29504802270907
+    "service_failure_rate_mean": 0.06925588168808723,
+    "composite_cost_mean": 383.140865100328
   },
   {
     "budget": 100,
     "rep": 3,
-    "service_failure_rate_mean": 0.06997833925861559,
-    "composite_cost_mean": 382.3650658154319
+    "service_failure_rate_mean": 0.06990203079829445,
+    "composite_cost_mean": 385.75680672128294
   },
   {
     "budget": 100,
     "rep": 4,
-    "service_failure_rate_mean": 0.07087263284598849,
-    "composite_cost_mean": 385.3958930877966
+    "service_failure_rate_mean": 0.06779217333786959,
+    "composite_cost_mean": 380.2840072121076
+  },
+  {
+    "budget": 150,
+    "rep": 0,
+    "service_failure_rate_mean": 0.06802327415428962,
+    "composite_cost_mean": 380.9724205273018
+  },
+  {
+    "budget": 150,
+    "rep": 1,
+    "service_failure_rate_mean": 0.0685599343121922,
+    "composite_cost_mean": 381.8781734409515
+  },
+  {
+    "budget": 150,
+    "rep": 2,
+    "service_failure_rate_mean": 0.06852484556290436,
+    "composite_cost_mean": 381.7996194649947
+  },
+  {
+    "budget": 150,
+    "rep": 3,
+    "service_failure_rate_mean": 0.06912694535033788,
+    "composite_cost_mean": 382.5288634413612
+  },
+  {
+    "budget": 150,
+    "rep": 4,
+    "service_failure_rate_mean": 0.06816198015709475,
+    "composite_cost_mean": 382.5886819672929
+  },
+  {
+    "budget": 250,
+    "rep": 0,
+    "service_failure_rate_mean": 0.06893103727158317,
+    "composite_cost_mean": 381.41963667042035
   }
 ]

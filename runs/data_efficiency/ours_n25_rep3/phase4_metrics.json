@@ -26,8 +26,8 @@
   "n_train_shifts_inner": 20,
   "n_cal_shifts_inner": 5,
   "regime": {
-    "k_star": 8,
-    "mean_ari": 0.9701946249819642,
+    "k_star": 10,
+    "mean_ari": 0.8773867017532974,
     "stable": true
   },
   "ranker": {
@@ -36,13 +36,13 @@
       "n_estimators": 200,
       "learning_rate": 0.03
     },
-    "best_mean_cv_soft_xent": 0.9437757217641526,
+    "best_mean_cv_soft_xent": 0.8905296323635212,
     "per_fold_cv_soft_xent": [
-      1.0353619931869882,
-      0.9191283165100014,
-      0.916213540405608,
-      0.988130919311929,
-      0.8600438394062362
+      0.8640456416271375,
+      0.9350488678041329,
+      0.7866025475518639,
+      0.8902412909455155,
+      0.9767098138889565
     ],
     "grid_size": 18,
     "feature_cols": [
@@ -79,34 +79,36 @@
       "regime_post_4",
       "regime_post_5",
       "regime_post_6",
-      "regime_post_7"
+      "regime_post_7",
+      "regime_post_8",
+      "regime_post_9"
     ]
   },
   "test_calibration": {
-    "ece_pre": 0.16711590510899904,
-    "ece_post": 0.05246068067237976,
-    "brier_pre": 0.17823339998722076,
-    "brier_post": 0.16397075355052948,
-    "soft_xent_pre": 0.8516783893871193,
-    "soft_xent_post": 2.250071621475702,
+    "ece_pre": 0.1620575376807666,
+    "ece_post": 0.06382108105987798,
+    "brier_pre": 0.18991661071777344,
+    "brier_post": 0.18978182971477509,
+    "soft_xent_pre": 0.8737901816342587,
+    "soft_xent_post": 3.2988586008470824,
     "n_rows": 1525
   },
   "cv_calibration": null,
   "argmax_distribution_test_pre": {
-    "EEDD": 1318,
+    "EEDD": 1290,
     "COVERT": 196,
-    "MS": 7,
-    "ATC": 3,
-    "MDD": 1,
-    "EDD": 0
+    "MS": 18,
+    "ATC": 13,
+    "MDD": 6,
+    "EDD": 2
   },
   "argmax_distribution_test_post": {
-    "EEDD": 1272,
-    "COVERT": 194,
-    "MS": 59,
-    "ATC": 0,
-    "MDD": 0,
-    "EDD": 0
+    "EEDD": 1284,
+    "COVERT": 95,
+    "MS": 0,
+    "ATC": 127,
+    "MDD": 1,
+    "EDD": 18
   },
   "argmax_distribution_test_truth": {
     "EEDD": 1250,
