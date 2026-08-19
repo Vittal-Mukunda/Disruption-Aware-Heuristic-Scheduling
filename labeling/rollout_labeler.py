@@ -14,9 +14,10 @@ variance was identically zero. Proposition 1's bias/variance trade-off had no
 variance term anywhere in the code, and Section 6.4's explanation of the U-shape
 at tau=4 described a mechanism the implementation did not contain.
 
-Labels are now Monte Carlo means over `M` independent continuations:
+Labels are now Monte Carlo means over `M` independent continuations of length
+`tau` (not a walk to shift end):
 
-    Jhat_h(s_t) = (1/M) sum_m  [ Phi_m(T_end) - Phi(t) ]
+    Jhat_h(s_t) = (1/M) sum_m  [ Phi_m(t + tau L) - Phi(t) ]
 
 with the per-cell standard error recorded alongside, which is what the reviewer
 asked to see reported.

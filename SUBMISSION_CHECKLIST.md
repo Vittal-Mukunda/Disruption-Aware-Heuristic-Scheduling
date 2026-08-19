@@ -11,36 +11,35 @@ format it.
 ## 0. Before you start the campaign
 
 - [x] `scripts/preflight.py` passes
-- [x] `pytest` green (154 passed, 4 skipped — remaining skips name missing PPO
-      meta, FEFO-not-in-pool, and E5 reliability/SHAP)
-- [x] `scripts/audit_reviewer_items.py` prints ALL CHECKS PASS (40/40)
+- [x] `pytest` green on the campaign machine
+- [x] `scripts/audit_reviewer_items.py` prints ALL CHECKS PASS (40/40) on the
+      current manuscript (re-run after every prose edit)
 - [x] `config.yaml` carries the Stage-1 pool `[EEDD, COVERT, MS, ATC, MDD, EDD]`
       and fitted scales `3.0 / 4.0`
-- [x] `requirements-lock.txt` present — install from it, not the pyproject ranges
+- [x] `requirements-lock.txt` present — install from it. Python **3.12 only**
+      (`requires-python = ">=3.12,<3.13"`)
 - [ ] **Ask the editor for the complete text of Reviewer 2's comment 6.** It ends
       mid-sentence in our copy. This is the one input we are missing and it does
       not depend on the run. Do it now, not after.
-- [ ] Decide the R1.2e repositioning formally (see §3 below). The paper currently
-      commits to "controlled study of training signals"; if you want a different
-      framing, changing it after the results are written in is more work.
 
-## 1. Run the campaign
+## 1. Campaign (done) and leftover completeness evals (not done)
 
-- [x] Follow `RUN_PROMPT.md` on the run machine
-- [x] `CAMPAIGN_REPORT.md` produced and committed (`ccf0240`)
-- [x] Every artifact in `RUN_CAMPAIGN.md` §3 exists
-- [x] `pytest` re-run *after* the campaign — 159 passed, 1 skipped (FEFO mask
-      is a no-op because FEFO is not in the deployed pool). No failures.
-
-Still unrun, and needed before writing §6.4 / the M=1 ablation row: the M-sweep,
-theta sweep, and `e3_ablations relabel single_sample_rollout` (M=1 is the first
-cell of the M-sweep). Also `python -m experiments.compute_budget measure` and
-`scaling`.
+- [x] Revision campaign + M-sweep + `compute_budget measure`/`scaling` on `C:\CAOR`
+- [x] `CAMPAIGN_REPORT.md` produced (`ccf0240`) and later manuscript rewrite
+- [x] Live Table 6 matches `results/E2/default_stats.parquet` at `terminal_admit: false`
+      (mean `|A|=767`)
+- [ ] **Leftover completeness evals** — follow current `RUN_PROMPT.md` on `C:\CAOR`
+      only. All of A–G are mandatory. Do not run them on a OneDrive clone.
+      - A terminal admit (`sim.terminal_admit: true`) then re-eval Table 6
+      - A2 scenario Table 7 (including high_load_perish WSPT)
+      - B ATC k=1.5 in-memory overlay into `results/E_atc_k1p5`
+      - C E8 + Always-COVERT
+      - D teachers M=20 into `results/E_teacher_M20`
+      - E PPO HP selected on calib, frozen on test
+      - F eval-only refresh of E3/E4/E10/E13/A2/data-efficiency
+      - G `python -m experiments.compute_budget latency`
 
 ## 2. Read the results before writing anything
-
-These are the four places the campaign could tell you the paper needs
-restructuring rather than rewriting. Check them first, in this order.
 
 - [x] **Does DAHS beat EEDD-alone on composite cost, with a paired interval
       excluding zero?** Yes on cost (381 vs 696). The static to beat is
@@ -48,107 +47,78 @@ restructuring rather than rewriting. Check them first, in this order.
       teacher (363) both beat DAHS. Rebuild §7 around amortisation + training
       signal, not "selection beats any single rule vs the win-rate champion".
 - [x] **`frac_separation_below_1se` in `data/label_meta.json`.** 33.4% at full
-      scale (M=20, |H|=6). Report it; the M sweep remains load-bearing.
+      scale (M=20, |H|=6). Report it. M-sweep is complete (M in {1,5,10,20,40}).
 - [x] **`gap_closed_fraction` for PPO, and the FQI coverage fix.** PPO closed
-      78.3% — structural reading withdrawn; tuned PPO (obs+rew norm, cost 450)
-      is the baseline. FQI coverage under `random` is adequate (6.00 / 5.94).
-      The observe-once logger was retrained on this run; DAHS beats FQI 381 vs
-      397 (1.04x, CI excludes zero).
-- [x] **Does the calibrated E8 grid cell reproduce the Table 1 static rows
-      exactly?** Yes. `results/E8/arr1.65_default/{ours,eedd,greedy_mpc,snapshot_xgb}.parquet`
-      match Table 1 to 0.0 absolute error on every non-timing column.
+      78.3% on a **test-scored** grid — that cell is not Table 6. Table 6 keeps
+      untuned `ppo_fair` (611). FQI coverage under `random` is adequate.
+      DAHS beats FQI 381 vs 397 (1.04x, CI excludes zero).
+- [x] **Does the calibrated E8 grid cell reproduce the Table 6 static rows
+      exactly?** Yes for the four frozen methods. Always-COVERT is still absent
+      until leftover C.
 
 ## 3. Decisions that are yours, not the data's
 
-- [ ] **R1.2e repositioning.** The paper commits to (b) *controlled study of
-      training signals*, with elements of (a) *application and system integration*.
-      Confirm or change. If the §2 result above is unfavourable, (b) becomes the
-      only defensible framing, since it is a *relative* claim at matched budgets and
-      survives a small absolute margin.
-- [ ] **Author order** — currently Mukunda, Somani, Malaiya, matching the IEEE
-      version. Confirm with your co-authors.
-- [ ] **Repository disclosure** — decide whether the GitHub URL goes in the paper,
-      the cover letter, or is withheld until acceptance. The cover letter has a slot.
-- [ ] **Whether to strip the Claude co-author trailer from the 17 already-pushed
-      commits.** Cosmetic, requires a force-push, breaks any existing clone. Only
-      matters if the repository is disclosed.
+- [x] **R1.2e repositioning.** The paper commits to a controlled study of
+      training signals. Title and three contributions match that.
+- [ ] **Author order** — currently Mukunda, Somani, Malaiya. Confirm with
+      co-authors. Do not change YAML without that confirmation.
+- [x] **Repository disclosure** — GitHub URL is in the cover letter.
+- [ ] **Whether to strip the Claude co-author trailer from already-pushed
+      commits.** Cosmetic, requires a force-push. Only matters if the repository
+      is treated as the archival record.
 
 ## 4. Write the paper
 
-- [ ] Fill all **`⟨TBD-rerun⟩` markers** in `paper/manuscript.md`.
-      `grep -c "TBD-rerun"` is currently **34** (not 44). Must reach 0.
-      Each marker states what to report *and* which way the conclusion falls —
-      resolve against the measured outcome, do not delete the unfavourable branch.
-- [ ] Regenerate every figure; confirm all nine referenced paths exist
-- [ ] Re-check the abstract against the final numbers. It is written last for a
-      reason: it currently carries a `⟨TBD-rerun⟩` for the headline findings.
-- [ ] Re-read §7 Discussion and §9 Conclusion end to end against the final results.
-      These are the two sections most likely to retain an optimistic framing that
-      the numbers no longer support.
-- [ ] Remove the draft scaffolding: the *"Revision note on pending numbers"*
-      blockquote at the top, and the `DRAFT v2` / `DRAFT v3` HTML comments
-- [ ] `scripts/audit_reviewer_items.py` still passes after all edits
+- [x] Fill all `⟨TBD-rerun⟩` markers (count is 0 on the current manuscript)
+- [x] Abstract rewritten last against live numbers (qualify the $450 PPO cell)
+- [x] Draft scaffolding removed
+- [x] `scripts/audit_reviewer_items.py` 40/40 after the rewrite
+- [ ] After leftover A–G: replace every number those evals change, including
+      mean `|A|`, Table 6–7, E8, teachers M=20, calib PPO, latency, E3/E4/E10/E13/A2/DE
+- [ ] Re-read §7 and §9 against the post-admit results
 
 ## 5. Fill the response letter
 
-- [ ] Fill every `⟨PENDING⟩` in `paper/RESPONSE_TO_REVIEWERS.md` from the artifact
-      named beside it (index at the foot of that file)
-- [ ] **Verify every reviewer quotation against the decision letter.** They are
-      abridged for readability and must not misrepresent.
-- [ ] Check the *"Points on which we did not do what was asked"* section is still
-      accurate — items may have moved in or out during the run
-- [ ] Re-read for tone. It should read as a colleague reporting findings, not as a
-      defendant. Where a reviewer was right, say so plainly and once.
+- [x] No `⟨PENDING⟩` / `⟨…⟩` slots
+- [ ] After leftover A–G: refresh live Table 6 numbers in the response
+- [ ] Check the *"Points on which we did not do what was asked"* section is
+      still accurate
+- [x] Hierarchical selection is stated as not implemented
+- [x] 1.20× is the old-log diagnosis; 3.90× is live Table 6 (pre-admit)
 
 ## 6. Format and package
 
-- [ ] `python scripts/build_submission.py --check` — reports what is missing
-- [ ] Convert to Elsevier `elsarticle` (needs pandoc + a LaTeX toolchain; neither
-      is installed on the dev laptop). `scripts/build_submission.py` drives it.
-- [ ] Figures at journal resolution, in the required format, each referenced in
-      text and numbered in order of first mention
-- [ ] Tables numbered in order; every table referenced in text
-- [ ] References: check the `.bbl` against `references.bib`; confirm every DOI
-      resolves; Elsevier numbered style
-- [ ] Highlights (3–5 bullets, ≤85 characters each) — **must be rewritten against
-      the final numbers**, not the submitted ones
-- [ ] Declaration of competing interests
-- [ ] CRediT author-contribution statement for all three authors
-- [ ] Data availability statement
+- [x] `python scripts/build_submission.py --check` READY on the current tree
+      (re-run after leftover-number edits)
+- [ ] Convert to Elsevier `elsarticle` (needs pandoc + a LaTeX toolchain)
+- [ ] Figures at journal resolution; numbering already consecutive 1–11 / tables 1–14
+- [x] Highlights 5 bullets, each ≤85 characters, rewritten against live numbers
+- [x] Cover letter filled (editor as "Editor", repo URL, 19 August 2026)
 - [ ] Word/page count against the journal limit
-- [ ] Fill `paper/COVER_LETTER.md` slots: editor name, repository URL, date, and
-      the unfavourable-finding paragraph if it applies
+- [ ] CRediT / competing interests / data availability as the journal requires
 
 ## 7. Final read
 
-- [ ] Read the whole manuscript once, start to finish, on paper or in PDF — not in
-      the editor. Structural problems only surface this way.
-- [ ] Confirm no superseded number survives as a live claim.
-      `grep -n "0.0133\|1.33%\|3.09\|2.40 points"` should only match inside tables
-      explicitly labelled **(superseded)**.
-- [ ] Confirm the paper addresses no reviewer anywhere in its prose (the audit
-      checks this, but read for it too)
-- [ ] Confirm the abstract, §1 contributions, §7 and §9 tell the *same* story as
-      §6 — the one the data supports, not the one we set out to tell
+- [ ] Read the whole manuscript once, start to finish, on paper or in PDF
+- [ ] Confirm no superseded number survives as a live claim
+      (`0.0133`, `1.33%`, `3.09`, `2.40 points` only inside tables labelled
+      **(superseded)**)
+- [ ] Confirm the paper addresses no reviewer in its prose
 - [ ] Co-authors have read and approved
 
 ---
 
 ## What is genuinely uncertain
 
-Recorded here so it is not rediscovered under time pressure.
+**Leftover A changes the data-generating process for evaluation.** Every live
+table was generated with no terminal admit (mean `|A|=767`). Setting
+`sim.terminal_admit: true` admits arrivals in `(T-L, T]` as unserved. Absolute
+J, SFR, and Table 7 will move. Rankings may or may not. Do not keep pre-admit
+numbers next to post-admit numbers without saying so.
 
-**The paper may need restructuring rather than rewriting.** Three of the four
-checks in §2 above have a plausible outcome that removes a headline claim. That
-is a consequence of fixing what the reviewers correctly identified: the submitted
-margins were partly artefacts of an objective that did not charge for abandoned
-orders, an uncalibrated ATC, and a dispatcher that idled pickers for
-arrival-agnostic rules. A smaller, honest result is the expected outcome and is
-still publishable — the training-signal comparison is a *relative* claim at
-matched budgets and does not depend on the absolute margin.
+**PPO $449.60$ / $78\%$ gap-closed is test-scored.** Table 6 keeps untuned
+`ppo_fair`. Leftover E produces the calib-selected row that the paper currently
+flags as missing.
 
-**The run is ~16 h base, 20–25 h on a laptop**, and large parts of the pipeline
-have never executed end to end. `preflight.py` checks that modules import, which
-is not the same thing: the R2.4 aliasing witness imported cleanly for the entire
-project and was silently reporting a zero cost gap for a claim it could not
-support. Budget time for at least one stage failing and needing a fix.
+**Do not run the completeness evals on this OneDrive clone.** Campaign compute
+is `C:\CAOR`.

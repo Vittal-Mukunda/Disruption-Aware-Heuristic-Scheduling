@@ -31,6 +31,10 @@ sim:
   interval_minutes: 15            # -> 32 periodic-review decision epochs
   n_pickers: 10
   queue_capacity: 200             # overflow is recorded as `dropped`, not discarded
+  # When true, after the last review admit arrivals with arrival_time <= T.
+  # They are not dispatched. Truncated rollouts are unaffected (interval_idx < N).
+  # Live tables were generated with false (mean |A|=767). Completeness run sets true.
+  terminal_admit: false
 
   arrivals:
     arrival_mode: poisson         # 'poisson' | 'olist' (empirical burstiness, CV 2.68)

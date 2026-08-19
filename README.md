@@ -80,20 +80,20 @@ rules.
   7 hours on 16 cores.
 - **Why each change:** [`REVISION_PLAN.md`](REVISION_PLAN.md) — mapped to reviewer
   comments.
-- **The paper:** [`paper/manuscript.md`](paper/manuscript.md). Passages awaiting
-  the re-run are marked `TBD-rerun` and state what must be reported.
+- **The paper:** [`paper/manuscript.md`](paper/manuscript.md). Live Table 6
+  numbers are in `results/` and `results/E2/default_stats.parquet`. The leftover
+  completeness evals (terminal admit, ATC $k=1.5$, E8 COVERT, teachers $M=20$,
+  PPO calib-split selection, and the eval-only refreshes those force) are in
+  [`RUN_PROMPT.md`](RUN_PROMPT.md) and must be run on `C:\CAOR`, not on a
+  OneDrive clone.
 
-Stages 1–4 of the current-revision campaign are in `data/`, `runs/` and
-`results/` (labels at $\tau=4$, $M=20$; ranker; static and lookahead evals).
-Do **not** run `make clean-stale` on this tree — it would delete them. Remaining
-work is FQI retrain (logger fix), default `snapshot_xgb` eval, Stage 4b/5, and
-the items in `RUN_CAMPAIGN.md` §6. The test suite skips checks that need later
-stage artifacts.
+Stages 1–5 of the revision campaign are in `data/`, `runs/` and `results/`
+(labels at $\tau=4$, $M=20$; ranker; static, lookahead, FQI, PPO, M-sweep).
+Do **not** run `scripts/clean_stale.py` on this tree. Python is **3.12 only**.
 
-> The headline margin shrinks. Counting unserved-and-overdue orders as failures
-> moves the advantage over FIFO from roughly 3.8x to 1.20x on this repository's own
-> committed run logs. That is the correct number, and the revision is written
-> around it.
+> On the submitted event logs, counting unserved-and-overdue orders as failures
+> compressed the FIFO gap from about 3.8× to about 1.20×. After causal admission
+> the live Table 6 FIFO gap is **3.90×**. Those are two different calculations.
 
 ## Contents
 
@@ -134,7 +134,7 @@ DAHS/
 │   ├── warehouse_env.py        #   environment / shift dynamics
 │   ├── heuristics.py           #   FIFO, EDD, FEFO, WSPT, ATC, MS, MDD, COVERT
 │   ├── orders.py               #   stochastic order generation
-│   ├── state_extractor.py      #   25-dim decision-state features
+│   ├── state_extractor.py      #   26-dim observation (not the state)
 │   ├── kpis.py                 #   KPI accounting
 │   └── olist_arrivals.py       #   empirical bursty-arrival stream
 │

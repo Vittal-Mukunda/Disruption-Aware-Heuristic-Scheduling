@@ -23,9 +23,9 @@ keywords:
 abstract: |
   Warehouse order dispatching under customer due dates and product expiry is usually left to priority rules, but no single rule is best across a shift. A selection hyper-heuristic can choose the rule from the current state. Training that selector by simulating candidates offline and fitting a classifier is not new --- it is multi-pass rule selection and rollout classification policy iteration --- and we do not claim a new mechanism. We ask what the form of the supervision is worth, holding environment, corpus, model class and objective fixed.
 
-  The problem is a partially observed sequential decision process. Each order has two independent clocks, both priced, together with tardiness and unserved demand, in a composite cost $J$. Three signals train the same selector: a Monte Carlo truncated rollout of every rule; fitted Q-iteration on the same logs; and a policy gradient.
+  The problem is a partially observed sequential decision process. Each order has two independent clocks, both priced, together with tardiness and unserved demand, in a composite cost $J$. Three training signals are compared: a Monte Carlo truncated rollout of every rule, fitted Q-iteration on the same logs, and a neural policy gradient. Only the rollout signal trains the deployed tree ranker.
 
-  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and an untuned PPO policy ($611$; $450$ after observation and reward normalisation). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 exact ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency ($3.7$ ms vs $645$ ms). Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval (which includes 0) and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
+  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and an untuned PPO policy ($611$; $450$ on a test-scored normalisation cell, not a train-split selection). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 exact ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency ($3.7$ ms vs $645$ ms). Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval (which includes 0) and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
 ---
 
 # 1. Introduction
@@ -116,7 +116,6 @@ in the paper is defined here, on first use in the text, or both.
 
 | Term | Meaning |
 |---|---|
-| **shift** | One 8-hour working period, the unit of simulation. Divided into $N = 32$ review intervals of $L = 15$ minutes. |
 | **decision epoch** | The boundary of a review interval, where the controller acts. There are $N$ per shift. |
 | **dispatching rule** | A function that orders the waiting queue. Pickers are then assigned down that order. FIFO, EDD and the rest are dispatching rules. |
 | **selection hyper-heuristic** | A controller that chooses *which dispatching rule to apply*, as a function of the current state, rather than choosing an assignment directly. |
@@ -157,9 +156,10 @@ in the paper is defined here, on first use in the text, or both.
 
 The remainder of the paper is organised as follows. Section 2 reviews related
 work. Section 3 defines the dispatching problem and the simulator. Section 4
-presents DAHS and the consistency result. Section 5 describes the experimental
+presents DAHS and the truncation sketches. Section 5 describes the experimental
 protocol. Section 6 reports results. Sections 7--9 discuss, list limitations, and
 conclude.
+
 # 2. Related Work
 
 ## 2.1 Scope: which order-picking decision this paper addresses
@@ -369,7 +369,8 @@ reinforcement learning with maskable action-value learning
 [@pluijm2025offlineld] learns a value function from logged data, and is
 reimplemented faithfully in Section 5 as a fitted-Q baseline
 [@ernst2005fqi] trained on the same logged shifts. We also include Proximal
-Policy Optimization [@schulman2017ppo] under an 8{,}000-epoch budget, with a
+Policy Optimization [@schulman2017ppo] under an 8{,}000-timestep budget
+(Stable-Baselines3 `total_timesteps`, not review epochs), with a
 hyperparameter sensitivity analysis in
 Section 6.9. A recent review [@sauer2025mlscheduling] frames simulation-derived
 self-labelling as an emerging paradigm for machine learning in scheduling.
@@ -626,14 +627,16 @@ either clock can bind first. In the submitted model there was no $x_o$ at all an
 "spoilage" was defined as a perishable order missing $d_o$, which made the two
 events the same event by construction.
 
-*What happens when an order spoils?* Its goods become unsaleable at $x_o$, and the
-charge $W_s w_o$ is incurred at that instant and is permanent — picking the order
-afterwards does not undo it. The order is **not** removed from the queue: spoiled
-stock still has to be pulled and disposed of, so it continues to consume a picker
-when it is eventually handled. Keeping it in the queue also closes an incentive
-gap. If spoiled orders vanished, a controller could free picking capacity by
-stalling until perishables expired, which is the same class of loophole as
-exempting unfinished orders.
+*What happens when an order spoils?* Its goods become unsaleable at $x_o$. The
+simulator is discrete-interval: spoilage is assessed when the potential or a
+KPI is computed (at each review and at the shift-end reference $T$), not as a
+continuous-time event at $x_o$. Once $t \ge x_o$ the charge $W_s w_o$ is
+permanent — picking the order afterwards does not undo it. The order is **not**
+removed from the queue: spoiled stock still has to be pulled and disposed of, so
+it continues to consume a picker when it is eventually handled. Keeping it in
+the queue also closes an incentive gap. If spoiled orders vanished, a controller
+could free picking capacity by stalling until perishables expired, which is the
+same class of loophole as exempting unfinished orders.
 
 *Is a spoiled order counted in the breach count?* Lateness and spoilage are
 **separate predicates** on the same order, and an order may be neither, either, or
@@ -992,7 +995,7 @@ cost vector — a *hard* label — is the natural alternative, and Section 6.8 r
 an ablation that finds the two equivalent. We describe the deployed (soft) model
 here and treat the label's form as a design choice rather than as a contribution.
 
-## 4.4 A consistency result for truncated rollouts
+## 4.4 Truncation and model-error sketches for the labels
 
 The deployed model truncates the rollout at $\tau = 4$ of up to 32 intervals. The
 two statements below are sketches of the labelling object, not theorems the
@@ -1216,7 +1219,8 @@ Section 3.6; **snapshot_xgb**, an ablation identical to DAHS but with the rollou
 horizon collapsed to $\tau = 1$, isolating the value of the horizon; **LinUCB**
 [@li2010linucb], a contextual bandit, with features standardised (LinUCB updates
 on the test shifts and is therefore not a frozen peer); **PPO**
-[@schulman2017ppo] at 8{,}000 training epochs, with the hyperparameter
+[@schulman2017ppo] at 8{,}000 training timesteps (`total_timesteps`; not review
+epochs), with the hyperparameter
 sensitivity analysis of Section 6.9 (not a matched simulation budget: labelling
 uses millions of interval-steps); and **offline_fqi**,
 a faithful offline reinforcement-learning competitor — fitted Q-iteration
@@ -1539,9 +1543,13 @@ objective, with the recalibrated pool of Section 3.6.
 
 **Table 6.** Default scenario, 50 test shifts, corrected objective and causal
 admission. Ranked by composite cost, the quantity every learned method
-optimises. Arrived $=767$ on every method. Dropped $=0$. Paired 95% intervals
+optimises. Mean arrived $=767$ (the per-shift count is not constant; it is
+identical across methods on each seed). Dropped $=0$. Paired 95% intervals
 are bootstrap percentile intervals of (method $-$ DAHS) composite cost over the
 50 aligned shifts, 10,000 resamples.
+Tardiness is the KPI mean of censored lateness (`tardiness_accounted`): served
+orders at finish time, unserved orders at $T$, **without** the $+p_o$ the
+objective uses in $J$. The two quantities are not interchangeable.
 
 | Method | Composite cost | SFR | Spoil | Tardiness | Thru. | Util. | Latency (ms) | Cost vs DAHS | DAHS wins |
 |---|---:|---:|---:|---:|---:|---:|---:|---|---:|
@@ -1821,7 +1829,7 @@ parquets). It matches $M=20$ on $J$. The $\tau=1$ snapshot is Table 9.
 
 ## 6.9 On the PPO baseline
 
-Untuned PPO at 8{,}000 epochs (`ppo_baseline`, `n_steps`$=64$) collapses to a
+Untuned PPO at 8{,}000 timesteps (`ppo_baseline`, `n_steps`$=64`) collapses to a
 constant EEDD policy: its 50-shift cost is $695.770797$, identical to Always-EEDD
 to machine precision. That is not the Table 6 `ppo_fair` row ($J=610.93$), which
 is a separately trained stock Stable-Baselines3 policy with a full KPI record.
@@ -1842,11 +1850,12 @@ entropy coefficient $0$.
 | reward-norm only | 763.06 (Always-EDD) |
 
 Tuning closes a substantial share of the gap. The reading that PPO's deficit is
-structural rather than budgetary is withdrawn. The tuned configuration
-(`norm(obs=True, rew=True)`, $J=449.60$) is the PPO baseline going forward; it
-still trails DAHS ($381.42$). Table 6 reports the untuned `ppo_fair` row because
-that is the policy evaluated with a full KPI record; quoting 450 without that
-record would mix a sweep cost with a table of decompositions.
+structural rather than budgetary is withdrawn. The test-scored winner
+(`norm(obs=True, rew=True)`, $J=449.60$) is a sensitivity cell, not a
+pre-registered baseline: hyperparameters were selected on the same 50 test
+shifts Table 6 uses. Table 6 therefore keeps the untuned `ppo_fair` row
+($J=610.93$), which is the policy with a full KPI record. A calibration-split
+selection is a completeness-run deliverable, not a live number.
 
 ## 6.10 On the offline reinforcement-learning baseline
 
@@ -1969,8 +1978,11 @@ part-way through the $M$ continuations and spends the remaining budget on the
 survivors. Hierarchical selection first screens a cheap one-step score and only
 then rolls the shortlist to depth $\tau$. Successive halving is implemented
 (`costs_at_epoch_successive_halving`). A 50-shift diagnostic at the deployed
-$(M,\tau)$ produced arg-max agreement $0.856$ against uniform allocation, mean
-label KL $0.185$, and a $1.1\%$ step saving (`successive_halving.json`); the
+$(M,\tau)$ on the **nine-candidate screen set** (not the six-rule deployed pool)
+produced arg-max agreement $0.856$ against uniform allocation, mean
+label KL $0.185$, and a $1.1\%$ step saving (`successive_halving.json`).
+That KL is between untempered softmaxes of the two cost vectors, not the
+production tempered labels $T(s)=\beta\hat\sigma(s)$. The
 verdict is unsuccessful, so production labels stay uniform. Hierarchical
 selection is described here and is not implemented. We did not
 retrain DAHS at pool sizes $2$, $4$ and $8$.
@@ -1992,7 +2004,7 @@ On the default operating point, a rollout-trained selector beats every static
 dispatching rule we screened, with Always-COVERT as the static to beat
 ($J=454$ against DAHS $381$, $49/50$ shifts) rather than Always-EEDD ($J=696$,
 but only $21$ strict wins and $22$ exact ties). It beats fitted Q-iteration
-($397$) and an 8{,}000-epoch PPO policy ($611$ in Table 6; $450$ once observations and
+($397$) and an 8{,}000-timestep PPO policy ($611$ in Table 6; $450$ once observations and
 rewards are normalised; $696$ for the `n_steps`$=64$ collapse). It does not beat the teachers that generate its labels
 ($356$ and $363$). Distillation therefore loses $5$--$7\%$ of composite cost
 against online truncated lookahead and returns a $176$-fold reduction in

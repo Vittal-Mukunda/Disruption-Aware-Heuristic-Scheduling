@@ -114,6 +114,8 @@ def run_shift(seed: int, cfg: DictConfig, policy_fn: PolicyCallable) -> dict[str
         h = policy_fn(obs)
         latencies.append(time.perf_counter() - t0)
         env.step(h)
+    if bool(cfg.sim.get("terminal_admit", False)):
+        env.admit_if_shift_complete()
     return _finish_row(seed, env, time.perf_counter() - wall_start, latencies)
 
 
@@ -132,6 +134,8 @@ def run_shift_env_aware(
         h = policy_fn_env(env)
         latencies.append(time.perf_counter() - t0)
         env.step(h)
+    if bool(cfg.sim.get("terminal_admit", False)):
+        env.admit_if_shift_complete()
     return _finish_row(seed, env, time.perf_counter() - wall_start, latencies)
 
 

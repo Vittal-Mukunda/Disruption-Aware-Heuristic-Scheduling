@@ -28,10 +28,13 @@ sees, and the dispatcher may assign, exactly the orders that have arrived by
 removes an undisclosed clairvoyance — the submitted feature vector summarised
 up to fifteen minutes of future arrivals.
 
-There is no terminal admit at shift end `T`. The last review is at `t = T - L`,
-so arrivals in `(T - L, T]` never enter the queue and are not in `A`. Mean
-`|A| = 767` against a Poisson mean of `1.65 * 480 = 792` is that convention.
-Do not add a terminal `_admit` at `T` without re-evaluating the campaign.
+There is no terminal admit at shift end `T` unless `sim.terminal_admit` is true.
+When false (the committed default, and every live table), the last review is at
+`t = T - L`, so arrivals in `(T - L, T]` never enter the queue. Mean `|A| = 767`
+against a Poisson mean of `1.65 * 480 = 792` is that convention. When true, a
+gated `_admit()` runs only after `interval_idx == n_intervals`, so truncated
+rollouts are unchanged. Do not call `_admit()` unconditionally at the end of
+`run_with_policy`: that would poison labelling.
 
 With that rule, `start = max(picker_free, t)` and the early exit on line ~"no
 picker can start before the interval ends" is provably safe: `picker_free` is
@@ -334,7 +337,19 @@ class WarehouseEnv:
         for _ in range(n):
             self.observe()
             self.step(heuristic_name)
+        if bool(self.cfg.sim.get("terminal_admit", False)):
+            self.admit_if_shift_complete()
         return self.kpis()
+
+    def admit_if_shift_complete(self) -> int:
+        """Admit arrivals with arrival_time <= T after the last review only.
+
+        No-op while a truncated rollout is still inside the shift. That is what
+        keeps labelling at tau < N independent of the completeness-run flag.
+        """
+        if self.interval_idx < self.n_intervals:
+            return 0
+        return self._admit()
 
     def kpis(self) -> dict[str, float]:
         return compute_kpis(

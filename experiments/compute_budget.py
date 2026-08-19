@@ -21,6 +21,7 @@ neither. This module produces both, plus the scaling analysis.
     python -m experiments.compute_budget analytic     # closed-form budgets
     python -m experiments.compute_budget measure      # steps/sec on this machine
     python -m experiments.compute_budget scaling      # cost and mitigation vs |H|
+    python -m experiments.compute_budget latency      # rebuild latency.json from eval parquets
 
 WHY THE SUBMITTED SCHEME WAS QUADRATIC
 --------------------------------------
@@ -273,6 +274,38 @@ def cmd_scaling(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_latency(args: argparse.Namespace) -> int:
+    """Rebuild `latency.json` from default-eval parquets. No extra simulation."""
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    methods = args.methods or [
+        "ours", "rolling_mpc", "greedy_mpc", "snapshot_xgb",
+        "offline_fqi", "covert", "eedd", "fifo", "ppo_fair",
+    ]
+    rows: list[dict] = []
+    missing: list[str] = []
+    for m in methods:
+        path = REPO_ROOT / "results" / f"{m}.parquet"
+        if not path.exists():
+            missing.append(m)
+            continue
+        df = pd.read_parquet(path)
+        rows.append({
+            "method": m,
+            "decision_latency_ms_mean": float(df["decision_latency_ms_mean"].mean()),
+            "decision_latency_ms_p95": float(df["decision_latency_ms_p95"].mean()),
+            "wall_clock_s_per_shift": float(df["wall_clock_s"].mean()),
+            "n": int(len(df)),
+        })
+    if missing:
+        print(f"[latency] skipped missing parquets: {missing}")
+    if not rows:
+        raise SystemExit("no default-eval parquets found under results/")
+    out = RESULTS_DIR / "latency.json"
+    out.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    print(f"[latency] wrote {out.relative_to(REPO_ROOT)} ({len(rows)} methods)")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="mode", required=True)
@@ -290,6 +323,10 @@ def main() -> int:
     ps.add_argument("--n-shifts", type=int, default=5)
     ps.add_argument("--eta", type=int, default=2)
     ps.set_defaults(func=cmd_scaling)
+
+    pl = sub.add_parser("latency", help="Rebuild latency.json from eval parquets.")
+    pl.add_argument("--methods", nargs="*", default=None)
+    pl.set_defaults(func=cmd_latency)
 
     args = p.parse_args()
     return args.func(args)

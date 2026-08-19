@@ -525,7 +525,8 @@ Under the corrected admission rule, on 50 default test shifts, WSPT records the
 utilisation $\approx 0.956$ (WSPT $0.955$). Cause 2 is confirmed. Composite-cost
 ranking is manuscript Table 6: greedy_mpc $356.14$, rolling_mpc $362.58$, DAHS
 $381.42$, Always-COVERT $454.36$, Always-EEDD $695.77$, FIFO $1485.97$
-($3.90\times$). Arrived $=767$ on every method (last-interval arrivals in
+($3.90\times$). Mean arrived $=767$ (identical across methods on each seed;
+last-interval arrivals in
 $(T-L,T]$ are never admitted); dropped $=0$.
 
 ### 6.b — The RL failure explanations are post hoc
@@ -547,7 +548,8 @@ $\lambda$, rollout length `n_steps`, entropy coefficient, and the full $2\times2
 over observation and reward normalisation — swept jointly rather than marginally,
 because observation scaling changes the effective gradient magnitude while reward
 scaling changes the advantage scale. Every configuration is trained for 8{,}000
-epochs and evaluated on the same held-out shifts. Hyperparameters were selected
+timesteps (Stable-Baselines3 `total_timesteps`, not review epochs)
+and evaluated on the same held-out shifts. Hyperparameters were selected
 on those test shifts. The summary statistic is the
 fraction of the PPO-to-DAHS gap the best configuration recovers.
 
@@ -649,8 +651,9 @@ completed 721.6 orders against FIFO's 750.6.
 
 3. **The full outcome partition** — arrived, served, unserved, rejected — is
    reported as columns in manuscript Table 6 (the live comparison; Table 5 is
-   the superseded submitted scoreboard). Arrived $=767$, dropped $=0$ on every
-   method. Last-interval arrivals in $(T-L,T]$ are never admitted.
+   the superseded submitted scoreboard). Mean arrived $=767$, dropped $=0$
+   (identical across methods on each seed). Last-interval arrivals in
+   $(T-L,T]$ are never admitted.
 
 **What this costs us.** Recomputing your metric on the submitted repository's own
 per-order event logs (ten shifts, frozen model):
@@ -659,7 +662,7 @@ per-order event logs (ten shifts, frozen model):
 |---|---:|---:|
 | DAHS | 3.10% | 15.00% |
 | FIFO | 11.75% | 17.97% |
-| PPO (matched budget) | 9.40% | 16.44% |
+| PPO (submitted logs; then billed as matched budget) | 9.40% | 16.44% |
 
 On those old logs the advantage over FIFO narrows from roughly **3.8× to 1.20×**,
 and over PPO from 3.0× to 1.10×. That diagnosis is about the submitted
@@ -689,10 +692,12 @@ model there was no $x_o$ at all and "spoilage" was defined as a perishable order
 missing $d_o$ — which made the two events the same event by construction, exactly
 the ambiguity you identified.
 
-*What happens when an order spoils?* Its goods become unsaleable at $x_o$ and the
-charge $W_s w_o$ is incurred at that instant and is permanent — picking it
-afterwards does not undo it. The order is **not** removed from the queue: spoiled
-stock still has to be pulled and disposed of, so it continues to consume a picker.
+*What happens when an order spoils?* Its goods become unsaleable at $x_o$. The
+simulator is discrete-interval: spoilage is assessed when the potential or a
+KPI is computed, not as a continuous-time event at $x_o$. Once $t \ge x_o$ the
+charge $W_s w_o$ is permanent — picking it afterwards does not undo it. The
+order is **not** removed from the queue: spoiled stock still has to be pulled
+and disposed of, so it continues to consume a picker.
 Keeping it also closes an incentive gap — if spoiled orders vanished, a controller
 could free capacity by stalling until perishables expired, which is the same class
 of loophole as your comment 1.
@@ -981,7 +986,8 @@ for a pool of twenty rather than claim it.
 We did **not** retrain DAHS at pool sizes $2$, $4$ and $8$. Analytic labelling
 cost is linear in $|\mathcal{H}|$ (`pool_scaling_analytic.parquet`: 4 rules
 $2.57$M steps, 8 rules $5.13$M, 20 rules $12.8$M at the deployed
-$(N,M,\tau)$). Successive halving at the deployed $(M,\tau)$ on 50 shifts:
+$(N,M,\tau)$). Successive halving at the deployed $(M,\tau)$ on 50 shifts,
+using a nine-candidate screen set (not the deployed $|\mathcal{H}|=6$):
 arg-max agreement $0.856$ against uniform allocation, mean label KL $0.185$,
 step saving $1.1\%$ (`successive_halving.json`). The verdict is unsuccessful;
 production labels stay uniform. Hierarchical selection is not implemented.

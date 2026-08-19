@@ -110,6 +110,29 @@ def test_arrived_partition_is_exhaustive(cfg):
     assert 0.0 <= k["service_failure_rate"] <= 1.0
 
 
+def test_terminal_admit_skips_truncated_rollouts(cfg):
+    """The completeness flag must not change labelling-style short walk-forwards."""
+    from omegaconf import open_dict
+
+    cfg_on = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    with open_dict(cfg_on):
+        cfg_on.sim.terminal_admit = True
+    off = WarehouseEnv(42, cfg).run_with_policy("FIFO", n_steps=4)["arrived"]
+    on = WarehouseEnv(42, cfg_on).run_with_policy("FIFO", n_steps=4)["arrived"]
+    assert off == on
+
+
+def test_terminal_admit_increases_full_shift_arrived(cfg):
+    from omegaconf import open_dict
+
+    cfg_on = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    with open_dict(cfg_on):
+        cfg_on.sim.terminal_admit = True
+    off = WarehouseEnv(42, cfg).run_with_policy("FIFO")["arrived"]
+    on = WarehouseEnv(42, cfg_on).run_with_policy("FIFO")["arrived"]
+    assert on >= off
+
+
 def test_unserved_not_yet_due_is_not_a_service_failure(cfg):
     """KPI accounting must not add p_o onto unserved orders.
 

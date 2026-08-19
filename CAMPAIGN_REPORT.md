@@ -46,7 +46,7 @@ throughput constant, so it misestimates in both directions on this machine.
 | `scripts/preflight.py` | PASSED — every module compiles and imports |
 | `pytest -q` (pre-clean, artifacts present) | 159 passed, 1 skipped |
 | `pytest tests/test_reproducibility.py` | 8 passed |
-| `scripts/audit_reviewer_items.py` | **3 FAILURES** — see §5.1 |
+| `scripts/audit_reviewer_items.py` | **40/40 PASS** on the manuscript rewrite (was 3 prose misses at campaign time; see §5.1) |
 | `scripts/clean_stale.py --force` | wiped; kept `S1_calibration`, `S1_perishability`, `figures/S1_calibration` |
 | `scripts/campaign_preflight.py` | **exit 0 — READY TO START** |
 | Action set | `['EEDD','COVERT','MS','ATC','MDD','EDD']`, ATC k=3.0, COVERT k=4.0 — exact match |
@@ -105,7 +105,7 @@ Official BH-FDR stats on the **primary metric** (service-failure rate),
 
 ### 4. FIFO comparison — 3.90x, NOT the predicted ~1.20x
 
-Composite cost **3.90x** (50/50 shifts, CI [891, 1335]); service-failure rate **2.75x**
+Composite cost **3.90x** (50/50 shifts, CI [895.5, 1342.4]); service-failure rate **2.75x**
 (0.0689 vs 0.1894, `reject_bh = True`).
 
 The brief predicted ~1.20x from the *old demo logs* with only the metric rewritten.
@@ -247,17 +247,13 @@ EDD never wins in the calibration split and is passed through uncalibrated. An
 earlier draft of this report quoted the superseded campaign's E5 print
 (0.1709→0.0198); the live file is `runs/phase4/phase4_metrics.json`.
 
-### 5.1 `audit_reviewer_items.py` — 3 failures
+### 5.1 `audit_reviewer_items.py`
 
-```
-R1.6b RL sensitivity + coverage: PAPER missing 'gap_closed_fraction'
-R1.6c composite cost primary:    PAPER missing 'Rank the table by composite cost'
-BIB: present but uncited:        ['lundberg2017shap']
-```
-
-All three are **paper prose**, introduced by the manuscript rewrite in `045edbc`. None
-affects the validity of any measured number. Not fixed here — the brief reserves prose for
-the authors.
+At campaign close (`ccf0240`) this script failed three paper-prose anchors
+(`gap_closed_fraction`, `Rank the table by composite cost`, uncited SHAP).
+The manuscript rewrite added those anchors. A later check prints
+**ALL CHECKS PASS** (40/40). Do not treat the campaign-time three-failure
+log as the live gate.
 
 ### 5.2 `scripts/build_submission.py --check` — verbatim
 
@@ -274,43 +270,37 @@ the authors.
    - in the bibliography but never cited: ['lundberg2017shap']
    - response to reviewers still has unfilled ⟨…⟩ slots
    - cover letter still has unfilled ⟨…⟩ slots
-
-See SUBMISSION_CHECKLIST.md for the order to work through these.
 ```
 
-**Both "missing" figures were in fact produced**, under the post-rename metric name:
-`figures/E4/tau_service_failure_rate.png` and
-`figures/E8/robustness_grid_heatmap_service_failure_rate.png`. The manuscript still
-references the old `sla_breach_rate` filenames. This is a stale reference in the paper,
-not a missing artifact.
+**Superseded.** A later manuscript rewrite filled the TBD markers, figure
+filenames, SHAP cite, and cover/response slots. Re-run
+`python scripts/build_submission.py --check` on the live tree; do not treat
+the campaign-close log above as the live gate.
 
 ---
 
 ## 6. Failures and defects
 
-### 6.1 Still open — three sweeps deliberately not run
+### 6.1 Closed after campaign close, or still open
 
-These exited 2 **by design** ("a printed recipe is not a completed experiment"). Each
-needs multi-hour compute and none was run:
+At campaign close these three CLI entries exited 2 by design. The M-sweep and
+the M=1 relabel were run later; artifacts are in `results/E4/n_samples/` and
+`results/E3/single_sample_rollout.parquet`. Theta was **not** run and must
+stay unrun (`RUN_PROMPT.md`).
 
-| Command | What it needs | Feeds |
-|---|---|---|
-| `e4_sensitivity n_samples` | 5 labelling passes, M in {1,5,10,20,40} | §6.4 M sweep, TBD line 1821 |
-| `e4_sensitivity theta` | 5 labelling passes, multiples {1.5,2,2.2,3,4} | theta sensitivity |
-| `e3_ablations relabel single_sample_rollout` | M=1 relabel + retrain | ablation table, TBD line 2042 |
-
-The M sweep matters most: it is the experiment the brief said becomes central if
-`frac_separation_below_1se` sits near 50%. At 33.4% it is less critical, but §6.4 still has
-no measured M curve.
+| Command | Status |
+|---|---|
+| `e4_sensitivity n_samples` | **done** — M in {1,5,10,20,40}, Table 10 |
+| `e3_ablations relabel single_sample_rollout` | **done** — Table 11 row; byte-identical to M=1 |
+| `e4_sensitivity theta` | **still unrun**, by design |
+| leftover A–G in `RUN_PROMPT.md` | **not done** — terminal admit, ATC k=1.5, E8 COVERT, teachers M=20, PPO calib-select, eval-only refreshes, latency.json |
 
 ### 6.2 Resolved during the run
 
 - **Wrong repo.** The initial working directory was a different repository (`Dummy-Repo`)
   with an empty tree and no campaign infrastructure. Cloned the correct repo.
-- **Lockfile satisfiable only on Python 3.12.** `pyproject.toml` says `>=3.10,<3.13` but
-  `scipy==1.18.0` requires `>=3.12`. The documented "3.10–3.12" range is wrong: only 3.12
-  works. Installed 3.12.10. `045edbc` added platform markers for Linux but did **not**
-  narrow the documented range — this remains a reproducibility defect for reviewers.
+- **Lockfile satisfiable only on Python 3.12.** `scipy==1.18.0` requires
+  `>=3.12`. `pyproject.toml` now states `>=3.12,<3.13`.
 - **`make clean-stale` could not execute.** The Makefile recipe was one physical line with
   literal `\n` sequences instead of continuations. Superseded by `scripts/clean_stale.py`
   in `045edbc`.
@@ -335,20 +325,9 @@ no measured M curve.
 
 ## 7. TBD-rerun passages with no number from this campaign
 
-34 `⟨TBD-rerun⟩` markers remain in `paper/manuscript.md`. The campaign produced numbers for
-most. These are the ones it **did not**:
-
-| Line | Passage | Why |
-|---|---|---|
-| 1821 | companion sweep over number of continuations (M) | `e4_sensitivity n_samples` not run (§6.1) |
-| 2042 | both ablations incl. single-sample rollout | `e3_ablations relabel` not run; same compute as M=1 |
-| 2286 | per-decision latency | **now extracted** to `results/E12_compute/latency.json` from the eval parquets |
-| 2275 | measured interval-steps / wall-clock | **partial:** `data/label_meta.json` + `results/E12_compute/label_budget.json`. Still missing `python -m experiments.compute_budget measure` |
-| 2306 | sample-efficiency curve at pool sizes 2, 4, 8 | no retrain-at-pool-size driver. `compute_budget scaling` is a different experiment (successive-halving vs uniform on the *screening* pool) |
-| 2320 | arg-max agreement and label KL vs uniform | produced by `python -m experiments.compute_budget scaling`, not yet run |
-
-The remaining markers have their numbers in the artifacts listed in §5, but the prose is
-the authors' to write.
+**Superseded.** The manuscript rewrite resolved the TBD-rerun markers. M-sweep,
+latency.json, measure, and successive_halving.json exist. Remaining completeness
+work is leftover A–G in `RUN_PROMPT.md`, not TBD markers.
 
 ---
 

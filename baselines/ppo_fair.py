@@ -95,6 +95,8 @@ class WarehouseGymEnv(gym.Env):
         # rollout labeller integrates and the quantity `composite_cost` reports.
         phi_before = self.env.potential()
         self.env.step(self.pool[int(action)])
+        if self.env.interval_idx >= self.env.n_intervals:
+            self.env.admit_if_shift_complete()
         reward = -float(self.env.potential() - phi_before)
         terminated = bool(self.env.interval_idx >= self.env.n_intervals)
         obs = (
