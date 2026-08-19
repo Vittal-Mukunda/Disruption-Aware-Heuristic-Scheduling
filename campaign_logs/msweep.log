@@ -1,0 +1,103 @@
+MSWEEP START 10:52:53
+===== M=1 start 10:52:53 =====
+
+########## .venv/Scripts/python.exe -m experiments.generate_labels --n-samples 1 --n-jobs -1 --train-out data/e4_M1/train.parquet --test-out data/e4_M1/test.parquet ##########  10:52:53
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:    5.5s
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:   18.1s
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed:   38.8s remaining:    1.9s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed:   39.7s finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:    4.3s remaining:   19.9s
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:    5.3s remaining:    8.0s
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:    5.5s remaining:    3.3s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:    7.9s remaining:    1.4s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:    8.4s finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=4  M=1  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 240,000 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=4, M=1, |H|=6)...
+  train: 39.8s  (0.16s/shift)  191,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=4, M=1, |H|=6)...
+  test: 8.5s  (0.17s/shift)  38,200 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.153993
+  median train row entropy = 0.6413 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1150/1600 (dropped 450)
+  rollout SE: mean=0.0000  median=0.0000
+  epochs with best/second gap < 1 SE: 0.0%
+
+[stage2] saved:
+  data\e4_M1\train.parquet  (8000 rows)
+  data\e4_M1\test.parquet  (1150 rows)
+  data\e4_M1\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\e4_M1\label_meta.json
+[stage2] simulated interval-steps: 229,200 (a priori budget 240,000)
+[stage2] total wall-clock: 48.3s
+########## rc=0  10:53:42
+
+########## .venv/Scripts/python.exe -m experiments.train_ranker --run-id e4_M1 --skip-cv-cal --train-path data/e4_M1/train.parquet --test-path data/e4_M1/test.parquet ##########  10:53:42
+[Phase 4] run_id=e4_M1  smoke=False  seed=1337
+[Phase 4] data: data\e4_M1\train.parquet / data\e4_M1\test.parquet
+[Phase 4] train: 8000 rows; test: 1150 rows
+[Phase 4] labels: tau=4 M=1 beta=0.1540 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (89.2s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 1.29897  per-fold = ['1.2689', '1.3092', '1.3037', '1.3205', '1.2927']
+  HP-search wall: 1966.3s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 20.9s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.0765   post=0.0675
+  Brier pre=0.4190  post=0.4139
+  soft-xent  pre=0.97711  post=1.12213
+  test rows: 1150
+
+Saved artifacts under runs\e4_M1/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  11:28:20
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ours --n-jobs -1 --run-dir runs/e4_M1 --results-dir results/E4/n_samples/M_1 ##########  11:28:21
+[eval] method=ours  n_test=50
+
+[eval] ours over 50 shifts:
+  mean composite_cost             = 380.2351
+  mean service_failure_rate       = 0.0685
+  mean arrived                    = 767.0000
+  mean throughput                 = 732.0800
+  mean unserved                   = 34.9200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0650
+  mean sla_breach_rate_served     = 0.0648
+  mean spoilage_rate              = 0.0379
+  mean mean_tardiness             = 0.7688
+  mean mean_tardiness_served      = 0.5293
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 11.8823
+  mean wall_clock_s               = 0.1210
+  mean decision_latency_ms_mean   = 3.0986
+  mean decision_latency_ms_p95    = 2.9135
+########## rc=0  11:28:28
