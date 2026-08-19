@@ -1,0 +1,62 @@
+{
+  "pool": [
+    "EEDD",
+    "COVERT",
+    "MS",
+    "ATC",
+    "MDD",
+    "EDD"
+  ],
+  "prob_columns": [
+    "p_EEDD",
+    "p_COVERT",
+    "p_MS",
+    "p_ATC",
+    "p_MDD",
+    "p_EDD"
+  ],
+  "tau": 4,
+  "n_rollout_samples": 5,
+  "observed_policy": "random",
+  "beta": 0.35226946514731017,
+  "beta_mode": "per_row",
+  "median_train_entropy": 0.6441291283133532,
+  "target_median_entropy": [
+    0.38702004535325985,
+    0.9048385319601677
+  ],
+  "entropy_in_band": true,
+  "theta_confidence": 0.3666666666666667,
+  "n_train_shifts": 250,
+  "n_test_shifts": 50,
+  "n_train_rows": 8000,
+  "n_test_rows_prefilter": 1600,
+  "n_test_rows": 1384,
+  "fefo_mask_threshold": 0.05,
+  "atc_lookahead_k": 3.0,
+  "covert_lookahead_k": 4.0,
+  "provisional_scales": false,
+  "rollout_precision_train": {
+    "mean_standard_error": 6.870934550357793,
+    "median_standard_error": 3.2381651641602356,
+    "max_standard_error": 105.94877571945156,
+    "frac_separation_below_1se": 0.5665893869139619,
+    "frac_separation_below_2se": 0.777047913446677,
+    "median_separation": 0.8072308428353185
+  },
+  "simulated_interval_steps": 1107600,
+  "simulated_interval_steps_train": 923000,
+  "simulated_interval_steps_test": 184600,
+  "budget_interval_steps": 1161600,
+  "wall_clock_s": {
+    "train": 191.20062110002618,
+    "test": 41.83229329995811
+  },
+  "objective_weights": {
+    "w_breach": 3.0,
+    "w_tardy": 0.2,
+    "w_spoil": 5.0,
+    "w_holding": 0.005,
+    "use_priority_weights": true
+  }
+}

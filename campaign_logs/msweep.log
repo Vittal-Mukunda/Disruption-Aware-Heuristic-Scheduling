@@ -101,3 +101,107 @@ Saved artifacts under runs\e4_M1/
   mean decision_latency_ms_mean   = 3.0986
   mean decision_latency_ms_p95    = 2.9135
 ########## rc=0  11:28:28
+warning: in the working copy of 'campaign_logs/msweep.log', LF will be replaced by CRLF the next time Git touches it
+pushed M=1
+===== M=5 start 11:28:33 =====
+
+########## .venv/Scripts/python.exe -m experiments.generate_labels --n-samples 5 --n-jobs -1 --train-out data/e4_M5/train.parquet --test-out data/e4_M5/test.parquet ##########  11:28:33
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   8 tasks      | elapsed:   22.7s
+[Parallel(n_jobs=-1)]: Done  98 tasks      | elapsed:  1.5min
+[Parallel(n_jobs=-1)]: Done 238 out of 250 | elapsed:  3.1min remaining:    9.4s
+[Parallel(n_jobs=-1)]: Done 250 out of 250 | elapsed:  3.2min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 32 concurrent workers.
+[Parallel(n_jobs=-1)]: Done   9 out of  50 | elapsed:   23.8s remaining:  1.8min
+[Parallel(n_jobs=-1)]: Done  20 out of  50 | elapsed:   25.2s remaining:   37.8s
+[Parallel(n_jobs=-1)]: Done  31 out of  50 | elapsed:   26.8s remaining:   16.4s
+[Parallel(n_jobs=-1)]: Done  42 out of  50 | elapsed:   41.0s remaining:    7.7s
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed:   41.7s finished
+[stage2] pool = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[stage2] tau=4  M=5  observed_policy=random
+[stage2] corpus: 250 train + 50 test shifts
+[stage2] a priori budget: 1,161,600 interval-steps
+[stage2] beta_mode=per_row  beta_grid=[0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.2, 0.35, 0.6, 1.0]  target_median_entropy=[0.387, 0.9048] nats (|H|=6)
+[stage2] n_jobs=-1  cpu_count=32
+
+[stage2] labelling 250 TRAIN shifts (tau=4, M=5, |H|=6)...
+  train: 191.2s  (0.76s/shift)  923,000 interval-steps
+
+[stage2] labelling 50 TEST shifts (tau=4, M=5, |H|=6)...
+  test: 41.8s  (0.84s/shift)  184,600 interval-steps
+
+[stage2] aggregated: train=8000 rows, test=1600 rows
+
+[stage2] beta = 0.352269
+  median train row entropy = 0.6441 (target [0.38702004535325985, 0.9048385319601677]) -> OK
+  test ambiguity filter (theta=0.3666666666666667): kept 1384/1600 (dropped 216)
+  rollout SE: mean=6.8709  median=3.2382
+  epochs with best/second gap < 1 SE: 56.7%
+
+[stage2] saved:
+  data\e4_M5\train.parquet  (8000 rows)
+  data\e4_M5\test.parquet  (1384 rows)
+  data\e4_M5\test_unfiltered.parquet  (1600 rows)
+  runs\dev\label_meta.json
+  data\e4_M5\label_meta.json
+[stage2] simulated interval-steps: 1,107,600 (a priori budget 1,161,600)
+[stage2] total wall-clock: 233.0s
+########## rc=0  11:32:28
+
+########## .venv/Scripts/python.exe -m experiments.train_ranker --run-id e4_M5 --skip-cv-cal --train-path data/e4_M5/train.parquet --test-path data/e4_M5/test.parquet ##########  11:32:28
+[Phase 4] run_id=e4_M5  smoke=False  seed=1337
+[Phase 4] data: data\e4_M5\train.parquet / data\e4_M5\test.parquet
+[Phase 4] train: 8000 rows; test: 1384 rows
+[Phase 4] labels: tau=4 M=5 beta=0.3523 policy=random
+[Phase 4] pool (from labels, K=6) = ['EEDD', 'COVERT', 'MS', 'ATC', 'MDD', 'EDD']
+[Phase 4] fitting regime layer (GMM, K-sweep + ARI stability)...
+[regime] WARNING: BIC-optimal K=12 sits at the EDGE of k_grid=[2, 3, 4, 5, 6, 7, 8, 10, 12]. K is being chosen by the grid boundary, not by the data. Widen cfg.regime.k_grid and re-run before reporting K*.
+  K* = 12  BIC = -240669.0  mean ARI = 0.9700  stable=True  (92.1s)
+  BIC sweep: {2: 36871.37393675327, 3: -39320.03138281584, 4: -90258.54606522886, 5: -155727.12691655863, 6: -160031.57492804344, 7: -157943.04932909054, 8: -168901.35220780657, 10: -222524.8396062072, 12: -240139.41948429492}
+  attached regime posteriors: ['regime_post_0', 'regime_post_1', 'regime_post_2', 'regime_post_3', 'regime_post_4', 'regime_post_5', 'regime_post_6', 'regime_post_7', 'regime_post_8', 'regime_post_9', 'regime_post_10', 'regime_post_11']
+[Phase 4] HP search on training data (cross_validate_ranker)...
+  best params = {'max_depth': 4, 'n_estimators': 200, 'learning_rate': 0.03}
+  mean CV soft-xent = 1.05581  per-fold = ['1.0018', '1.0629', '1.0871', '1.0843', '1.0429']
+  HP-search wall: 1594.2s  (combos: 18)
+[Phase 4] skip-cv-cal flag set; not running 5-fold calibration report.
+[Phase 4] final calibration split: 6400 train rows (200 shifts) / 1600 calibration rows (50 shifts)
+[Phase 4] refit ranker on inner-train with best HPs...
+  refit wall: 18.0s
+[Phase 4] fitting isotonic calibrator on the 20% shift split...
+  calibration wall: 0.0s
+[Phase 4] evaluating calibration on test.parquet...
+  ECE  pre=0.1227   post=0.0340
+  Brier pre=0.2808  post=0.2526
+  soft-xent  pre=0.89531  post=1.88106
+  test rows: 1384
+
+Saved artifacts under runs\e4_M5/
+  calibrator.joblib
+  model.json
+  phase4_metrics.json
+  phase4_regime.json
+  ranker_meta.joblib
+  regime.joblib
+########## rc=0  12:00:54
+
+########## .venv/Scripts/python.exe -m experiments.evaluate --method ours --n-jobs -1 --run-dir runs/e4_M5 --results-dir results/E4/n_samples/M_5 ##########  12:00:54
+[eval] method=ours  n_test=50
+
+[eval] ours over 50 shifts:
+  mean composite_cost             = 380.4353
+  mean service_failure_rate       = 0.0680
+  mean arrived                    = 767.0000
+  mean throughput                 = 731.8600
+  mean unserved                   = 35.1400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0638
+  mean sla_breach_rate_served     = 0.0635
+  mean spoilage_rate              = 0.0430
+  mean mean_tardiness             = 0.7650
+  mean mean_tardiness_served      = 0.5280
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 11.8886
+  mean wall_clock_s               = 0.1253
+  mean decision_latency_ms_mean   = 3.2031
+  mean decision_latency_ms_p95    = 3.0028
+########## rc=0  12:01:02
