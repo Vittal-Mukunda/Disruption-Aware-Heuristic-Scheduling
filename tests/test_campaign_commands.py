@@ -100,6 +100,7 @@ def test_every_manuscript_figure_has_a_producing_command():
     # Figure directory -> the driver that writes it.
     owners = {
         "S1_calibration": "calibrate_rules",
+        "E2": "e2_main",
         "data_efficiency": "fig_data_efficiency",
         "E4": "e4_sensitivity",
         "E5": "e5_calibration",

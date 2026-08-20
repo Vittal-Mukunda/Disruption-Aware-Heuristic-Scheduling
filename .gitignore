@@ -78,6 +78,9 @@ runs/*_log.txt
 *.tmp
 
 # --- LaTeX build artifacts (keep .tex, .pdf, .bbl) ---
+# paper/submission/ is regenerable output of scripts/build_submission.py; the
+# deliverable copies live at paper/CAOR-D-26-01812.{tex,pdf}.
+paper/submission/
 paper/*.aux
 paper/*.blg
 paper/*.log

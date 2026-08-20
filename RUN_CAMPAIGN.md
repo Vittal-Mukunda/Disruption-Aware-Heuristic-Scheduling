@@ -1,26 +1,21 @@
-# Running the CAOR-D-26-01812 revision campaign
+# Reproducing the CAOR-D-26-01812 campaign
 
-Everything needed to take this repository from a fresh clone to the numbers that
-go into the revised manuscript.
+The committed `data/`, `runs/` and `results/` trees already hold the live
+revision. Completeness evals A–G are done. **Do not relabel. Do not run
+`scripts/clean_stale.py` on this clone.**
 
-**Budget ~16 h of wall-clock, and 20-25 h on a laptop.** Run
-`python scripts/campaign_budget.py` for the per-stage table on your machine; it
-computes the step counts from `config.yaml` and divides by a measured throughput.
-The earlier "~7 hours on 16 cores" figure was wrong in two ways: it assumed 16
-*physical* cores, and it predated the four stages added below (the data-efficiency
-curves, the tau sweep, the e9 grid, and the real-data figures), which together are
-about a third of the total.
+Live Table 5 (`results/E2/default_stats.parquet`): DAHS $J=382.27$, FIFO
+$1486.82$ = **3.89×** (SFR $0.1837$), teachers $356.98$ / $363.42$, $|A|=791$,
+latency $4.24$ ms vs $670$ ms ($158\times$; $0.07\%$ of a 15-minute epoch).
+`sim.terminal_admit: true` is eval-only; production labels were generated with
+the flag off.
 
-Two sweeps are 45% of the cost on their own — `misspecification` (~4.4 h) and the
-objective-weight sweep (~2.7 h) — and in both cases it is the `rolling_mpc`
-teacher that dominates, at |H| x M x tau = 480 simulated interval-steps *per
-decision*. If you need to cut the campaign down, drop `rolling_mpc` from those two
-sweeps first: it is load-bearing in Section 6.11 (where the online controller's
-degradation is the comparison) but not in the weight sweep, which is about whether
-the *ranking* survives reweighting.
-
-Read `REVISION_PLAN.md` §7 for what each stage answers and which reviewer
-comment it serves.
+This file is the command inventory so `tests/test_campaign_commands.py` can
+check that every `experiments.*` module invocation below still parses; it is not
+a leftover A–K recipe. That test harvests any line carrying the module-invocation
+prefix, fenced or not, so do not write that prefix in prose — the sentence becomes
+a test case. Budget: `python scripts/campaign_budget.py`. Two sweeps
+(`misspecification`, objective-weight) are expensive because of `rolling_mpc`.
 
 ---
 
@@ -43,23 +38,10 @@ python -m venv .venv                    # Python 3.12 ONLY
 ```
 
 Then wipe **pre-revision** artifacts only if this clone still has the old
-objective's `data/` / `runs/` / `results/`. If `data/label_meta.json` exists
+objective's `data/` / `runs/` / `results/`. This clone does not. **Do not run
+`scripts/clean_stale.py`.** If `data/label_meta.json` exists
 with `tau: 4` and `provisional_scales: false`, Stages 2–4 are current — **do
-not wipe**. `scripts/clean_stale.py` now refuses in that case unless you pass
-`--force`.
-
-```bash
-python scripts/clean_stale.py          # Windows: .venv\Scripts\python
-# make clean-stale                     # optional, if make is installed
-```
-
-**Check what `clean-stale` removes before running it.** `results/S1_calibration/`
-and `results/S1_perishability/` are current-revision Stage-1 outputs and must
-survive; if the target would delete them, restore them from git afterwards:
-
-```bash
-git checkout -- results/S1_calibration results/S1_perishability config.yaml
-```
+not wipe**.
 
 ## 2. The campaign, in order
 
@@ -236,7 +218,7 @@ Commit and push after each stage.
 **The FIFO margin did not shrink to 1.20x.** That 1.20x was computed on old demo
 logs with only the metric rewritten; those logs still had the dispatcher idling
 pickers for arrival-agnostic rules, which uniquely favoured FIFO. After causal
-admission the measured default-scenario ratio is **3.90x on composite cost**
+admission the measured default-scenario ratio is **3.89x on composite cost**
 (2.75x on service-failure rate), with utilisation equalised at ~0.956. Write
 Table 1 around the measured number, not the brief's prediction.
 
@@ -299,17 +281,42 @@ bypassing it.
 
 ---
 
-## 6. Campaign status — COMPLETE on `ccf0240`
+## 6. Campaign status — COMPLETE
 
-Do **not** run `make clean-stale` or `scripts/run_remaining.ps1`. The revision
-campaign against `045edbc` finished; results and `CAMPAIGN_REPORT.md` are on
-`main` as `ccf0240`. The live log is `campaign_logs/rerun.log`.
+Every stage and every completeness eval has been run. `data/`, `runs/` and
+`results/` on `main` are the live revision, and `paper/manuscript.md` is written
+against them. Do **not** run `make clean-stale`, `scripts/clean_stale.py` or
+`scripts/run_remaining.ps1`. Logs are in `campaign_logs/`.
 
-What is still unrun (recipe commands that exit 2) is listed in
-`CAMPAIGN_REPORT.md` §6.1: the M-sweep, the theta sweep, and the M=1
-single-sample ablation. Do those before writing §6.4 / the ablation table.
-`python -m experiments.compute_budget measure` and `scaling` were also never
-run; they are cheap relative to a labelling pass.
+The jobs that were open at the end of the first pass are now closed:
+
+| Job | Artifact | Log |
+|---|---|---|
+| A — `sim.terminal_admit: true`, every method re-evaluated | `results/*.parquet`, `results/E2/` | `completeness_A.log`, `completeness_A2.log` |
+| B — Always-ATC at standalone $k=1.5$ | `results/E_atc_k1p5/` | — |
+| C — E8 grid with Always-COVERT added | `results/E8/` | `completeness_C.log` |
+| D — teachers at label $M=20$ | `results/E_teacher_M20/` | `completeness_D.log` |
+| E — PPO hyperparameters selected on the calibration split | `results/E_ppo_calib_select/` | `completeness_E.log` |
+| F — eval-only refreshes, frozen rankers, no relabel | `results/E3/`, `results/E4/`, `results/E10_misspecification/`, `results/E13_saturation/`, `results/A2/`, `runs/data_efficiency/` | `completeness_F.log` |
+| PPO grid re-scored under terminal admit | `results/E11_rl_sensitivity/` | `completeness_T12.log` |
+| G — latency from post-A parquets | `results/E12_compute/latency.json` | — |
+| $M$-sweep, $M \in \{1,5,10,20,40\}$ | `results/E4/n_samples/`, `n_samples_summary.parquet` | `msweep.log` |
+| `single_sample_rollout` ablation ($M=1$) | `results/E3/single_sample_rollout.parquet` | `msweep.log` |
+| Compute budget: `measure` and `scaling` | `results/E12_compute/` | `compute_budget.log` |
+
+`campaign_logs/rerun_failures.txt` lists three `rc=2` lines from the first pass
+(`theta`, `n_samples`, `relabel single_sample_rollout`). Those are recipe prints,
+not crashes; the last two were then run and are in the table above.
+
+**The `theta` sweep is deliberately unrun.** The ambiguity threshold is fixed at
+$\theta = 2.2/|\mathcal{H}|$ throughout, the `random_ambiguity_filter` ablation
+already isolates the filter, and no claim in the manuscript rests on a $\theta$
+sensitivity curve. Do not run it to tidy the table.
+
+`CAMPAIGN_REPORT.md`, `REVISION_PLAN.md` and `RUN_PROMPT.md` were deleted rather
+than updated: they carried pre-admit numbers and a positioning the paper no
+longer makes. Do not quote them from history. `paper/manuscript.md` is the only
+status document, and `SUBMISSION_CHECKLIST.md` is the only gate list.
 
 Python on Windows is `.venv\Scripts\python.exe`. Install from
 `requirements-lock.txt`. The lockfile needs **Python 3.12** (`scipy==1.18.0`);

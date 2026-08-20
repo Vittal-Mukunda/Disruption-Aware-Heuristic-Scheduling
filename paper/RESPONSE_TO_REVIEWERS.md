@@ -1,7 +1,7 @@
 # Response to Reviewers — CAOR-D-26-01812
 
-**Offline Rollout Distillation for Warehouse Order Dispatching: A Controlled
-Comparison of Training Signals**
+**Training Signals for Warehouse Dispatching-Rule Selection: A Controlled
+Comparison**
 
 Vittal Mukunda, Atharva Somani, Pranjal Malaiya
 
@@ -38,7 +38,7 @@ literature. Section 2 now places the method inside both traditions, corrects our
 mischaracterisation of the dispatching-rule-selection literature, and withdraws
 the claims that rollouts are "normally used online" and that our method "inverts
 the usual deployment". The contribution is reframed as an empirical study — a
-controlled comparison of training signals at matched data budgets — not a new
+comparison of training signals on one shift corpus — not a new
 training mechanism.
 
 **Two defects we found in our own audit, which no reviewer named, caused symptoms
@@ -53,8 +53,8 @@ counterintuitive results Reviewer 1 asked about in comment 6.a. Both are fixed.
 that the metric correction alone produced on the old logs.** Charging unserved
 orders on the submitted event logs compressed the FIFO gap from about 3.8× to
 about 1.2×. After regenerating under causal admission, the live default-scenario
-FIFO gap is **3.90×** on composite cost (manuscript Table 6: DAHS $J=381.42$,
-FIFO $J=1485.97$). Teachers remain cheaper than DAHS ($356$--$363$). We state
+FIFO gap is **3.89×** on composite cost (manuscript Table 5: DAHS $J=382.27$,
+FIFO $J=1486.82$). Teachers remain cheaper than DAHS ($356$--$363$). We state
 the live ranking in Section 6.2 before leaning on any method-to-method story.
 The relative comparison between training signals survives; the size of the
 static-rule margin does not, and the submitted paper overstated it.
@@ -146,8 +146,9 @@ now enter the objective (**Section 3.3**):
 running it.** New **Section 3.5** defines an order as *expiry-pivotal* at epoch
 $t$ when $t + p_o \le x_o < t + L + p_o$ — one interval of delay is the difference
 between saleable goods and waste. Three conditions were fixed in advance, all of
-which had to hold for the framing to stand. Measured over 7,440 decision epochs on
-the 30-shift calibration block:
+which had to hold for the framing to stand. Measured over 7,440 recorded
+decision epochs on the 30-shift calibration block $\times$ 8 behaviour rules
+(empty queues omitted; repeated measures, not 7,440 independent shifts):
 
 | Quantity | Measured | Pre-registered threshold |
 |---|---:|---:|
@@ -442,10 +443,10 @@ dropping it to pass our own gate.
 We did **not** compute a composite-cost oracle on the same 4×4 grid. The
 win-rate oracle gap over always-EEDD is 7.29 percentage points (per-cell oracle
 72.29% vs always-EEDD 65.00%; EEDD owns 15 of 16 cells). On the test-set
-objective the static champion is Always-COVERT, not Always-EEDD: DAHS $J=381.42$
-against COVERT $454.36$ (49/50 shifts). That is the gap DAHS captures against
-static rules. It does **not** capture the teacher gap: greedy_mpc $356.14$,
-rolling_mpc $362.58$. Distillation amortises a slightly worse scoring rule.
+objective the static champion is Always-COVERT, not Always-EEDD: DAHS $J=382.27$
+against COVERT $455.21$ (49/50 shifts). That is the gap DAHS captures against
+static rules. It does **not** capture the teacher gap: greedy_mpc $356.98$,
+rolling_mpc $363.42$. Distillation amortises a slightly worse scoring rule.
 
 ## 5. Data instance generation
 
@@ -523,11 +524,11 @@ of undisclosed look-ahead from the observed state.
 Under the corrected admission rule, on 50 default test shifts, WSPT records the
 **highest** throughput ($743.3$ vs FIFO $730.2$) and every method sits at picker
 utilisation $\approx 0.956$ (WSPT $0.955$). Cause 2 is confirmed. Composite-cost
-ranking is manuscript Table 6: greedy_mpc $356.14$, rolling_mpc $362.58$, DAHS
-$381.42$, Always-COVERT $454.36$, Always-EEDD $695.77$, FIFO $1485.97$
-($3.90\times$). Mean arrived $=767$ (identical across methods on each seed;
-last-interval arrivals in
-$(T-L,T]$ are never admitted); dropped $=0$.
+ranking is manuscript Table 5: greedy_mpc $356.98$, rolling_mpc $363.42$, DAHS
+$382.27$, Always-COVERT $455.21$, Always-EEDD $696.62$, FIFO $1486.82$
+($3.89\times$). Mean arrived $=791$ (identical across methods on each seed;
+a terminal admit at $T$ counts arrivals in $(T-L,T]$ as unserved; they are
+never dispatched); dropped $=0$.
 
 ### 6.b — The RL failure explanations are post hoc
 
@@ -549,9 +550,11 @@ over observation and reward normalisation — swept jointly rather than marginal
 because observation scaling changes the effective gradient magnitude while reward
 scaling changes the advantage scale. Every configuration is trained for 8{,}000
 timesteps (Stable-Baselines3 `total_timesteps`, not review epochs)
-and evaluated on the same held-out shifts. Hyperparameters were selected
-on those test shifts. The summary statistic is the
-fraction of the PPO-to-DAHS gap the best configuration recovers.
+and evaluated on the same held-out shifts. The grid was scored on those test
+shifts first. A later calibration re-score of the same twelve cells picked the
+same winner; nine of twelve calibration costs are identical, so that split
+barely discriminates. The summary statistic is the fraction of the PPO-to-DAHS
+gap the best configuration recovers.
 
 **On offline action coverage, we found an error in our own argument and it is
 instructive.** The submitted paper stated that because the behaviour policy was a
@@ -572,20 +575,25 @@ so the effect of the behaviour policy on the baseline can be read directly.
 **Sections 6.9 and 6.10 report the measurements, not a pre-registered new
 baseline.** Tuning closed a material part of the PPO gap; coverage under
 `random` is adequate. The structural reading is withdrawn. The tuned PPO cell
-does **not** replace Table 6, because the grid was scored on the test shifts.
+does **not** replace Table 5. The grid was scored on the test shifts first;
+the calibration re-score later picked the same cell.
 
-**PPO: the structural reading is withdrawn; Table 6 still reports the untuned
-row.** The sweep recovered $78.3\%$ of the untuned-PPO-to-DAHS cost gap
-(`gap_closed_fraction`$=0.783$). Best cell: observation *and* reward
-normalisation (cost $449.6$ vs untuned collapse $695.77$ vs DAHS $381.42$).
-Hyperparameters were selected on the **test** shifts, so the tuned cell is a
-sensitivity result, not a pre-registered baseline; manuscript Table 6 keeps
-`ppo_fair` ($J=610.93$). A separate `ppo_baseline` run at `n_steps`$=64$
-collapses to Always-EEDD ($J=695.77$). Coverage under `random`
+**PPO: the structural reading is withdrawn; Table 5 still reports the untuned
+row.** Against the Always-EEDD collapse row ($J=696.62$) the sweep recovered
+$78.3\%$ of the collapse-to-DAHS cost gap (`gap_closed_fraction`$=0.783$).
+Against Table 5's named `ppo_fair` row ($J=611.77$) the same best cell closes
+$0.70$. We do not call both denominators "untuned." Best cell: observation
+*and* reward
+normalisation (cost $450.45$ vs collapse $696.62$ vs DAHS $382.27$).
+The grid was scored on the **test** shifts first; a later calibration re-score
+picked the same cell. The tuned cell is a sensitivity result, not a
+pre-registered baseline; manuscript Table 5 keeps
+`ppo_fair` ($J=611.77$). A separate `ppo_baseline` run at `n_steps`$=64$
+collapses to Always-EEDD ($J=696.62$). Coverage under `random`
 (`results/E11_rl_sensitivity/action_coverage.json`): $5.999$ effective actions
 overall, $5.995$ in breach-prone states, $5.937$ conditional on interval index.
 Adequate. Fitted Q was retrained after the Stage-4 logger double-called
-`observe()` and zeroed arrivals; a 4% cost gap remains ($396.80$ vs $381.42$).
+`observe()` and zeroed arrivals; a 4% cost gap remains ($397.64$ vs $382.27$).
 
 ### 6.c — The composite cost should be the primary metric
 
@@ -650,10 +658,11 @@ completed 721.6 orders against FIFO's 750.6.
    went unmet, and excluding them would reopen the same gap elsewhere.
 
 3. **The full outcome partition** — arrived, served, unserved, rejected — is
-   reported as columns in manuscript Table 6 (the live comparison; Table 5 is
-   the superseded submitted scoreboard). Mean arrived $=767$, dropped $=0$
-   (identical across methods on each seed). Last-interval arrivals in
-   $(T-L,T]$ are never admitted.
+   reported as columns in manuscript Table 5, the live comparison. The
+   side-by-side against the submitted scoreboard is gone from this revision:
+   the article is now a standalone study, not a diff. Mean arrived $=791$,
+   dropped $=0$ (identical across methods on each seed). A terminal admit at
+   $T$ counts arrivals in $(T-L,T]$ as unserved; they are never dispatched.
 
 **What this costs us.** Recomputing your metric on the submitted repository's own
 per-order event logs (ten shifts, frozen model):
@@ -668,13 +677,18 @@ On those old logs the advantage over FIFO narrows from roughly **3.8× to 1.20×
 and over PPO from 3.0× to 1.10×. That diagnosis is about the submitted
 denominator, not the regenerated campaign.
 
-**Live Table 6** (50 default test shifts, corrected objective and causal
-admission): DAHS $J=381.42$, SFR $0.0689$, spoil $0.0395$, tardiness $0.775$,
-throughput $731.9$, utilisation $0.956$. FIFO $J=1485.97$ ($3.90\times$), SFR
-$0.1894$. Always-COVERT $454.36$ is the static to beat. Always-EEDD $695.77$
+**Live Table 5** (50 default test shifts, corrected objective and causal
+admission): DAHS $J=382.27$, SFR $0.0669$, spoil $0.0384$, tardiness $0.754$,
+throughput $731.9$, utilisation $0.956$. FIFO $J=1486.82$ ($3.89\times$), SFR
+$0.1837$. Always-COVERT $455.21$ is the static to beat. Always-EEDD $696.62$
 (DAHS strictly cheaper on 21/50, EEDD on 7, 22 exact ties). Teachers remain
-cheaper (greedy $356.14$, rolling $362.58$). Snapshot $\tau=1$ is $388.13$
-with a confirmatory paired interval that includes 0.
+cheaper (greedy $356.98$, rolling $363.42$). Snapshot $\tau=1$ is $388.97$
+with a confirmatory paired interval that includes 0. Under the same paired
+rule $\tau=2$ is cheaper than deployed $\tau=4$ ($J=373.16$; $-9.11$,
+$[-17.61,-1.35]$). On the 12-cell robustness grid five methods are frozen:
+greedy_mpc wins 8 cells, Always-EEDD wins 4, DAHS wins 0. Distillation is
+$158\times$ faster ($4.24$ ms vs $670$ ms); $670$ ms is $0.07\%$ of a
+15-minute epoch.
 
 ## 2. The handling of perishable orders is vague
 
@@ -694,9 +708,10 @@ the ambiguity you identified.
 
 *What happens when an order spoils?* Its goods become unsaleable at $x_o$. The
 simulator is discrete-interval: spoilage is assessed when the potential or a
-KPI is computed, not as a continuous-time event at $x_o$. Once $t \ge x_o$ the
-charge $W_s w_o$ is permanent — picking it afterwards does not undo it. The
-order is **not** removed from the queue: spoiled stock still has to be pulled
+KPI is computed, not as a continuous-time event at $x_o$. Objective spoilage
+is $f_o > x_o$ with $f_o = T + p_o$ if unserved. Dispatch after expiry does
+not clear $W_s$. The KPI uses the clock at $T$ (no $+p_o$). The order is **not**
+removed from the queue: spoiled stock still has to be pulled
 and disposed of, so it continues to consume a picker.
 Keeping it also closes an incentive gap — if spoiled orders vanished, a controller
 could free capacity by stalling until perishables expired, which is the same class
@@ -761,8 +776,8 @@ smooth it over. It is why Section 6.4 now includes a sweep over $M$.
 On the full training corpus at deployed $M=20$ (`data/label_meta.json`): mean
 rollout SE $3.71$, median SE $1.81$, $\mathrm{frac}<1\,\mathrm{se}=0.334$,
 median entropy $0.638$ (in band). The $M$ sweep completed at
-$\{1,5,10,20,40\}$. Deployed cost sits in a $0.7\%$ band: $M=1$ $J=380.24$,
-$M=20$ $381.42$, $M=40$ $382.78$. Paired against $M=20$, every cell's interval
+$\{1,5,10,20,40\}$. Deployed cost sits in a $0.7\%$ band: $M=1$ $J=381.08$,
+$M=20$ $382.27$, $M=40$ $383.63$. Paired against $M=20$, every cell's interval
 includes 0 ($M=40$: $+1.36$, $[-3.05,5.99]$, $p=0.35$). $\mathrm{frac}<1\,\mathrm{se}$
 falls as $M$ grows ($0$ at $M=1$ by construction; $0.567$, $0.455$, $0.334$,
 $0.215$ at $5,10,20,40$). Multi-sample labels improve calibration ECE and keep
@@ -790,19 +805,22 @@ length, same ages, same mean and standard deviation of slack, same mean processi
 time, same critical and at-risk counts — yet incur different cost under the same
 rule. `experiments/observability_analysis.py` searches a grid, verifies the feature
 vectors coincide to machine precision *before* comparing anything, and reports the
-gap. Under ATC at $\tau = 4$ with one picker: $\phi$ identical to machine
-precision, costs **3.79 against −0.01**, a gap of **3.80** against a per-order
-breach weight of $W_b = 3.0$.
+gap. The largest ATC gap on that searched grid is **3.79 against −0.01** at
+processing times $(4, 18)$ with one picker. Simulator processing time is
+Triangular$(2,5,12)$, so $p=18$ is off-support; on-support cells have smaller
+ATC gaps. The pair shows that $\phi$ can match while ATC cost depends on the
+latent pairing. It is not a reachable-state regret floor.
 
 Two conditions turn out to be necessary and we state both as part of the
 construction, because they sharpen what the defect actually is. The queue must
 **contend** for a picker — a ranking expresses a preference only when something has
 to wait, so with a picker free per order every rule produces the same trajectory.
 And the rule must key on slack and processing time **jointly**: the two queues
-carry the same *multiset* of slacks, so slack-only rules (EDD, EEDD, MS, MDD) order
-them identically and admit no witness, while ATC and COVERT separate them. The
-precise defect is therefore that **$\phi$ retains the marginal distributions of
-slack and of processing time and destroys their coupling.**
+carry the same *multiset* of slacks. EDD sorts by due date, not slack; EEDD, MS
+and MDD are closer slack-family rules, and no witness is claimed for them. ATC
+and COVERT separate the pair. The precise defect is therefore that **$\phi$
+retains the marginal distributions of slack and of processing time and destroys
+their coupling.**
 
 **Consequences, stated in both directions.** The unfavourable one is an
 **irreducible regret floor**: two states $\phi$ cannot separate must receive the
@@ -835,13 +853,15 @@ regret attributable to the feature map, not a reason to treat $\phi$ as a state.
 
 **Agreed, and we have added both the theory and the experiment.**
 
-**Proposition 2** bounds the error from rolling out under a misspecified kernel:
-it accumulates as $O(\varepsilon\tau^2)$ where $\varepsilon$ is the per-step model
-error in total variation, against truncation's $O(H-\tau)$. The two act in opposite
-directions in $\tau$, which yields a testable prediction we did not previously
-have: the optimal horizon is interior, at $\tau^\star \approx 1/\varepsilon$ — the
-more accurate the simulator, the further ahead it is worth looking, and a
-misspecified model should be rolled out over a *shorter* horizon.
+**Sketch 2** (the submitted draft labelled this Proposition 2) is a heuristic
+envelope for kernel error, not a theorem: a finite $\bar{C}$ is not proved
+under Poisson arrivals, and the implemented window cost is a terminal
+potential. If one treats $|c|\le\bar{C}$ under probability-TV, the factor $2$
+belongs in $\Gamma$. The first-order condition of that envelope is
+$\tau^\star = 1/(2\varepsilon) - 1/2$, never $\tau^\star \approx 1/\varepsilon$.
+We do not invert the vacuous scale into an operator map. Truncation bias still
+falls linearly in $\tau$ while model error grows quadratically --- that *shape*
+is what Section 4.4 is for.
 
 **Section 6.11** tests it exactly as you suggest. We label under nominal parameters
 and evaluate the frozen controllers under perturbed dynamics along four axes an
@@ -860,12 +880,12 @@ $\tau$ against model quality but not what their model quality is.
 
 Mean relative-degradation slopes of composite cost, averaged over axes
 (`results/E10_misspecification/degradation_summary.json`): Always-COVERT $18.7$
-(most robust; model-free), fitted Q $22.0$, DAHS $22.8$, rolling_mpc $23.7$,
+(most robust; model-free), fitted Q $21.9$, DAHS $22.7$, rolling_mpc $23.6$,
 Always-EEDD $27.7$ (least robust). On the SLA axis DAHS is the steepest of the
 five. The experiment does **not** retrain at $\tau\in\{1,2,3,4\}$ as
-$\varepsilon$ grows, so it does not test Proposition 2's prediction that
+$\varepsilon$ grows, so it does not test the sketch's prediction that
 $\tau^\star$ shortens. Section 4.4 already notes that $\tau^\star$ enters the
-swept grid only once $\varepsilon\gtrsim 0.29$; mild cells cannot show the
+swept grid only once $\varepsilon\gtrsim 2/9$; mild cells cannot show the
 optimum moving inward. We report the slopes and that the $\tau$--$\varepsilon$
 interaction is unmeasured.
 
@@ -884,7 +904,7 @@ matches or exceeds its own teacher — which is the whole amortisation argument.
 `baselines/rolling_horizon_mpc.py` implements exactly the procedure you describe:
 at each epoch evaluate every rule over $\tau$ intervals averaged over $M$
 continuations, commit the arg-min for one interval, replan. It is reported in
-manuscript Table 6 with KPIs **and per-decision wall-clock**, and the break-even — the number
+manuscript Table 5 with KPIs **and per-decision wall-clock**, and the break-even — the number
 of decisions after which the one-off labelling cost is repaid by the per-decision
 saving — is reported in Section 6.12.
 
@@ -896,16 +916,17 @@ per decision, whether the amortisation is worth it, and how each degrades under
 misspecification — and Section 6.2 marks them as our reading. **We would be glad to
 address the specific questions if the complete comment can be supplied.**
 
-Live KPIs, 50 default shifts: greedy_mpc ($\tau=1$, $M=5$) $J=356.14$;
-rolling_mpc ($\tau=4$, $M=5$) $J=362.58$; DAHS $J=381.42$. Teachers beat the
+Live KPIs, 50 default shifts: greedy_mpc ($\tau=1$, $M=5$) $J=356.98$;
+rolling_mpc ($\tau=4$, $M=5$) $J=363.42$; DAHS $J=382.27$. Teachers beat the
 student; both paired intervals exclude 0. Mean per-decision latency: DAHS
-$3.66$ ms, rolling_mpc $645$ ms ($176\times$), greedy_mpc $588$ ms. Labelling
-the $M=20$, $\tau=4$ corpus took $922$ s wall-clock; at $20.6$ extra seconds
-per shift of online lookahead, labelling alone is repaid after about $45$
+$4.24$ ms, rolling_mpc $670$ ms ($158\times$), greedy_mpc $594$ ms. Labelling
+the $M=20$, $\tau=4$ corpus took $922$ s wall-clock; at $21.33$ extra seconds
+per shift of online lookahead, labelling alone is repaid after about $43$
 shifts and labelling plus Stage-3 training after about $250$. Both figures are
 hardware-specific and ignore that the teacher is also the better policy. The
 teachers use $M=5$ at evaluation; labels were built at $M=20$. A matched $M=20$
-teacher eval is leftover work, not a live claim.
+teacher evaluation is in `results/E_teacher_M20`: rolling_mpc moves from $363.42$
+to $363.76$; greedy_mpc is unchanged at $356.98$.
 
 ---
 
@@ -1023,18 +1044,18 @@ On 1,600 epochs per scenario (`results/E13_saturation/scenario_behaviour.parquet
 
 | Scenario | Eff. rules | Switch rate | Blocked-switch | Gate-open | EEDD share | COVERT share | $J$ |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| low load | 1.005 | 0.0006 | 0 | 0.931 | 0.999 | 0 | 9.04 |
-| balanced | 1.034 | 0.0056 | 0 | 0.953 | 0.995 | 0.004 | 17.05 |
-| default | 1.610 | 0.039 | 0.008 | 0.929 | 0.849 | 0.138 | 381.42 |
-| high-load-perish | 1.584 | 0.031 | 0.0006 | 0.963 | 0.173 | 0.828 | 11427 |
+| low load | 1.005 | 0.0006 | 0 | 0.931 | 0.999 | 0 | 9.82 |
+| balanced | 1.034 | 0.0056 | 0 | 0.953 | 0.995 | 0.004 | 17.73 |
+| default | 1.610 | 0.039 | 0.008 | 0.929 | 0.849 | 0.138 | 382.27 |
+| high-load-perish | 1.584 | 0.031 | 0.0006 | 0.963 | 0.173 | 0.828 | 11430 |
 
 Collapse onto EEDD is the light-load mechanism; a switch into COVERT is the
 perishable-saturation mechanism. The dwell sweep *within* high-load-perishable
-(`dwell_verdict_high_load_perish.json`) finds the cost-minimising $T_{\min}$ at
-the deployed value $2$ (cost $11426.95$); $T_{\min}\in\{0,1\}$ is $11427.04$
-and $T_{\min}=4$ is $11429.34$. The guardrail is not the boundary condition
-there. WSPT, not DAHS, is the cheapest method in that scenario ($11168.50$ vs
-$11426.95$).
+(`dwell_verdict_high_load_perish.json`) finds a two-way tie at the deployed
+$T_{\min}=2$ and at $T_{\min}=3$ (both $11429.77$); $T_{\min}\in\{0,1\}$ is $11429.85$
+and $T_{\min}=4$ is $11432.15$. The guardrail is not the boundary condition
+there. WSPT, not DAHS, is the cheapest method in that scenario ($11171$ vs
+$11430$).
 
 ## 4. Is the full feature set necessary?
 
@@ -1048,7 +1069,7 @@ a parsimonious selector is materially easier to deploy and to audit.
 This reads alongside the redundancy analysis added for Reviewer 1's comment 3.a,
 which found two features that were degenerate outright and removed them.
 
-`top5_features` $J=383.14$ against DAHS $381.42$ (paired $+$1.72,
+`top5_features` $J=383.99$ against DAHS $382.27$ (paired $+$1.72,
 $[-3.44,6.59]$, $p_{\mathrm{adj}}=0.83$). Null on cost and SFR. The remaining
 33 ranker coordinates are not earning their dimensionality on this 50-shift
 test set. Train wall $897$ s.
@@ -1073,24 +1094,28 @@ removing it improves them slightly — and it is retained deliberately as a
 deployability guardrail. Reporting cost alongside benefit makes that an explicit
 engineering trade rather than something to defend.
 
-Manuscript Table 11 (displayed 7 arms; BH family is the eight methods in
+Manuscript Table 10 (six displayed rows; BH family is the eight methods in
 `e3_summary.parquet`, including the omitted identity `random_ambiguity_filter`;
 $p_{\mathrm{adj}}$ from that 8-arm correction):
 
 | Ablation | $J$ | vs DAHS [95% CI] | $p_{\mathrm{adj}}$ | SFR | Train wall (s) |
 |---|---:|---|---:|---:|---:|
-| hard_labels | 382.43 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0685 | 1302 |
-| no_calibration | 381.46 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0685 | --- |
-| no_regime | 383.56 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0691 | 1124 |
-| no_switching_controller | 380.43 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0687 | --- |
-| single_sample_rollout ($M{=}1$) | 380.24 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0685 | --- |
-| top5_features | 383.14 | $+$1.72 [$-$3.44, 6.59] | 0.83 | 0.0691 | 897 |
-| DAHS | 381.42 | --- | --- | 0.0689 | --- |
+| hard_labels | 383.28 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0665 | 1302 |
+| no_calibration | 382.31 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0665 | --- |
+| no_regime | 384.41 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0671 | 1124 |
+| no_switching_controller | 381.27 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0667 | --- |
+| single_sample_rollout ($M{=}1$) | 381.08 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0664 | --- |
+| DAHS | 382.27 | --- | --- | 0.0669 | --- |
+
+The `top5_features` retrain ($J=383.99$; $+$1.72 [$-$3.44, 6.59]; SFR $0.0671$;
+897 s) is no longer a row of that table. It selected its five coordinates from a
+**test-set** SHAP ranking, so it is a diagnostic reported in the text of
+Section 6.8, not a held-out ablation.
 
 No ablation rejects equality with DAHS after BH control. Non-rejection is not
 an equivalence test. Inference-only arms do not retrain. Mean decision latency
 on the retrain arms is $0.7$--$0.9$ ms, below the deployed DAHS eval latency
-in Table 14 ($3.66$ ms), which includes the switching wrapper and regime
+in Table 13 ($4.24$ ms), which includes the switching wrapper and regime
 posteriors.
 
 ## 6. Expand the limitations
@@ -1220,10 +1245,10 @@ statistic, so the problem is a POMDP (Reviewer 2's comment 4).
 > cited."*
 
 **Added, in a new Section 2.4 subsection on rollout and ADP for dynamic
-dispatching.** Klapp et al. on the dispatch-waves problem — structurally the
-decision studied here with routing rather than rule selection as the inner problem;
+dispatching.** Klapp et al. on the dispatch-waves problem — a neighbouring
+wave-release decision, not the inner rule-selection decision studied here;
 Goodson et al.'s rollout framework for finite-horizon stochastic dynamic programs,
-including the treatment of truncated horizons that Proposition 1 sits inside;
+including the treatment of truncated horizons that Sketch 1 sits inside;
 Ulmer et al. on modelling conventions for stochastic dynamic routing and
 dispatching (which Section 3 now follows), on offline–online ADP, on budgeting
 decision time, and on anticipation against reactive re-optimisation.
@@ -1232,12 +1257,12 @@ decision time, and on anticipation against reactive re-optimisation.
 construction, and we say so rather than cite it in passing.** That literature does
 not simply truncate a rollout and discard the tail: it **approximates the remainder
 with a learned value function**, and in places uses learning to set the horizon
-state-dependently. Our Propositions 1 and 2 treat truncation as a hard cut, which
+state-dependently. Our Sketches 1 and 2 treat truncation as a hard cut, which
 makes the truncation bias $(H_t - \tau)\bar{C}$ a quantity to be tolerated rather
 than estimated. A value-approximated tail would replace that with an approximation
 error that need not grow with the remaining horizon — strictly the better
 construction, and it would likely permit a shorter $\tau$, which is attractive here
-because Proposition 2 shows short horizons also limit model-error accumulation. We
+because Sketch 2 says short horizons also limit model-error accumulation. We
 do not implement it, and Section 9 records it as the most promising extension
 rather than as an incidental idea.
 
