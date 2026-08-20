@@ -1,4 +1,4 @@
-Highlights — CAOR-D-26-01812
+Highlights
 Submit as a separate editable file. Each bullet is at most 85 characters including spaces.
 
 - On one simulator, distillation misses the teacher (J 382 vs 357).

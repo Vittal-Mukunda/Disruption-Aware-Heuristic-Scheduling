@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dahs"
 version = "0.1.0"
-description = "Offline truncated-rollout labels did not recover the online teacher on one warehouse simulator (CAOR-D-26-01812)"
+description = "Offline truncated-rollout labels did not recover the online teacher on one warehouse simulator"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 authors = [

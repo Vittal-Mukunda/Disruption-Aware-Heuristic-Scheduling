@@ -1,4 +1,4 @@
-# Reproducing the CAOR-D-26-01812 campaign
+# Reproducing the campaign
 
 The committed `data/`, `runs/` and `results/` trees already hold the live
 revision. Completeness evals A–G are done. **Do not relabel. Do not run
@@ -22,8 +22,8 @@ a test case. Budget: `python scripts/campaign_budget.py`. Two sweeps
 ## 0. Setup
 
 ```bash
-git clone https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling.git CAOR
-cd CAOR
+git clone https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling.git
+cd Disruption-Aware-Heuristic-Scheduling
 python -m venv .venv                    # Python 3.12 ONLY
 # Install from the LOCKFILE (bit-reproducible). Windows: .venv\Scripts\pip
 .venv/bin/pip install -r requirements-lock.txt

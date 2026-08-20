@@ -12,7 +12,7 @@
 
 [![Manuscript](https://img.shields.io/badge/Manuscript-Markdown-b31b1b?style=flat-square)](paper/manuscript.md)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
-[![Status](https://img.shields.io/badge/Status-Under_revision_(CAOR--D--26--01812)-E8740C?style=flat-square)](paper/manuscript.md)
+[![Status](https://img.shields.io/badge/Status-Archived-6B7280?style=flat-square)](paper/manuscript.md)
 
 </div>
 
@@ -44,7 +44,7 @@ Production labels were generated with that flag off and were not regenerated.
 
 This repository contains the simulator, training pipeline, baselines, trained
 weights, experiment artifacts, figures, an interactive dashboard, and the
-Elsevier manuscript.
+manuscript. The work is finished and archived; it is not under submission.
 
 <div align="center">
 <br/>
@@ -61,7 +61,7 @@ simulator, not live Table 5 numbers.</sub>
 
 ---
 
-## The paper (CAOR-D-26-01812)
+## The paper
 
 | File | Role |
 |---|---|
@@ -69,10 +69,10 @@ simulator, not live Table 5 numbers.</sub>
 | [`paper/references.bib`](paper/references.bib) | Bibliography |
 | [`paper/COVER_LETTER.md`](paper/COVER_LETTER.md) | Editor letter |
 | [`paper/RESPONSE_TO_REVIEWERS.md`](paper/RESPONSE_TO_REVIEWERS.md) | Point-by-point reply |
-| [`paper/highlights.txt`](paper/highlights.txt) | Five Elsevier highlights, each ≤85 characters |
+| [`paper/highlights.txt`](paper/highlights.txt) | Five highlights, each ≤85 characters |
 | [`paper/elsarticle.template.tex`](paper/elsarticle.template.tex) | Pandoc → elsarticle |
-| [`paper/CAOR-D-26-01812.tex`](paper/CAOR-D-26-01812.tex) | Built elsarticle source, as submitted |
-| [`paper/CAOR-D-26-01812.pdf`](paper/CAOR-D-26-01812.pdf) | Compiled PDF of the same build |
+| [`paper/manuscript.tex`](paper/manuscript.tex) | Built elsarticle source |
+| [`paper/manuscript.pdf`](paper/manuscript.pdf) | Compiled PDF of the same build |
 | `paper/submission/` | Local pandoc/LaTeX output the two files above are copied from (git-ignored) |
 | [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md) | Gate commands |
 
@@ -108,7 +108,7 @@ at M=20: rolling 363.76, greedy still 356.98. E8: greedy 8/12, EEDD 4/12, DAHS
 # Repository layout
 
 ```
-CAOR/
+Disruption-Aware-Heuristic-Scheduling/
 ├── README.md
 ├── pyproject.toml
 ├── Makefile
@@ -120,7 +120,7 @@ CAOR/
 ├── experiments/
 ├── data/  runs/  results/  figures/
 ├── paper/                      # manuscript.md is the only paper source
-│   └── submission/             # pandoc/LaTeX build; CAOR-D-26-01812.{tex,pdf} copied from it
+│   └── submission/             # pandoc/LaTeX build; manuscript.{tex,pdf} copied from it
 └── demo/                       # static dashboard
 ```
 
@@ -188,7 +188,7 @@ Windows without `make`: see each target's command in the `Makefile`.
 [the Kaggle dump](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 unzipped to `Olist Dataset/` at the repo root.
 
-## Submission gates
+## Manuscript gates
 
 Both gates pass on the committed tree: 40/40 reviewer phrase anchors, and
 `READY` from the build check.
@@ -208,8 +208,9 @@ cd paper/submission && pdflatex manuscript.tex && pdflatex manuscript.tex
 Pandoc resolves the citations with `--citeproc`, so the references are already
 inlined — there is no bibtex/biber pass. The second run fixes cross-references.
 
-`paper/CAOR-D-26-01812.tex` and `.pdf` are copies of `paper/submission/manuscript.{tex,pdf}`
-from that build. Regenerate them; do not edit them.
+`paper/manuscript.tex` and `paper/manuscript.pdf` are copies of
+`paper/submission/manuscript.{tex,pdf}` from that build. Regenerate them; do not
+edit them.
 
 ---
 

@@ -2153,9 +2153,9 @@ produced the live tables in this paper are in the accompanying repository.
 Table 1 is the exception: it used the eight-rule `SCREENING_POOL` (FIFO omitted)
 on 30 calibration shifts, stored at `results/S1_perishability/`. The live
 `resolve_pool` in `config.yaml` is the six-rule deployed pool, so reproducing
-Table 1 from the current config will not recover it. CAOR
-requires that the data and code underlying the work be deposited (Guide for
-Authors, Option C). A persistent archive with a DOI will be linked at
+Table 1 from the current config will not recover it. The data and code
+underlying the work are deposited as the journal's data-availability policy
+requires (Option C). A persistent archive with a DOI will be linked at
 acceptance; until then the versioned source is
 \url{https://github.com/Vittal-Mukunda/Disruption-Aware-Heuristic-Scheduling}.
 

@@ -1,4 +1,4 @@
-# Exact environment for the CAOR-D-26-01812 revision campaign.
+# Exact environment for the revision campaign.
 #
 # WHY THIS EXISTS. Section 6.6 of the submitted paper cited calibration metrics
 # from one run and KPIs from another, and those two runs should have been the

@@ -132,7 +132,7 @@ CHECKS = [
   ["**The sequential decision process**", "powell2019unified", "S^M(S_t, u_t, W_{t+1})"], [], []),
  ("R5.2 differs from VFA/RL",
   ["### How this differs from value-function approximation"], [], []),
- ("R5.3 Klapp / Ulmer / C&OR cited",
+ ("R5.3 Klapp / Ulmer / venue literature cited",
   ["klapp2018onedim", "ulmer2020modeling", "goodson2017rolloutframework"], [], []),
  ("R5.4 terminology defined",
   ["## Terminology and notation", "corpus of simulated shifts", "snapshot-trained ranker"], [], []),

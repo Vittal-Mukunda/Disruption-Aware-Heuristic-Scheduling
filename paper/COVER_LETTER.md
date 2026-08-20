@@ -1,11 +1,10 @@
-# Cover letter — resubmission of CAOR-D-26-01812
+# Cover letter — resubmission
 
 To the Editor,
-*Computers & Operations Research*
 
 Dear Editor,
 
-Please find enclosed a revised version of manuscript **CAOR-D-26-01812**,
+Please find enclosed a revised version of the manuscript
 *"Offline truncated-rollout labels did not recover the online teacher on one
 warehouse simulator"*, together with a point-by-point
 response to the four reviewers.

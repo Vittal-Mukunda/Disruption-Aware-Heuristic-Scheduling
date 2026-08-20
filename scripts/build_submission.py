@@ -1,4 +1,4 @@
-"""Package the manuscript for submission to Computers & Operations Research.
+"""Package the manuscript for journal submission.
 
 Two jobs, and the first is the one that catches mistakes:
 

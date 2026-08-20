@@ -1,4 +1,4 @@
-# Submission checklist — CAOR-D-26-01812
+# Manuscript checklist
 
 Source of truth: `paper/manuscript.md`. Do not quote `CAMPAIGN_REPORT.md` or
 any deleted runbook; those files are gone because they carried pre-admit
@@ -10,9 +10,9 @@ numbers.
 3. `python scripts/build_submission.py` — writes `paper/submission/manuscript.tex`
    (needs pandoc). Compile it with two `pdflatex` passes; pandoc inlines the
    bibliography with `--citeproc`, so there is no bibtex/biber pass.
-4. Copy the build to the manuscript number: `paper/CAOR-D-26-01812.tex` and
-   `paper/CAOR-D-26-01812.pdf` are copies of `paper/submission/manuscript.{tex,pdf}`.
-   They are build output — regenerate, never hand-edit.
+4. `paper/manuscript.tex` and `paper/manuscript.pdf` are copies of
+   `paper/submission/manuscript.{tex,pdf}` from that build. They are build
+   output — regenerate, never hand-edit.
 5. Highlights in `paper/highlights.txt` and `paper/elsarticle.template.tex` must
    match, five bullets, each ≤85 characters.
 6. Live Table 5: DAHS $J=382.27$, FIFO $1486.82$ / SFR $0.1837$ / $3.89\times$,

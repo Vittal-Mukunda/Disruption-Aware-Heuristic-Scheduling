@@ -1,4 +1,4 @@
-# Response to Reviewers — CAOR-D-26-01812
+# Response to Reviewers
 
 **Training Signals for Warehouse Dispatching-Rule Selection: A Controlled
 Comparison**
