@@ -28,13 +28,17 @@ sees, and the dispatcher may assign, exactly the orders that have arrived by
 removes an undisclosed clairvoyance — the submitted feature vector summarised
 up to fifteen minutes of future arrivals.
 
-There is no terminal admit at shift end `T` unless `sim.terminal_admit` is true.
-When false (the committed default, and every live table), the last review is at
-`t = T - L`, so arrivals in `(T - L, T]` never enter the queue. Mean `|A| = 767`
-against a Poisson mean of `1.65 * 480 = 792` is that convention. When true, a
-gated `_admit()` runs only after `interval_idx == n_intervals`, so truncated
-rollouts are unchanged. Do not call `_admit()` unconditionally at the end of
-`run_with_policy`: that would poison labelling.
+There is a terminal admit at shift end `T` when `sim.terminal_admit` is true
+(the live evaluation default). After the last review, arrivals with
+`arrival_time <= T` enter the queue as unserved and are never dispatched.
+Mean `|A| ≈ 791` against a Poisson mean of `1.65 * 480 = 792`. When false,
+the last review is at `t = T - L`, so arrivals in `(T - L, T]` never enter
+the queue (mean `|A| = 767`).
+
+Truncated rollouts that exhaust the remaining shift (`interval_idx == N`)
+*do* call `admit_if_shift_complete()`. Production labels were generated with
+the flag off and were not regenerated for the completeness run. Do not claim
+that truncated rollouts are independent of the flag for last-τ windows.
 
 With that rule, `start = max(picker_free, t)` and the early exit on line ~"no
 picker can start before the interval ends" is provably safe: `picker_free` is
@@ -341,8 +345,9 @@ class WarehouseEnv:
     def admit_if_shift_complete(self) -> int:
         """Admit arrivals with arrival_time <= T after the last review only.
 
-        No-op while a truncated rollout is still inside the shift. That is what
-        keeps labelling at tau < N independent of the completeness-run flag.
+        No-op while a truncated rollout is still inside the shift. Windows that
+        reach `interval_idx == n_intervals` do admit leftover arrivals when the
+        flag is on. Production labels were generated with the flag off.
         """
         if self.interval_idx < self.n_intervals:
             return 0

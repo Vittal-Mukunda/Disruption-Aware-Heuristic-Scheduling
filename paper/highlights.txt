@@ -1,8 +1,8 @@
 Highlights — CAOR-D-26-01812
 Submit as a separate editable file. Each bullet is at most 85 characters including spaces.
 
-- Rollout labels beat FQI; PPO needs obs/reward normalisation.
-- DAHS costs 381 vs Always-COVERT 454; teachers remain cheaper.
-- Labels from M=1 to M=40 match on deployed cost.
-- Distillation is 176 times faster than online truncated lookahead.
-- PPO 78% gap-closed is a test-scored HP cell, not calib.
+- On one simulator, distillation misses the teacher (J 382 vs 357).
+- The distilled selector wins 0 of 12 robustness cells; the teacher wins 8.
+- A two-step label is cheaper on the mean than the four-step ranker.
+- 670 ms lookahead is 0.07% of a 15-minute review interval.
+- Soft labels, extra samples, and 33 of 38 features are null on cost.

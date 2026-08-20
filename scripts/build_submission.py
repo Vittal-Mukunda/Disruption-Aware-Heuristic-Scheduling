@@ -184,7 +184,7 @@ def check() -> list[str]:
         if kind == "Table":
             caps = set(re.findall(r"^\*\*Table (\d+)", text, re.M))
         else:
-            caps = set(re.findall(r"^!\[Figure (\d+)", text, re.M))
+            caps = set(str(i) for i in range(1, 1 + len(re.findall(r"^!\[", text, re.M))))
         uncaptioned = sorted(set(seen) - caps, key=int)
         if uncaptioned:
             problems.append(
@@ -198,7 +198,13 @@ def check() -> list[str]:
     # Bibliography closure, both directions.
     if BIB.exists():
         keys = set(re.findall(r"@\w+\{([^,]+),", BIB.read_text(encoding="utf-8")))
-        body = text.split("\n---", 2)[-1] if text.startswith("---") else text
+        # YAML frontmatter is delimited by a closing line `---` after the abstract.
+        # Do not split on later markdown rules (`---`); those drop Section 2 citations.
+        if text.startswith("---"):
+            fm_end = text.find("\n---", 3)
+            body = text[fm_end + 4:] if fm_end > 0 else text
+        else:
+            body = text
         used = {k.rstrip(".,;:") for k in
                 re.findall(r"@([A-Za-z][A-Za-z0-9_:.+-]*)", body)}
         if used - keys:

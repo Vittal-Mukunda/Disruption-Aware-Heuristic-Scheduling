@@ -334,7 +334,7 @@ def main() -> int:
               f"{', '.join(sorted(found)) or 'none'}")
         print(f"  does not          : "
               f"{', '.join(sorted(set(per_rule) - set(found))) or 'none'} "
-              f"(slack-only rules order both queues identically)")
+              f"(EDD sorts due date, not slack; a rank difference need not be a cost gap)")
     else:
         print("[observability] NO witness found for any rule on the search grid. "
               "Section 3.2's partial-observability claim is not demonstrated; "

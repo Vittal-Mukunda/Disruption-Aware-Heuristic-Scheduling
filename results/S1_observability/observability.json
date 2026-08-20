@@ -15,29 +15,9 @@
     "interpretation": "Two queues indistinguishable to the controller incur different cost under the same rule. phi is therefore not a sufficient statistic, and no amount of training data can recover the difference from phi alone."
   },
   "witness_by_rule": {
-    "EEDD": {
-      "found": false,
-      "cost_gap": 0.0
-    },
-    "COVERT": {
-      "found": true,
-      "cost_gap": 0.7999999999999998
-    },
-    "MS": {
-      "found": false,
-      "cost_gap": 0.0
-    },
     "ATC": {
       "found": true,
       "cost_gap": 3.8
-    },
-    "MDD": {
-      "found": false,
-      "cost_gap": 0.0
-    },
-    "EDD": {
-      "found": false,
-      "cost_gap": 0.0
     }
   },
   "empirical": {

@@ -32,8 +32,8 @@ sim:
   n_pickers: 10
   queue_capacity: 200             # overflow is recorded as `dropped`, not discarded
   # When true, after the last review admit arrivals with arrival_time <= T.
-  # They are not dispatched. Truncated rollouts are unaffected (interval_idx < N).
-  # Live tables were generated with false (mean |A|=767). Completeness run sets true.
+  # They are not dispatched. Truncated windows that reach T do call this admit.
+  # Production labels were generated with false. Live tables use true (|A|≈791).
   terminal_admit: true
 
   arrivals:

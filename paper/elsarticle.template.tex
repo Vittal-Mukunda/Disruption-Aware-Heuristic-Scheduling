@@ -13,23 +13,45 @@
 %
 % The `review` option is Elsevier's double-spaced single-column review layout.
 % Swap to `final,5p,times,twocolumn` for a preprint that looks like the article.
-\documentclass[review,authoryear,3p,times]{elsarticle}
+\documentclass[review,3p,times]{elsarticle}
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
 \usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
 
+\usepackage{adjustbox}
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \providecommand{\pandocbounded}[1]{#1}
+\renewcommand{\pandocbounded}[1]{\adjustbox{max width=\linewidth,center}{#1}}
 
-\newtheorem{proposition}{Proposition}
+\DeclareUnicodeCharacter{0107}{\'{c}}
+\DeclareUnicodeCharacter{0161}{\v{s}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2713}{\ensuremath{\checkmark}}
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{2013}{--}
+\DeclareUnicodeCharacter{2014}{---}
+\DeclareUnicodeCharacter{2212}{-}
+\newcounter{none}
+
+% pandoc --citeproc already inlines Harvard (author-year) citations.
+% Do not wrap the list in thebibliography: natbib then demands its labels.
+\newcommand{\citeproctext}{}
+\newenvironment{CSLReferences}[2]{%
+  \par\addvspace{\baselineskip}%
+  \renewcommand{\bibitem}[2][]{\par\addvspace{0.35\baselineskip}\noindent\hangindent=1.5em\hangafter=1}%
+}{\par}
+
+\newtheorem{proposition}{Sketch}
 \newtheorem{assumption}{Assumption}
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}
@@ -65,11 +87,11 @@ $abstract$
 \end{abstract}
 
 \begin{highlights}
-\item Rollout labels beat FQI; PPO needs obs/reward normalisation.
-\item DAHS costs 381 vs Always-COVERT 454; teachers remain cheaper.
-\item Labels from M=1 to M=40 match on deployed cost.
-\item Distillation is 176 times faster than online truncated lookahead.
-\item PPO 78\% gap-closed is a test-scored HP cell, not calib.
+\item On one simulator, distillation misses the teacher (J 382 vs 357).
+\item The distilled selector wins 0 of 12 robustness cells; the teacher wins 8.
+\item A two-step label is cheaper on the mean than the four-step ranker.
+\item 670 ms lookahead is 0.07\% of a 15-minute review interval.
+\item Soft labels, extra samples, and 33 of 38 features are null on cost.
 \end{highlights}
 
 $if(keywords)$
