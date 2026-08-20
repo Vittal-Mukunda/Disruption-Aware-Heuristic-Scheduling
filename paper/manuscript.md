@@ -25,7 +25,7 @@ abstract: |
 
   The problem is partially observed. Each order has two priced clocks, tardiness and unserved demand, in a composite cost $J$. Three signals are compared: a Monte Carlo truncated rollout of every rule, fitted Q-iteration on the same logs, and a neural policy gradient. Only the rollout signal trains the deployed tree ranker.
 
-  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=381$, beating Always-COVERT ($454$; $49/50$ shifts), fitted Q ($397$), and untuned PPO ($611$; $449.60$ on a test-scored normalisation cell). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 ties); the mean is tail-driven. Online lookahead remains cheaper ($356$--$363$) at $176\times$ the latency. Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
+  On 50 held-out default shifts the rollout-trained selector (DAHS) has mean $J=382$, beating Always-COVERT ($455$; $49/50$ shifts), fitted Q ($398$), and untuned PPO ($612$; $450.45$ for the calibration-selected normalisation cell). Always-EEDD has mean $J=696$ but DAHS is strictly cheaper on only $21$ of $50$ shifts (7 losses, 22 ties); the mean is tail-driven. Online lookahead remains cheaper ($357$--$363$) at $140$--$158\times$ the latency. Labels from $M=1$ through $M=40$ sit in a $0.7\%$ band on $J$. A one-step label is a null on $J$ under the confirmatory paired interval and a null on service-failure rate; Wilcoxon signed-rank rejects equality on $J$. Distillation amortises a slightly worse scoring rule into a millisecond decision; it does not recover the teacher.
 ---
 
 # 1. Introduction
@@ -104,7 +104,7 @@ on composite cost, with Always-COVERT --- not Always-EEDD --- as the static to
 beat. It does not beat the online teachers. The expensive labelling choices
 ($\tau=4$, $M=20$) do not earn measurable deployed accuracy over $\tau=1$ and
 $M=1$, including a completed $M=40$ cell. What the distillation buys is latency:
-3.7 ms per decision against 645 ms for the rolling-horizon teacher. Sections 7
+4.2 ms per decision against 670 ms for the rolling-horizon teacher. Sections 7
 and 9 are written around that result, not around recovery of the lookahead.
 
 ## 1.1 Terminology and notation
@@ -674,11 +674,12 @@ so did the objective. Both are reported here, under names that make the
 denominator explicit, so the two versions of the paper remain comparable.
 $\mathcal{A}$ includes orders rejected at the door when the queue was at
 capacity; they are real demand that went unmet, and excluding them would reopen
-the same gap in a different place. $\mathcal{A}$ does **not** include arrivals in
-the last open interval $(T-L, T]$: admission runs at review epochs, the last
-review is at $t=T-L$, and there is no terminal admit at $T$. Mean $|\mathcal{A}|=767$
-against a Poisson mean of $1.65\times 480=792$. Those late arrivals are never
-eligible for dispatch and are shared across every method.
+the same gap in a different place. $\mathcal{A}$ **does** include arrivals in
+the last open interval $(T-L, T]$: admission runs at review epochs, and a
+terminal admit at $T$ enters every order with arrival time $\le T$ into
+$\mathcal{A}$ as unserved. They are counted, never dispatched. Mean
+$|\mathcal{A}|=791$ against a Poisson mean of $1.65\times 480=792$. Those late
+arrivals are shared across every method.
 
 ## 3.4 The simulator and its parameters
 
@@ -1246,7 +1247,12 @@ the plan, and replans. Labelling uses $M=20$ continuations; the online teachers
 use $M=5$ so that a 50-shift evaluation is affordable. The scoring rule is the
 same potential difference, but the Monte Carlo budget is not, so a gap between
 rolling_mpc and DAHS mixes function-approximation error with estimator noise and
-cannot be read as a pure distillation gap. greedy_mpc beating rolling_mpc on
+cannot be read as a pure distillation gap. Raising the online teachers to the
+labelling budget $M=20$ does not close it: rolling_mpc moves from $363.42$ to
+$363.76$ and greedy_mpc is unchanged at $356.98$ (at $	au=1$ the committed
+interval's cost does not depend on the sampled continuation, so greedy_mpc is
+invariant to $M$). The teachers' advantage over DAHS is therefore not an
+artefact of under-sampling them. greedy_mpc beating rolling_mpc on
 default $J$ is consistent with a noisy $M=5$ arg-min at $\tau=4$. The one-step
 controller is retained as its $\tau = 1$ special case.
 
@@ -1320,8 +1326,10 @@ the rule is removed from the pool at that $k$.
 The portfolio value is deployed, because the pool is what ships; both are reported
 because ATC is also a standalone benchmark. The Always-ATC row of the default
 comparison (Section 6.2) uses the portfolio scale $k=3.0$, not the standalone
-$k^\star=1.5$. A standalone Always-ATC at $k=1.5$ was not re-evaluated on the 50
-test shifts.
+$k^\star=1.5$. A standalone Always-ATC at $k=1.5$ has now been evaluated on the
+same 50 test shifts and costs $J=526.99$, against $560.76$ for the portfolio
+scale $k=3.0$: refitting $k$ recovers $33.8$ of composite cost, but Always-ATC
+at its own optimum remains far above DAHS ($382.27$).
 
 **This settles the WSPT/ATC inversion.** ATC's standalone cost is U-shaped in $k$
 with a minimum of 459.2 at $k^\star = 1.5$, and rises monotonically thereafter to
@@ -1543,7 +1551,7 @@ objective, with the recalibrated pool of Section 3.6.
 
 **Table 6.** Default scenario, 50 test shifts, corrected objective and causal
 admission. Ranked by composite cost, the quantity every learned method
-optimises. Mean arrived $=767$ (the per-shift count is not constant; it is
+optimises. Mean arrived $=791$ (the per-shift count is not constant; it is
 identical across methods on each seed). Dropped $=0$. Paired 95% intervals
 are bootstrap percentile intervals of (method $-$ DAHS) composite cost over the
 50 aligned shifts, 10,000 resamples.
@@ -1553,22 +1561,22 @@ objective uses in $J$. The two quantities are not interchangeable.
 
 | Method | Composite cost | SFR | Spoil | Tardiness | Thru. | Util. | Latency (ms) | Cost vs DAHS | DAHS wins |
 |---|---:|---:|---:|---:|---:|---:|---:|---|---:|
-| greedy_mpc ($\tau{=}1$, $M{=}5$) | 356.14 | 0.0607 | 0.0372 | 0.725 | 732.5 | 0.956 | 588 | 0.93$\times$ [$-$39.4, $-$12.8] | 19 |
-| rolling_mpc ($\tau{=}4$, $M{=}5$) | 362.58 | 0.0642 | 0.0392 | 0.770 | 732.5 | 0.956 | 645 | 0.95$\times$ [$-$28.1, $-$10.8] | 15 |
-| **DAHS** | **381.42** | **0.0689** | **0.0395** | **0.775** | **731.9** | **0.956** | **3.66** | --- | --- |
-| snapshot_xgb ($\tau{=}1$) | 388.13 | 0.0671 | 0.0337 | 0.734 | 732.0 | 0.956 | 3.30 | 1.02$\times$ [$-$3.6, 18.2] | 32 |
-| offline_fqi | 396.80 | 0.0724 | 0.0466 | 0.802 | 732.0 | 0.956 | 3.19 | 1.04$\times$ [2.9, 29.8] | 31 |
-| COVERT | 454.36 | 0.0836 | 0.0857 | 0.811 | 732.1 | 0.956 | $<$0.01 | 1.19$\times$ [60.9, 85.0] | 49 |
-| LinUCB | 551.55 | 0.0863 | 0.0694 | 0.773 | 731.2 | 0.956 | --- | 1.45$\times$ [94.7, 264.2] | 46 |
-| ATC ($k{=}3.0$) | 559.92 | 0.1108 | 0.0945 | 1.167 | 734.3 | 0.956 | $<$0.01 | 1.47$\times$ [150.9, 206.6] | 50 |
-| ppo_fair (untuned) | 610.93 | 0.0951 | 0.0916 | 0.876 | 730.5 | 0.956 | 0.17 | 1.60$\times$ [114.0, 380.5] | 50 |
-| EEDD | 695.77 | 0.0943 | 0.0357 | 0.784 | 729.8 | 0.956 | $<$0.01 | 1.82$\times$ [141.4, 528.8] | 21 |
-| MDD | 733.15 | 0.0999 | 0.1019 | 0.653 | 730.5 | 0.956 | $<$0.01 | 1.92$\times$ [200.9, 540.9] | 49 |
-| EDD | 763.06 | 0.1014 | 0.1033 | 0.746 | 729.8 | 0.956 | $<$0.01 | 2.00$\times$ [211.9, 594.5] | 49 |
-| MS | 789.82 | 0.1040 | 0.1058 | 0.782 | 729.1 | 0.956 | $<$0.01 | 2.07$\times$ [225.1, 635.7] | 49 |
-| WSPT | 1215.70 | 0.0987 | 0.0611 | 5.554 | 743.3 | 0.955 | $<$0.01 | 3.19$\times$ [753.4, 911.9] | 50 |
-| FIFO | 1485.97 | 0.1894 | 0.0743 | 2.023 | 730.2 | 0.956 | $<$0.01 | 3.90$\times$ [895.5, 1342.4] | 50 |
-| FEFO | 1698.96 | 0.2032 | 0.0001 | 2.821 | 730.3 | 0.956 | $<$0.01 | 4.45$\times$ [1077.5, 1584.8] | 50 |
+| greedy_mpc ($\tau{=}1$, $M{=}5$) | 356.98 | 0.0590 | 0.0361 | 0.705 | 732.5 | 0.956 | 594 | 0.93$\times$ [$-$39.4, $-$12.8] | 19 |
+| rolling_mpc ($\tau{=}4$, $M{=}5$) | 363.42 | 0.0624 | 0.0381 | 0.748 | 732.4 | 0.956 | 670 | 0.95$\times$ [$-$28.1, $-$10.8] | 15 |
+| **DAHS** | **382.27** | **0.0669** | **0.0384** | **0.754** | **731.9** | **0.956** | **4.24** | --- | --- |
+| snapshot_xgb ($\tau{=}1$) | 388.97 | 0.0651 | 0.0327 | 0.714 | 732.0 | 0.956 | 3.65 | 1.02$\times$ [$-$3.6, 18.2] | 32 |
+| offline_fqi | 397.64 | 0.0702 | 0.0452 | 0.779 | 732.0 | 0.956 | 3.26 | 1.04$\times$ [2.9, 29.8] | 31 |
+| COVERT | 455.21 | 0.0812 | 0.0830 | 0.788 | 732.1 | 0.956 | $<$0.01 | 1.19$\times$ [60.9, 85.0] | 49 |
+| LinUCB | 552.39 | 0.0838 | 0.0672 | 0.751 | 731.2 | 0.956 | --- | 1.45$\times$ [94.7, 264.2] | 46 |
+| ATC ($k{=}3.0$) | 560.76 | 0.1075 | 0.0914 | 1.133 | 734.3 | 0.956 | $<$0.01 | 1.47$\times$ [150.9, 206.6] | 50 |
+| ppo_fair (untuned) | 611.77 | 0.0924 | 0.0887 | 0.852 | 730.5 | 0.956 | 0.32 | 1.60$\times$ [114.0, 380.5] | 50 |
+| EEDD | 696.62 | 0.0915 | 0.0348 | 0.763 | 729.8 | 0.956 | $<$0.01 | 1.82$\times$ [141.4, 528.8] | 21 |
+| MDD | 734.00 | 0.0970 | 0.0986 | 0.635 | 730.5 | 0.956 | $<$0.01 | 1.92$\times$ [200.9, 540.9] | 49 |
+| EDD | 763.90 | 0.0985 | 0.1000 | 0.725 | 729.8 | 0.956 | $<$0.01 | 2.00$\times$ [211.9, 594.5] | 49 |
+| MS | 790.67 | 0.1010 | 0.1024 | 0.760 | 729.1 | 0.956 | $<$0.01 | 2.07$\times$ [225.1, 635.7] | 49 |
+| WSPT | 1216.54 | 0.0957 | 0.0591 | 5.387 | 743.3 | 0.955 | $<$0.01 | 3.18$\times$ [753.4, 911.9] | 50 |
+| FIFO | 1486.82 | 0.1837 | 0.0720 | 1.963 | 730.2 | 0.956 | $<$0.01 | 3.89$\times$ [895.5, 1342.4] | 50 |
+| FEFO | 1699.80 | 0.1971 | 0.0001 | 2.738 | 730.3 | 0.956 | $<$0.01 | 4.45$\times$ [1077.5, 1584.8] | 50 |
 
 Wins are shifts on which DAHS is strictly cheaper. Under the confirmatory paired
 interval, every static rule, both teachers, offline_fqi, LinUCB and Table 6's
@@ -1576,7 +1584,7 @@ interval, every static rule, both teachers, offline_fqi, LinUCB and Table 6's
 not: the interval includes zero ($[-3.6, 18.2]$). Wilcoxon+BH on the same 15
 comparisons rejects snapshot_xgb ($p_{\mathrm{adj}}=0.029$; 32 wins, 14 losses, 4
 ties, zeros discarded). On service-failure rate the snapshot pair is a null
-($p_{\mathrm{adj}}=0.34$). We treat $\tau=1$ as not demonstrably different from
+($p_{\mathrm{adj}}=0.33$). We treat $\tau=1$ as not demonstrably different from
 deployed DAHS on $J$ under the confirmatory rule, and as a null on SFR.
 
 ![Figure 2. Default-scenario composite cost by method, 50 held-out shifts.
@@ -1589,7 +1597,7 @@ Three facts that rewrite the submitted story:
 1. **The teacher does not beat one-step lookahead**, and DAHS does not recover
    the teacher. Distillation is an amortisation of a *worse* scoring rule at
    $M=5$, not of an oracle. Per-decision latency is the quantity DAHS wins
-   (3.7 ms vs 645 ms for rolling_mpc; Section 6.12).
+   (4.2 ms vs 670 ms for rolling_mpc; Section 6.12).
 2. **Always-COVERT, not Always-EEDD, is the static to beat on cost.** Win rate
    on the Section 6.1 grid is the wrong proxy for the objective. Against COVERT,
    DAHS wins 49 of 50 shifts at 1.19 times; against EEDD the mean ratio is 1.82
@@ -1605,17 +1613,17 @@ shifts each. Best static is the cheapest always-on rule in that scenario.
 
 | Scenario | DAHS $J$ / SFR | Best static | Teachers ($J$) | FQI $J$ | PPO $J$ |
 |---|---|---|---|---:|---:|
-| default | 381.42 / 0.0689 | COVERT 454.36 | greedy 356.14; rolling 362.58 | 396.80 | 610.93 |
-| high-load-perish | 11427 / 0.559 | **WSPT 11169** | greedy 11464; rolling 11339 | 11468 | 23223 |
-| balanced | 17.05 / 0.00384 | EEDD 16.95 | greedy 17.24; rolling 16.65 | 17.82 | 34.98 |
-| low load | 9.04 / 0.00337 | COVERT (13-way tie at 9.04) | 9.04 | 9.04 | 9.04 |
+| default | 382.27 / 0.0669 | COVERT 455.21 | greedy 356.98; rolling 363.42 | 397.64 | 611.77 |
+| high-load-perish | 11430 / 0.542 | **WSPT 11171** | greedy 11467; rolling 11341 | 11471 | 23226 |
+| balanced | 17.73 / 0.00373 | EEDD 17.62 | greedy 17.92; rolling 17.33 | 18.50 | 35.65 |
+| low load | 9.82 / 0.00327 | COVERT (13-way tie at 9.82) | 9.82 | 9.82 | 9.82 |
 
 DAHS does not dominate across regimes. Under high-load-perishable WSPT is
 cheaper (paired cost difference $-258$, interval $[-332,-187]$, BH-reject);
-Always-ATC is also cheaper than DAHS there ($J=11{,}377$).
+Always-ATC is also cheaper than DAHS there ($J=11{,}380$).
 Under balanced, EEDD is cheaper by $0.10$ with a null test (interval
 $[-0.31, 0.00]$). Under low load thirteen methods, including DAHS and both
-teachers, return identical $J=9.04$. The default-scenario ranking is therefore
+teachers, return identical $J=9.82$. The default-scenario ranking is therefore
 not a licence to write that selection beats any single rule in every operating
 region.
 
@@ -1658,11 +1666,11 @@ design).
 
 | $n$ shifts | Replicates | Mean $J$ | Mean SFR | Notes |
 |---:|---:|---:|---:|---|
-| 25 | 5 | 448.32 | 0.0738 | One of five collapsed to Always-EEDD ($J=695.77$) |
-| 50 | 5 | 382.61 | 0.0686 | Already at the deployed level |
-| 100 | 5 | 383.03 | 0.0690 | |
-| 150 | 5 | 381.95 | 0.0685 | |
-| 250 | 1 | 381.42 | 0.0689 | Deployed model |
+| 25 | 5 | 449.17 | 0.0716 | One of five collapsed to Always-EEDD ($J=696.62$) |
+| 50 | 5 | 383.46 | 0.0665 | Already at the deployed level |
+| 100 | 5 | 383.88 | 0.0669 | |
+| 150 | 5 | 382.80 | 0.0665 | |
+| 250 | 1 | 382.27 | 0.0669 | Deployed model |
 
 The selector saturates by 50 shifts. The $n=25$ collapse is a real failure mode
 --- not every short corpus yields a working ranker --- but it is one replicate in
@@ -1685,10 +1693,10 @@ byte-identical to Table 6's DAHS.
 
 | $\tau$ | $J$ | 95% CI of mean | SFR | Median label entropy | Test rows kept |
 |---:|---:|---|---:|---:|---:|
-| 1 | 388.13 | [235.8, 566.3] | 0.0671 | 0.693 | 915 / 1600 |
-| 2 | **372.31** | [225.1, 545.4] | **0.0653** | 0.649 | 1273 / 1600 |
-| 3 | 373.38 | [225.5, 547.5] | 0.0657 | 0.638 | 1444 / 1600 |
-| 4 | 381.42 | [232.7, 555.1] | 0.0689 | 0.638 | 1525 / 1600 |
+| 1 | 388.97 | [236.3, 567.7] | 0.0651 | 0.693 | 915 / 1600 |
+| 2 | **373.16** | [225.7, 546.6] | **0.0633** | 0.649 | 1273 / 1600 |
+| 3 | 374.23 | [226.0, 549.0] | 0.0637 | 0.638 | 1444 / 1600 |
+| 4 | 382.27 | [233.3, 556.1] | 0.0669 | 0.638 | 1525 / 1600 |
 
 Every cost interval overlaps every other. $\tau=2$ is the best point estimate;
 deployed $\tau=4$ is third. On SFR, $\tau=1$ versus $\tau=4$ is a null
@@ -1710,11 +1718,11 @@ $M=1$ post-calibration ECE $0.067$ misses the $0.05$ bar.
 
 | $M$ | $J$ | SFR | Median entropy | frac $<1$ SE | Test kept | ECE pre$\to$post |
 |---:|---:|---:|---:|---:|---:|---|
-| 1 | 380.24 | 0.0685 | 0.641 | 0 | 1150 / 1600 | 0.077$\to$0.067 |
-| 5 | 380.44 | 0.0680 | 0.644 | 0.567 | 1384 / 1600 | 0.123$\to$0.034 |
-| 10 | 382.40 | 0.0691 | 0.649 | 0.455 | 1457 / 1600 | 0.155$\to$0.026 |
-| 20 | 381.42 | 0.0689 | 0.638 | 0.334 | 1525 / 1600 | 0.170$\to$0.021 |
-| 40 | 382.78 | 0.0686 | 0.652 | 0.215 | 1526 / 1600 | 0.189$\to$0.018 |
+| 1 | 381.08 | 0.0664 | 0.641 | 0 | 1150 / 1600 | 0.077$\to$0.067 |
+| 5 | 381.28 | 0.0660 | 0.644 | 0.567 | 1384 / 1600 | 0.123$\to$0.034 |
+| 10 | 383.25 | 0.0670 | 0.649 | 0.455 | 1457 / 1600 | 0.155$\to$0.026 |
+| 20 | 382.27 | 0.0669 | 0.638 | 0.334 | 1525 / 1600 | 0.170$\to$0.021 |
+| 40 | 383.63 | 0.0666 | 0.652 | 0.215 | 1526 / 1600 | 0.189$\to$0.018 |
 
 Paired against $M=20$, $M=1$ differs by $-1.18$ in $J$ (95% CI $[-7.83, 5.18]$,
 Wilcoxon $p=0.91$); $M=5$, $M=10$ and $M=40$ likewise include zero ($M=40$:
@@ -1736,16 +1744,25 @@ the Table 6 default and matches it to machine precision.](../figures/E8/robustne
 
 Figure 6 is that heat map.
 
-Four methods are frozen across the grid: DAHS, greedy_mpc, snapshot_xgb, Always-EEDD.
-Always-COVERT is not on the grid. Teachers replan with each cell's true arrival
+Five methods are frozen across the grid: DAHS, greedy_mpc, snapshot_xgb,
+Always-EEDD and Always-COVERT. Teachers replan with each cell's true arrival
 rate and tightness; DAHS and snapshot_xgb are the default-trained rankers with no
-retraining. Among those four, greedy_mpc wins 8 of 12 cells and EEDD wins the four
-light-load default/loose cells. DAHS wins none. The `arr1.65_default` cell
-reproduces Table 6 exactly on every non-timing column for the four methods. The
+retraining. greedy_mpc wins 8 of 12 cells and EEDD wins the four
+light-load default/loose cells. DAHS wins none, and adding Always-COVERT does not
+change that: COVERT also wins none. The `arr1.65_default` cell
+reproduces Table 6 exactly on every non-timing column. The
 grid is a stress test of transfer, not a second evaluation of the default ranking,
 and it says the one-step teacher --- not the distilled student --- is the most
-robust of the four under load and tightness changes the ranker was not retrained
+robust under load and tightness changes the ranker was not retrained
 on.
+
+Cell wins are winner-take-all and understate how the losers lose. Measured as
+regret against each cell's own winner, DAHS averages $17.2\%$ (worst $55.2\%$)
+while Always-EEDD averages $55.5\%$ (worst $125.8\%$): EEDD's four wins are all
+light-load cells where every method is within noise of a near-zero cost, and it
+degrades by more than $95\%$ in each of the four heaviest cells. DAHS never wins
+a cell and never collapses in one; that is a different claim from robustness-best,
+and it is the one the grid supports.
 
 ## 6.6 Calibration and interpretability
 
@@ -1788,8 +1805,8 @@ Figure 9.
 (mean-normalised).](../figures/A/olist_validation.png)
 
 A frozen-ranker replay under empirical Olist arrivals (burstiness CV $2.68$,
-against Poisson CV $1.00$) preserves the ranking: greedy_mpc 1783, DAHS 1815,
-snapshot_xgb 1839, Always-EEDD 3806. Absolute costs inflate; the teacher still
+against Poisson CV $1.00$) preserves the ranking: greedy_mpc 1784, DAHS 1816,
+snapshot_xgb 1840, Always-EEDD 3807. Absolute costs inflate; the teacher still
 leads and EEDD still trails. Figure 10.
 
 ![Figure 10. Method KPIs under Poisson against empirical-Olist bursty arrivals
@@ -1810,13 +1827,13 @@ retrain arms; inference-only arms do not retrain.
 
 | Ablation | $J$ | $J$ vs DAHS [95% CI] | $p_{\mathrm{adj}}$ | SFR | Train wall (s) |
 |---|---:|---|---:|---:|---:|
-| hard_labels | 382.43 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0685 | 1302 |
-| no_calibration | 381.46 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0685 | --- |
-| no_regime | 383.56 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0691 | 1124 |
-| no_switching_controller | 380.43 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0687 | --- |
-| `single_sample_rollout` ($M{=}1$) | 380.24 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0685 | --- |
-| `top5_features` | 383.14 | $+$1.72 [$-$3.44, 6.59] | 0.83 | 0.0691 | 897 |
-| DAHS | 381.42 | --- | --- | 0.0689 | --- |
+| hard_labels | 383.28 | $+$1.01 [$-$5.52, 7.13] | 0.83 | 0.0665 | 1302 |
+| no_calibration | 382.31 | $+$0.04 [$-$5.76, 4.89] | 0.83 | 0.0665 | --- |
+| no_regime | 384.41 | $+$2.14 [0.04, 4.61] | 0.34 | 0.0671 | 1124 |
+| no_switching_controller | 381.27 | $-$0.99 [$-$4.24, 1.96] | 0.83 | 0.0667 | --- |
+| `single_sample_rollout` ($M{=}1$) | 381.08 | $-$1.18 [$-$7.83, 5.18] | 1.00 | 0.0664 | --- |
+| `top5_features` | 383.99 | $+$1.72 [$-$3.44, 6.59] | 0.83 | 0.0671 | 897 |
+| DAHS | 382.27 | --- | --- | 0.0669 | --- |
 
 The hard-label comparison is a null on both composite cost and service-failure
 rate. Soft labels remain the default because they are the deployed configuration,
@@ -1833,11 +1850,12 @@ parquets). It matches $M=20$ on $J$. The $\tau=1$ snapshot is Table 9.
 ## 6.9 On the PPO baseline
 
 Untuned PPO at 8{,}000 timesteps (`ppo_baseline`, `n_steps`$=64`) collapses to a
-constant EEDD policy: its 50-shift cost is $695.770797$, identical to Always-EEDD
-to machine precision. That is not the Table 6 `ppo_fair` row ($J=610.93$), which
+constant EEDD policy: its 50-shift cost is $696.616200$, identical to Always-EEDD
+to machine precision. That is not the Table 6 `ppo_fair` row ($J=611.77$), which
 is a separately trained stock Stable-Baselines3 policy with a full KPI record.
-Sensitivity analysis: a 12-configuration grid was run on the same 50 test
-shifts, so the winning configuration is not a train-split selection.
+Sensitivity analysis: a 12-configuration grid is reported on the 50 test shifts
+for comparability with Table 6, and the configuration is selected on a disjoint
+calibration corpus so the winner is not a test-split selection.
 
 **Table 12.** PPO sensitivity grid. `gap_closed_fraction` $=$
 $(\text{baseline}-\text{best})/(\text{baseline}-\text{DAHS}) = 0.783$. Factor
@@ -1846,19 +1864,22 @@ entropy coefficient $0$.
 
 | Configuration | $J$ |
 |---|---:|
-| 8 of 12 (including the untuned default) | 695.77 |
-| `n_steps`$=256$ | 673.29 |
-| obs-norm only | 540.66 |
-| **obs-norm and reward-norm** | **449.60** |
-| reward-norm only | 763.06 (Always-EDD) |
+| 8 of 12 (including the untuned default) | 696.62 |
+| `n_steps`$=256$ | 674.14 |
+| obs-norm only | 541.51 |
+| **obs-norm and reward-norm** | **450.45** |
+| reward-norm only | 763.90 (Always-EDD) |
 
 Tuning closes a substantial share of the gap. The reading that PPO's deficit is
-structural rather than budgetary is withdrawn. The test-scored winner
-(`norm(obs=True, rew=True)`, $J=449.60$) is a sensitivity cell, not a
-pre-registered baseline: hyperparameters were selected on the same 50 test
-shifts Table 6 uses. Table 6 therefore keeps the untuned `ppo_fair` row
-($J=610.93$), which is the policy with a full KPI record. A calibration-split
-selection is a completeness-run deliverable, not a live number.
+structural rather than budgetary is withdrawn. The winner
+(`norm(obs=True, rew=True)`, $J=450.45$) is a sensitivity cell, not a
+pre-registered baseline. To remove the selection bias, the twelve cells were
+re-scored on the held-out calibration corpus and the winner chosen there:
+the same cell wins, at calibration cost $393.37$, and scores $J=450.45$ on the
+50 test shifts. Measured against Table 6's untuned `ppo_fair` row
+($J=611.77$), that closes $(611.77-450.45)/(611.77-382.27)=0.70$ of the
+distance to DAHS. Table 6 keeps the untuned `ppo_fair` row, which is the policy
+with a full KPI record; the calibration-selected cell is reported here.
 
 ## 6.10 On the offline reinforcement-learning baseline
 
@@ -1903,9 +1924,9 @@ perturbation, averaged over axes.
 | Method | Mean slope | Rank (slower degradation first) |
 |---|---:|---|
 | COVERT | 18.7 | most robust (model-free) |
-| offline_fqi | 22.0 | |
-| DAHS | 22.8 | |
-| rolling_mpc | 23.7 | |
+| offline_fqi | 21.9 | |
+| DAHS | 22.7 | |
+| rolling_mpc | 23.6 | |
 | EEDD | 27.7 | least robust |
 
 DAHS is not the most robust model-based method; FQI's mean slope is slightly
@@ -1944,24 +1965,24 @@ figure.
 
 **Table 14.** Mean per-decision inference latency, 50 default shifts.
 The p95 column is the mean, across shifts, of each shift's per-decision p95
-(so DAHS can have mean 3.66 ms and p95 3.60 ms). It is not a pooled p95 over
+(so DAHS can have mean 4.24 ms and p95 4.25 ms). It is not a pooled p95 over
 all decisions.
 
 | Method | Mean (ms) | p95 (ms) | Wall-clock s / shift |
 |---|---:|---:|---:|
-| DAHS | 3.66 | 3.60 | 0.141 |
-| snapshot_xgb | 3.30 | 3.13 | 0.129 |
-| offline_fqi | 3.19 | 3.38 | 0.124 |
-| ppo_fair | 0.17 | 0.25 | 0.014 |
-| greedy_mpc | 588 | 866 | 18.8 |
-| rolling_mpc | 645 | 900 | 20.7 |
+| DAHS | 4.24 | 4.25 | 0.163 |
+| snapshot_xgb | 3.65 | 3.52 | 0.143 |
+| offline_fqi | 3.26 | 5.12 | 0.130 |
+| ppo_fair | 0.32 | 0.46 | 0.024 |
+| greedy_mpc | 594 | 859 | 19.0 |
+| rolling_mpc | 670 | 941 | 21.5 |
 | COVERT / EEDD / FIFO | $<10^{-3}$ | $<10^{-3}$ | 0.01 |
 
-DAHS is $176$ times faster per decision than rolling_mpc (3.66 ms vs 645 ms) and
-$161$ times faster than greedy_mpc. Static rules remain three orders of magnitude
+DAHS is $158$ times faster per decision than rolling_mpc (4.24 ms vs 670 ms) and
+$140$ times faster than greedy_mpc. Static rules remain three orders of magnitude
 faster still. The amortisation claim is this ratio, on named hardware, not an
 argument that a forward pass is faster than a tree of simulations. At a
-15-minute review interval, 645 ms is $0.07\%$ of the epoch, so the latency
+15-minute review interval, 670 ms is $0.07\%$ of the epoch, so the latency
 product is real and operationally unused unless a tighter review is required.
 
 Labelling the $M=20$, $\tau=4$ corpus took $922$ s ($15.4$ min) of wall-clock.
@@ -2009,10 +2030,10 @@ On the default operating point, a rollout-trained selector beats every static
 dispatching rule we screened, with Always-COVERT as the static to beat
 ($J=454$ against DAHS $381$, $49/50$ shifts) rather than Always-EEDD ($J=696$,
 but only $21$ strict wins and $22$ exact ties). It beats fitted Q-iteration
-($397$) and an 8{,}000-timestep PPO policy ($611$ in Table 6; $449.60$ once observations and
+($398$) and an 8{,}000-timestep PPO policy ($612$ in Table 6; $450.45$ once observations and
 rewards are normalised; $696$ for the `n_steps`$=64$ collapse). It does not beat the teachers that generate its labels
-($356$ and $363$). Distillation therefore loses $5$--$7\%$ of composite cost
-against online truncated lookahead and returns a $176$-fold reduction in
+($357$ and $363$). Distillation therefore loses $5$--$7\%$ of composite cost
+against online truncated lookahead and returns a $140$--$158$-fold reduction in
 per-decision latency.
 
 The expensive parts of the method do not earn that $5$--$7\%$. $\tau=1$ matches
@@ -2023,7 +2044,7 @@ pool, beats DAHS under high-load-perishable ($J=11{,}169$ against $11{,}427$,
 interval excludes 0). What moves the default table is the
 *existence* of a counterfactual per-rule cost vector, not the Monte Carlo
 refinement of that vector past a single continuation or a single interval. A
-practitioner who already has a resettable simulator and who can afford 645 ms
+practitioner who already has a resettable simulator and who can afford 670 ms
 per decision should run the one-step teacher. A practitioner who needs a
 millisecond decision can distil it, and should not expect the student to catch
 the teacher.
@@ -2119,8 +2140,8 @@ and PPO, and beat every static rule, with Always-COVERT as the static champion
 on composite cost. They do not beat online truncated lookahead. Single-sample labels match the
 deployed $M=20$ configuration on composite cost. A one-step ($\tau=1$) label is
 mixed on that cost and a null on service-failure rate. The operational product
-is a 3.7 ms decision that spends
-$5$--$7\%$ more than a 645 ms teacher.
+is a 4.2 ms decision that spends
+$5$--$7\%$ more than a 670 ms teacher.
 
 The most useful extension is the one the dynamic-dispatching literature already
 runs: replace the hard truncation of Propositions 1 and 2 with a learned value

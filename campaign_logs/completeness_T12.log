@@ -1,0 +1,16 @@
+=== T12 START 10:35:24 ===
+baseline 696.62 arrived=791.18
+gamma=0.9 696.62 arrived=791.18
+gamma=1.0 696.62 arrived=791.18
+gae_lambda=0.9 696.62 arrived=791.18
+gae_lambda=0.99 696.62 arrived=791.18
+n_steps=32 696.62 arrived=791.18
+n_steps=256 674.14 arrived=791.18
+ent_coef=0.01 696.62 arrived=791.18
+ent_coef=0.05 696.62 arrived=791.18
+norm(obs=True,rew=True) 450.45 arrived=791.18
+norm(obs=True,rew=False) 541.51 arrived=791.18
+norm(obs=False,rew=True) 763.90 arrived=791.18
+T12_OK
+=== T12 rc=0 10:35:43 ===
+T12_DONE

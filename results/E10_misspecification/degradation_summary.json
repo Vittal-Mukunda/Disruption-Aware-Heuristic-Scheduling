@@ -1,10 +1,10 @@
 {
   "mean_slope_by_method": {
-    "COVERT": 18.691749690524937,
-    "offline_fqi": 21.973625901703446,
-    "ours": 22.768840129977306,
-    "rolling_mpc": 23.690065069148115,
-    "EEDD": 27.73160798230945
+    "COVERT": 18.657605781064362,
+    "offline_fqi": 21.927564568129462,
+    "ours": 22.719165072187494,
+    "rolling_mpc": 23.63566498642187,
+    "EEDD": 27.69829017926703
   },
   "most_robust": "COVERT",
   "least_robust": "EEDD",

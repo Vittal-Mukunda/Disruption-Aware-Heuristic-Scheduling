@@ -1,0 +1,75 @@
+=== E START 09:44:05 ===
+baseline 587.358313585243
+gamma=0.9 587.358313585243
+gamma=1.0 587.358313585243
+gae_lambda=0.9 587.358313585243
+gae_lambda=0.99 587.358313585243
+n_steps=32 587.358313585243
+n_steps=256 584.8794342622215
+ent_coef=0.01 587.358313585243
+ent_coef=0.05 587.358313585243
+norm(obs=True,rew=True) 393.36771552208086
+norm(obs=True,rew=False) 467.61266571280447
+norm(obs=False,rew=True) 648.5480397937332
+WINNER {'tag': 'norm(obs=True,rew=True)', 'calib_J': 393.36771552208086}
+{
+  "best_tag": "norm(obs=True,rew=True)",
+  "calib_cost": 393.36771552208086,
+  "test_cost": 450.44948233208515,
+  "ppo_fair_test_cost": 611.7738646669486,
+  "dahs_test_cost": 382.26504001668735,
+  "gap_closed_fraction_vs_ppo_fair": 0.7029114570243599,
+  "calib_rows": [
+    {
+      "tag": "baseline",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gamma=0.9",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gamma=1.0",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gae_lambda=0.9",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gae_lambda=0.99",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "n_steps=32",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "n_steps=256",
+      "calib_J": 584.8794342622215
+    },
+    {
+      "tag": "ent_coef=0.01",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "ent_coef=0.05",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "norm(obs=True,rew=True)",
+      "calib_J": 393.36771552208086
+    },
+    {
+      "tag": "norm(obs=True,rew=False)",
+      "calib_J": 467.61266571280447
+    },
+    {
+      "tag": "norm(obs=False,rew=True)",
+      "calib_J": 648.5480397937332
+    }
+  ]
+}
+E_OK
+=== E rc=0 09:44:20 ===
+E_DONE

@@ -1,0 +1,338 @@
+=== METHOD eedd START 09:18:45 ===
+[eval] method=eedd  n_test=50
+
+[eval] eedd over 50 shifts:
+  mean composite_cost             = 696.6162
+  mean service_failure_rate       = 0.0915
+  mean arrived                    = 791.1800
+  mean throughput                 = 729.8400
+  mean unserved                   = 61.3400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0884
+  mean sla_breach_rate_served     = 0.0944
+  mean spoilage_rate              = 0.0348
+  mean mean_tardiness             = 0.7628
+  mean mean_tardiness_served      = 0.8361
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 21.7693
+  mean wall_clock_s               = 0.0118
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+=== METHOD eedd END rc=0 09:18:47 ===
+=== METHOD covert START 09:18:47 ===
+[eval] method=covert  n_test=50
+
+[eval] covert over 50 shifts:
+  mean composite_cost             = 455.2074
+  mean service_failure_rate       = 0.0812
+  mean arrived                    = 791.1800
+  mean throughput                 = 732.1000
+  mean unserved                   = 59.0800
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0694
+  mean sla_breach_rate_served     = 0.0716
+  mean spoilage_rate              = 0.0830
+  mean mean_tardiness             = 0.7883
+  mean mean_tardiness_served      = 0.5760
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 14.2252
+  mean wall_clock_s               = 0.0128
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0007
+=== METHOD covert END rc=0 09:18:49 ===
+=== METHOD ms START 09:18:49 ===
+[eval] method=ms  n_test=50
+
+[eval] ms over 50 shifts:
+  mean composite_cost             = 790.6697
+  mean service_failure_rate       = 0.1010
+  mean arrived                    = 791.1800
+  mean throughput                 = 729.1400
+  mean unserved                   = 62.0400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0872
+  mean sla_breach_rate_served     = 0.0932
+  mean spoilage_rate              = 0.1024
+  mean mean_tardiness             = 0.7603
+  mean mean_tardiness_served      = 0.8336
+  mean picker_utilization         = 0.9559
+  mean mean_interval_cost         = 24.7084
+  mean wall_clock_s               = 0.0118
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+=== METHOD ms END rc=0 09:18:51 ===
+=== METHOD atc START 09:18:51 ===
+[eval] method=atc  n_test=50
+
+[eval] atc over 50 shifts:
+  mean composite_cost             = 560.7637
+  mean service_failure_rate       = 0.1075
+  mean arrived                    = 791.1800
+  mean throughput                 = 734.3000
+  mean unserved                   = 56.8800
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0960
+  mean sla_breach_rate_served     = 0.0987
+  mean spoilage_rate              = 0.0914
+  mean mean_tardiness             = 1.1330
+  mean mean_tardiness_served      = 0.8206
+  mean picker_utilization         = 0.9556
+  mean mean_interval_cost         = 17.5239
+  mean wall_clock_s               = 0.0122
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0007
+=== METHOD atc END rc=0 09:18:54 ===
+=== METHOD mdd START 09:18:54 ===
+[eval] method=mdd  n_test=50
+
+[eval] mdd over 50 shifts:
+  mean composite_cost             = 733.9977
+  mean service_failure_rate       = 0.0970
+  mean arrived                    = 791.1800
+  mean throughput                 = 730.5000
+  mean unserved                   = 60.6800
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0833
+  mean sla_breach_rate_served     = 0.0896
+  mean spoilage_rate              = 0.0986
+  mean mean_tardiness             = 0.6347
+  mean mean_tardiness_served      = 0.6559
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 22.9374
+  mean wall_clock_s               = 0.0108
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+=== METHOD mdd END rc=0 09:18:56 ===
+=== METHOD edd START 09:18:56 ===
+[eval] method=edd  n_test=50
+
+[eval] edd over 50 shifts:
+  mean composite_cost             = 763.9030
+  mean service_failure_rate       = 0.0985
+  mean arrived                    = 791.1800
+  mean throughput                 = 729.7800
+  mean unserved                   = 61.4000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0848
+  mean sla_breach_rate_served     = 0.0908
+  mean spoilage_rate              = 0.1000
+  mean mean_tardiness             = 0.7254
+  mean mean_tardiness_served      = 0.7965
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 23.8720
+  mean wall_clock_s               = 0.0115
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+=== METHOD edd END rc=0 09:18:58 ===
+=== METHOD fifo START 09:18:58 ===
+[eval] method=fifo  n_test=50
+
+[eval] fifo over 50 shifts:
+  mean composite_cost             = 1486.8189
+  mean service_failure_rate       = 0.1837
+  mean arrived                    = 791.1800
+  mean throughput                 = 730.1600
+  mean unserved                   = 61.0200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.1764
+  mean sla_breach_rate_served     = 0.1854
+  mean spoilage_rate              = 0.0720
+  mean mean_tardiness             = 1.9630
+  mean mean_tardiness_served      = 2.0948
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 46.4631
+  mean wall_clock_s               = 0.0140
+  mean decision_latency_ms_mean   = 0.0004
+  mean decision_latency_ms_p95    = 0.0009
+=== METHOD fifo END rc=0 09:19:01 ===
+=== METHOD wspt START 09:19:01 ===
+[eval] method=wspt  n_test=50
+
+[eval] wspt over 50 shifts:
+  mean composite_cost             = 1216.5415
+  mean service_failure_rate       = 0.0957
+  mean arrived                    = 791.1800
+  mean throughput                 = 743.3400
+  mean unserved                   = 47.8400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0935
+  mean sla_breach_rate_served     = 0.0755
+  mean spoilage_rate              = 0.0591
+  mean mean_tardiness             = 5.3869
+  mean mean_tardiness_served      = 2.3048
+  mean picker_utilization         = 0.9550
+  mean mean_interval_cost         = 38.0169
+  mean wall_clock_s               = 0.0122
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0005
+=== METHOD wspt END rc=0 09:19:03 ===
+=== METHOD fefo START 09:19:03 ===
+[eval] method=fefo  n_test=50
+
+[eval] fefo over 50 shifts:
+  mean composite_cost             = 1699.8040
+  mean service_failure_rate       = 0.1971
+  mean arrived                    = 791.1800
+  mean throughput                 = 730.3400
+  mean unserved                   = 60.8400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.1971
+  mean sla_breach_rate_served     = 0.2045
+  mean spoilage_rate              = 0.0001
+  mean mean_tardiness             = 2.7377
+  mean mean_tardiness_served      = 2.8861
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 53.1189
+  mean wall_clock_s               = 0.0109
+  mean decision_latency_ms_mean   = 0.0003
+  mean decision_latency_ms_p95    = 0.0006
+=== METHOD fefo END rc=0 09:19:05 ===
+=== METHOD linucb START 09:19:05 ===
+[eval] method=linucb  n_test=50
+  [eval] linucb: policy retains state across shifts; ignoring n_jobs=-1 and running serially.
+
+[eval] linucb over 50 shifts:
+  mean composite_cost             = 552.3929
+  mean service_failure_rate       = 0.0838
+  mean arrived                    = 791.1800
+  mean throughput                 = 731.1600
+  mean unserved                   = 60.0200
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0753
+  mean sla_breach_rate_served     = 0.0789
+  mean spoilage_rate              = 0.0672
+  mean mean_tardiness             = 0.7513
+  mean mean_tardiness_served      = 0.7335
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 17.2623
+  mean wall_clock_s               = 0.0230
+  mean decision_latency_ms_mean   = 0.4493
+  mean decision_latency_ms_p95    = 0.7104
+=== METHOD linucb END rc=0 09:19:07 ===
+=== METHOD rolling_mpc START 09:19:08 ===
+[eval] method=rolling_mpc  n_test=50
+
+[eval] rolling_mpc over 50 shifts:
+  mean composite_cost             = 363.4244
+  mean service_failure_rate       = 0.0624
+  mean arrived                    = 791.1800
+  mean throughput                 = 732.4400
+  mean unserved                   = 58.7400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0588
+  mean sla_breach_rate_served     = 0.0600
+  mean spoilage_rate              = 0.0381
+  mean mean_tardiness             = 0.7485
+  mean mean_tardiness_served      = 0.5228
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.3570
+  mean wall_clock_s               = 21.4719
+  mean decision_latency_ms_mean   = 670.2541
+  mean decision_latency_ms_p95    = 941.3560
+=== METHOD rolling_mpc END rc=0 09:19:51 ===
+=== METHOD greedy_mpc START 09:19:51 ===
+[eval] method=greedy_mpc  n_test=50
+
+[eval] greedy_mpc over 50 shifts:
+  mean composite_cost             = 356.9822
+  mean service_failure_rate       = 0.0590
+  mean arrived                    = 791.1800
+  mean throughput                 = 732.5400
+  mean unserved                   = 58.6400
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0554
+  mean sla_breach_rate_served     = 0.0563
+  mean spoilage_rate              = 0.0361
+  mean mean_tardiness             = 0.7050
+  mean mean_tardiness_served      = 0.4831
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 11.1557
+  mean wall_clock_s               = 19.0356
+  mean decision_latency_ms_mean   = 594.1281
+  mean decision_latency_ms_p95    = 859.3448
+=== METHOD greedy_mpc END rc=0 09:20:30 ===
+=== METHOD snapshot_xgb START 09:20:30 ===
+[eval] method=snapshot_xgb  n_test=50
+
+[eval] snapshot_xgb over 50 shifts:
+  mean composite_cost             = 388.9748
+  mean service_failure_rate       = 0.0651
+  mean arrived                    = 791.1800
+  mean throughput                 = 731.9800
+  mean unserved                   = 59.2000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0620
+  mean sla_breach_rate_served     = 0.0635
+  mean spoilage_rate              = 0.0327
+  mean mean_tardiness             = 0.7136
+  mean mean_tardiness_served      = 0.4977
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 12.1555
+  mean wall_clock_s               = 0.1427
+  mean decision_latency_ms_mean   = 3.6465
+  mean decision_latency_ms_p95    = 3.5188
+=== METHOD snapshot_xgb END rc=0 09:20:38 ===
+=== METHOD ppo_fair START 09:20:38 ===
+[eval] method=ppo_fair  n_test=50
+
+[eval] ppo_fair over 50 shifts:
+  mean composite_cost             = 611.7739
+  mean service_failure_rate       = 0.0924
+  mean arrived                    = 791.1800
+  mean throughput                 = 730.4800
+  mean unserved                   = 60.7000
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0808
+  mean sla_breach_rate_served     = 0.0850
+  mean spoilage_rate              = 0.0887
+  mean mean_tardiness             = 0.8516
+  mean mean_tardiness_served      = 0.9074
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 19.1179
+  mean wall_clock_s               = 0.0244
+  mean decision_latency_ms_mean   = 0.3237
+  mean decision_latency_ms_p95    = 0.4593
+=== METHOD ppo_fair END rc=0 09:20:49 ===
+=== METHOD offline_fqi START 09:20:49 ===
+[eval] method=offline_fqi  n_test=50
+
+[eval] offline_fqi over 50 shifts:
+  mean composite_cost             = 397.6438
+  mean service_failure_rate       = 0.0702
+  mean arrived                    = 791.1800
+  mean throughput                 = 732.0200
+  mean unserved                   = 59.1600
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0653
+  mean sla_breach_rate_served     = 0.0671
+  mean spoilage_rate              = 0.0452
+  mean mean_tardiness             = 0.7790
+  mean mean_tardiness_served      = 0.5723
+  mean picker_utilization         = 0.9557
+  mean mean_interval_cost         = 12.4264
+  mean wall_clock_s               = 0.1303
+  mean decision_latency_ms_mean   = 3.2639
+  mean decision_latency_ms_p95    = 5.1190
+=== METHOD offline_fqi END rc=0 09:20:58 ===
+=== METHOD ours START 09:20:58 ===
+[eval] method=ours  n_test=50
+
+[eval] ours over 50 shifts:
+  mean composite_cost             = 382.2650
+  mean service_failure_rate       = 0.0669
+  mean arrived                    = 791.1800
+  mean throughput                 = 731.9000
+  mean unserved                   = 59.2800
+  mean dropped                    = 0.0000
+  mean sla_breach_rate_arrived    = 0.0635
+  mean sla_breach_rate_served     = 0.0653
+  mean spoilage_rate              = 0.0384
+  mean mean_tardiness             = 0.7536
+  mean mean_tardiness_served      = 0.5449
+  mean picker_utilization         = 0.9558
+  mean mean_interval_cost         = 11.9458
+  mean wall_clock_s               = 0.1627
+  mean decision_latency_ms_mean   = 4.2445
+  mean decision_latency_ms_p95    = 4.2473
+=== METHOD ours END rc=0 09:21:06 ===
+ALL_16_METHODS_DONE

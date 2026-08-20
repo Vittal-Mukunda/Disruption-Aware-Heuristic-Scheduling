@@ -34,7 +34,7 @@ sim:
   # When true, after the last review admit arrivals with arrival_time <= T.
   # They are not dispatched. Truncated rollouts are unaffected (interval_idx < N).
   # Live tables were generated with false (mean |A|=767). Completeness run sets true.
-  terminal_admit: false
+  terminal_admit: true
 
   arrivals:
     arrival_mode: poisson         # 'poisson' | 'olist' (empirical burstiness, CV 2.68)

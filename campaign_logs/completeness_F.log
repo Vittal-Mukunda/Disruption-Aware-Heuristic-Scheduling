@@ -1,0 +1,468 @@
+=== F1 e3 inference START 09:44:55 ===
+
+[E3 inference] running no_calibration on 50 test shifts (scenario=default)
+  sla_breach=0.0665  mean_tard=0.7527  composite_cost=382.3053  throughput=732.18  inference=0.585ms/decision
+
+[E3 inference] running no_switching_controller on 50 test shifts (scenario=default)
+  sla_breach=0.0667  mean_tard=0.7493  composite_cost=381.2740  throughput=732.00  inference=0.937ms/decision
+=== rc=0 09:45:01 ===
+=== F2 E3 ablation evals START 09:45:01 ===
+F2_OK
+=== rc=0 09:45:15 ===
+=== F3 e3 summary START 09:45:15 ===
+
+[E3 summary] service_failure_rate:
+                 method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 0.0669 0.0439 0.0930      0.0000    NaN       NaN     False
+            hard_labels 0.0665 0.0439 0.0925     -0.0004 0.4265    0.6446     False
+         no_calibration 0.0665 0.0438 0.0922     -0.0004 0.5525    0.6446     False
+              no_regime 0.0671 0.0441 0.0932      0.0002 0.3743    0.6446     False
+no_switching_controller 0.0667 0.0438 0.0928     -0.0002 0.4838    0.6446     False
+random_ambiguity_filter 0.0689 0.0453 0.0958      0.0020 0.0000    0.0000      True
+  single_sample_rollout 0.0664 0.0436 0.0926     -0.0005 0.3942    0.6446     False
+          top5_features 0.0671 0.0441 0.0934      0.0002 0.6465    0.6465     False
+
+[E3 summary] mean_tardiness:
+                 method  point  ci_lo  ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 0.7536 0.3715 1.2322      0.0000    NaN       NaN     False
+            hard_labels 0.7465 0.3642 1.2249     -0.0071 0.2668    0.5751     False
+         no_calibration 0.7527 0.3708 1.2303     -0.0009 0.4997    0.5751     False
+              no_regime 0.7559 0.3731 1.2333      0.0022 0.5751    0.5751     False
+no_switching_controller 0.7493 0.3677 1.2274     -0.0043 0.0382    0.1335     False
+random_ambiguity_filter 0.7753 0.3830 1.2650      0.0217 0.0000    0.0000      True
+  single_sample_rollout 0.7473 0.3649 1.2247     -0.0064 0.5732    0.5751     False
+          top5_features 0.7522 0.3710 1.2291     -0.0014 0.5695    0.5751     False
+
+[E3 summary] composite_cost:
+                 method    point    ci_lo    ci_hi  diff_point  p_raw  p_adj_bh reject_bh
+                   ours 382.2650 234.0526 558.4876      0.0000    NaN       NaN     False
+            hard_labels 383.2760 235.6087 558.7769      1.0110 0.4651    0.6929     False
+         no_calibration 382.3053 233.7315 558.2346      0.0403 0.5699    0.6929     False
+              no_regime 384.4074 235.5593 561.2427      2.1424 0.0479    0.1678     False
+no_switching_controller 381.2740 232.6334 556.6552     -0.9911 0.5940    0.6929     False
+random_ambiguity_filter 381.4196 233.4644 557.2511     -0.8454 0.0000    0.0000      True
+  single_sample_rollout 381.0805 232.6908 556.2747     -1.1846 0.9095    0.9095     False
+          top5_features 383.9886 234.5724 562.3700      1.7235 0.4204    0.6929     False
+
+[E3 summary] wrote results\E3\e3_summary.parquet
+
+[E3 summary] cost of each ablation (training wall-clock, inference latency):
+               ablation  retrained  train_wall_clock_s  decision_latency_ms_mean  decision_latency_ms_p95
+            hard_labels       True            1301.836                     0.869                    1.084
+         no_calibration      False                 n/a                     0.585                    0.750
+              no_regime       True            1123.505                     0.704                    0.891
+no_switching_controller      False                 n/a                     0.937                    1.234
+random_ambiguity_filter       True            1623.790                     0.914                    1.117
+          top5_features       True             896.877                     0.875                    1.079
+[E3 summary] wrote results\E3\e3_cost_summary.parquet
+=== rc=0 09:45:17 ===
+=== F4 e4 t_min START 09:45:17 ===
+[E4 t_min] T_min=0  on 50 shifts
+  sla_breach=0.0667  composite_cost=381.2740
+[E4 t_min] T_min=1  on 50 shifts
+  sla_breach=0.0667  composite_cost=381.2740
+[E4 t_min] T_min=2  on 50 shifts
+  sla_breach=0.0669  composite_cost=382.2650
+[E4 t_min] T_min=3  on 50 shifts
+  sla_breach=0.0671  composite_cost=382.7223
+[E4 t_min] T_min=4  on 50 shifts
+  sla_breach=0.0675  composite_cost=383.5517
+
+[E4 t_min] summary -> results\E4\t_min_summary.parquet
+=== rc=0 09:45:36 ===
+=== F5 e4 arrival_noise START 09:45:36 ===
+[E4 arrival_noise] x=0.5  (rate=0.825)
+  sla_breach=0.0033  composite_cost=7.4839
+[E4 arrival_noise] x=1.0  (rate=1.650)
+  sla_breach=0.0669  composite_cost=382.2650
+[E4 arrival_noise] x=1.5  (rate=2.475)
+  sla_breach=0.5684  composite_cost=17621.8456
+[E4 arrival_noise] x=2.0  (rate=3.300)
+  sla_breach=0.6727  composite_cost=45865.7058
+
+[E4 arrival_noise] summary -> results\E4\arrival_noise_summary.parquet
+=== rc=0 09:45:52 ===
+=== F6 e4 tau START 09:45:52 ===
+[E4 tau] tau=1  run_dir=runs\phase4_tau1
+  sla_breach=0.0651  composite_cost=388.9748
+[E4 tau] tau=2  run_dir=runs\phase4_tau2
+  sla_breach=0.0633  composite_cost=373.1591
+[E4 tau] tau=3  run_dir=runs\phase4_tau3
+  sla_breach=0.0637  composite_cost=374.2276
+[E4 tau] tau=4  run_dir=runs\phase4
+  sla_breach=0.0669  composite_cost=382.2650
+
+[E4 tau] summary -> results\E4\tau_summary.parquet
+=== rc=0 09:46:08 ===
+=== F7 e4 weights START 09:46:08 ===
+
+[E4 weights] w_breach: [1.0, 3.0, 6.0]  (nominal 3.0)
+  w_breach=1.0      ours           cost=  252.265  fail=0.0669
+  w_breach=1.0      rolling_mpc    cost=  240.799  fail=0.0632
+  w_breach=1.0      eedd           cost=  425.656  fail=0.0915
+  w_breach=1.0      edd            cost=  502.823  fail=0.0985
+  w_breach=3.0      ours           cost=  382.265  fail=0.0669
+  w_breach=3.0      rolling_mpc    cost=  363.424  fail=0.0624
+  w_breach=3.0      eedd           cost=  696.616  fail=0.0915
+  w_breach=3.0      edd            cost=  763.903  fail=0.0985
+  w_breach=6.0      ours           cost=  577.265  fail=0.0669
+  w_breach=6.0      rolling_mpc    cost=  541.193  fail=0.0622
+  w_breach=6.0      eedd           cost= 1103.056  fail=0.0915
+  w_breach=6.0      edd            cost= 1155.523  fail=0.0985
+
+[E4 weights] w_spoil: [1.0, 3.0, 5.0, 10.0]  (nominal 5.0)
+  w_spoil=1.0      ours           cost=  344.105  fail=0.0669
+  w_spoil=1.0      rolling_mpc    cost=  325.781  fail=0.0633
+  w_spoil=1.0      eedd           cost=  655.096  fail=0.0915
+  w_spoil=1.0      edd            cost=  647.343  fail=0.0985
+  w_spoil=3.0      ours           cost=  363.185  fail=0.0669
+  w_spoil=3.0      rolling_mpc    cost=  347.682  fail=0.0627
+  w_spoil=3.0      eedd           cost=  675.856  fail=0.0915
+  w_spoil=3.0      edd            cost=  705.623  fail=0.0985
+  w_spoil=5.0      ours           cost=  382.265  fail=0.0669
+  w_spoil=5.0      rolling_mpc    cost=  363.424  fail=0.0624
+  w_spoil=5.0      eedd           cost=  696.616  fail=0.0915
+  w_spoil=5.0      edd            cost=  763.903  fail=0.0985
+  w_spoil=10.0     ours           cost=  429.965  fail=0.0669
+  w_spoil=10.0     rolling_mpc    cost=  402.143  fail=0.0622
+  w_spoil=10.0     eedd           cost=  748.516  fail=0.0915
+  w_spoil=10.0     edd            cost=  909.603  fail=0.0985
+
+[E4 weights] w_tardy: [0.1, 0.2, 0.5]  (nominal 0.2)
+  w_tardy=0.1      ours           cost=  312.631  fail=0.0669
+  w_tardy=0.1      rolling_mpc    cost=  292.038  fail=0.0617
+  w_tardy=0.1      eedd           cost=  577.631  fail=0.0915
+  w_tardy=0.1      edd            cost=  650.765  fail=0.0985
+  w_tardy=0.2      ours           cost=  382.265  fail=0.0669
+  w_tardy=0.2      rolling_mpc    cost=  363.424  fail=0.0624
+  w_tardy=0.2      eedd           cost=  696.616  fail=0.0915
+  w_tardy=0.2      edd            cost=  763.903  fail=0.0985
+  w_tardy=0.5      ours           cost=  591.168  fail=0.0669
+  w_tardy=0.5      rolling_mpc    cost=  566.792  fail=0.0618
+  w_tardy=0.5      eedd           cost= 1053.570  fail=0.0915
+  w_tardy=0.5      edd            cost= 1103.317  fail=0.0985
+
+[E4 weights] w_holding: [0.0, 0.005, 0.05]  (nominal 0.005)
+  w_holding=0.0      ours           cost=  381.969  fail=0.0669
+  w_holding=0.0      rolling_mpc    cost=  363.003  fail=0.0625
+  w_holding=0.0      eedd           cost=  696.310  fail=0.0915
+  w_holding=0.0      edd            cost=  763.596  fail=0.0985
+  w_holding=0.005    ours           cost=  382.265  fail=0.0669
+  w_holding=0.005    rolling_mpc    cost=  363.424  fail=0.0624
+  w_holding=0.005    eedd           cost=  696.616  fail=0.0915
+  w_holding=0.005    edd            cost=  763.903  fail=0.0985
+  w_holding=0.05     ours           cost=  384.933  fail=0.0669
+  w_holding=0.05     rolling_mpc    cost=  366.720  fail=0.0626
+  w_holding=0.05     eedd           cost=  699.377  fail=0.0915
+  w_holding=0.05     edd            cost=  766.666  fail=0.0985
+
+[E4 weights] winner by cell (lowest composite cost):
+  w_breach=1.0      -> rolling_mpc
+  w_breach=3.0      -> rolling_mpc
+  w_breach=6.0      -> rolling_mpc
+  w_holding=0.0      -> rolling_mpc
+  w_holding=0.005    -> rolling_mpc
+  w_holding=0.05     -> rolling_mpc
+  w_spoil=1.0      -> rolling_mpc
+  w_spoil=3.0      -> rolling_mpc
+  w_spoil=5.0      -> rolling_mpc
+  w_spoil=10.0     -> rolling_mpc
+  w_tardy=0.1      -> rolling_mpc
+  w_tardy=0.2      -> rolling_mpc
+  w_tardy=0.5      -> rolling_mpc
+
+[E4 weights] RANKING INVARIANT: rolling_mpc wins all 13 cells. The conclusion does not depend on the objective weights over the swept ranges.
+[E4 weights] summary -> results\E4\weights_summary.parquet
+=== rc=0 09:56:12 ===
+=== F8 M-sweep re-eval START 09:56:12 ===
+F8_OK
+=== rc=0 09:56:29 ===
+=== F9 misspec run START 09:56:29 ===
+
+[misspec] arrival_rate_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=  16.615  fail=0.0040
+    rolling_mpc    cost=  16.355  fail=0.0039
+    offline_fqi    cost=  16.623  fail=0.0040
+    EEDD           cost=  16.610  fail=0.0040
+    COVERT         cost=  17.712  fail=0.0041
+
+[misspec] arrival_rate_scale=0.9   (5 methods x 50 shifts)
+    ours           cost=  19.412  fail=0.0043
+    rolling_mpc    cost=  18.876  fail=0.0041
+    offline_fqi    cost=  20.044  fail=0.0044
+    EEDD           cost=  19.412  fail=0.0043
+    COVERT         cost=  33.720  fail=0.0066
+
+[misspec] arrival_rate_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 382.265  fail=0.0669
+    rolling_mpc    cost= 363.424  fail=0.0624
+    offline_fqi    cost= 397.644  fail=0.0702
+    EEDD           cost= 696.616  fail=0.0915
+    COVERT         cost= 455.207  fail=0.0812
+
+[misspec] arrival_rate_scale=1.1   (5 methods x 50 shifts)
+    ours           cost=2474.267  fail=0.2948
+    rolling_mpc    cost=2409.720  fail=0.2819
+    offline_fqi    cost=2484.342  fail=0.2946
+    EEDD           cost=5295.527  fail=0.4682
+    COVERT         cost=2510.786  fail=0.3016
+
+[misspec] arrival_rate_scale=1.25   (5 methods x 50 shifts)
+    ours           cost=6609.857  fail=0.4422
+    rolling_mpc    cost=6536.621  fail=0.4326
+    offline_fqi    cost=6601.066  fail=0.4391
+    EEDD           cost=14376.637  fail=0.6782
+    COVERT         cost=6628.761  fail=0.4459
+
+[misspec] processing_time_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=   9.673  fail=0.0019
+    rolling_mpc    cost=   9.667  fail=0.0019
+    offline_fqi    cost=  10.074  fail=0.0019
+    EEDD           cost=   9.673  fail=0.0019
+    COVERT         cost=  11.198  fail=0.0021
+
+[misspec] processing_time_scale=0.9   (5 methods x 50 shifts)
+    ours           cost=  15.719  fail=0.0032
+    rolling_mpc    cost=  15.665  fail=0.0032
+    offline_fqi    cost=  16.099  fail=0.0032
+    EEDD           cost=  15.718  fail=0.0032
+    COVERT         cost=  27.141  fail=0.0050
+
+[misspec] processing_time_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 382.265  fail=0.0669
+    rolling_mpc    cost= 363.424  fail=0.0624
+    offline_fqi    cost= 397.644  fail=0.0702
+    EEDD           cost= 696.616  fail=0.0915
+    COVERT         cost= 455.207  fail=0.0812
+
+[misspec] processing_time_scale=1.1   (5 methods x 50 shifts)
+    ours           cost=2267.243  fail=0.2828
+    rolling_mpc    cost=2229.315  fail=0.2751
+    offline_fqi    cost=2317.886  fail=0.2857
+    EEDD           cost=4953.791  fail=0.4731
+    COVERT         cost=2293.978  fail=0.2898
+
+[misspec] processing_time_scale=1.25   (5 methods x 50 shifts)
+    ours           cost=5317.385  fail=0.4054
+    rolling_mpc    cost=5268.397  fail=0.4001
+    offline_fqi    cost=5453.860  fail=0.4176
+    EEDD           cost=11838.625  fail=0.6866
+    COVERT         cost=5327.643  fail=0.4105
+
+[misspec] sla_scale=0.8   (5 methods x 50 shifts)
+    ours           cost=1076.283  fail=0.1767
+    rolling_mpc    cost= 924.831  fail=0.1543
+    offline_fqi    cost=1023.260  fail=0.1820
+    EEDD           cost=1858.301  fail=0.2453
+    COVERT         cost=1019.605  fail=0.1833
+
+[misspec] sla_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 382.265  fail=0.0669
+    rolling_mpc    cost= 363.424  fail=0.0624
+    offline_fqi    cost= 397.644  fail=0.0702
+    EEDD           cost= 696.616  fail=0.0915
+    COVERT         cost= 455.207  fail=0.0812
+
+[misspec] sla_scale=1.25   (5 methods x 50 shifts)
+    ours           cost= 132.449  fail=0.0223
+    rolling_mpc    cost= 116.411  fail=0.0201
+    offline_fqi    cost= 145.389  fail=0.0249
+    EEDD           cost= 202.768  fail=0.0295
+    COVERT         cost= 204.243  fail=0.0330
+
+[misspec] shelf_life_scale=0.8   (5 methods x 50 shifts)
+    ours           cost= 429.008  fail=0.0717
+    rolling_mpc    cost= 408.653  fail=0.0672
+    offline_fqi    cost= 456.839  fail=0.0768
+    EEDD           cost= 763.462  fail=0.0997
+    COVERT         cost= 559.507  fail=0.0933
+
+[misspec] shelf_life_scale=1.0   (5 methods x 50 shifts)
+    ours           cost= 382.265  fail=0.0669
+    rolling_mpc    cost= 363.424  fail=0.0624
+    offline_fqi    cost= 397.644  fail=0.0702
+    EEDD           cost= 696.616  fail=0.0915
+    COVERT         cost= 455.207  fail=0.0812
+
+[misspec] shelf_life_scale=1.25   (5 methods x 50 shifts)
+    ours           cost= 352.078  fail=0.0624
+    rolling_mpc    cost= 340.354  fail=0.0600
+    offline_fqi    cost= 367.922  fail=0.0666
+    EEDD           cost= 659.982  fail=0.0883
+    COVERT         cost= 395.807  fail=0.0741
+
+[misspec] n_pickers_delta=-2   (5 methods x 50 shifts)
+    ours           cost=5329.316  fail=0.4458
+    rolling_mpc    cost=5238.923  fail=0.4323
+    offline_fqi    cost=5359.053  fail=0.4466
+    EEDD           cost=11584.883  fail=0.6807
+    COVERT         cost=5345.605  fail=0.4501
+
+[misspec] n_pickers_delta=-1   (5 methods x 50 shifts)
+    ours           cost=2505.125  fail=0.3100
+    rolling_mpc    cost=2446.128  fail=0.2985
+    offline_fqi    cost=2521.550  fail=0.3120
+    EEDD           cost=5411.905  fail=0.4963
+    COVERT         cost=2539.034  fail=0.3188
+
+[misspec] n_pickers_delta=0   (5 methods x 50 shifts)
+    ours           cost= 382.265  fail=0.0669
+    rolling_mpc    cost= 363.424  fail=0.0624
+    offline_fqi    cost= 397.644  fail=0.0702
+    EEDD           cost= 696.616  fail=0.0915
+    COVERT         cost= 455.207  fail=0.0812
+
+[misspec] n_pickers_delta=1   (5 methods x 50 shifts)
+    ours           cost=  20.047  fail=0.0040
+    rolling_mpc    cost=  20.502  fail=0.0041
+    offline_fqi    cost=  21.171  fail=0.0043
+    EEDD           cost=  20.047  fail=0.0040
+    COVERT         cost=  38.609  fail=0.0069
+
+[misspec] n_pickers_delta=2   (5 methods x 50 shifts)
+    ours           cost=  18.892  fail=0.0038
+    rolling_mpc    cost=  19.009  fail=0.0038
+    offline_fqi    cost=  19.637  fail=0.0039
+    EEDD           cost=  18.892  fail=0.0038
+    COVERT         cost=  21.464  fail=0.0041
+
+[misspec] wrote results\E10_misspecification/misspecification.parquet
+=== rc=0 10:13:17 ===
+=== F10 misspec summary START 10:13:17 ===
+                 axis      method  nominal_cost  worst_cost  relative_degradation_slope
+   arrival_rate_scale      COVERT      455.2074   6628.7612                     38.2231
+   arrival_rate_scale offline_fqi      397.6438   6601.0656                     44.1063
+   arrival_rate_scale        ours      382.2650   6609.8572                     46.1130
+   arrival_rate_scale rolling_mpc      363.4244   6536.6207                     48.1847
+   arrival_rate_scale        EEDD      696.6162  14376.6367                     55.7715
+      n_pickers_delta      COVERT      455.2074   5345.6046                     25.3564
+      n_pickers_delta offline_fqi      397.6438   5359.0526                     29.7937
+      n_pickers_delta        ours      382.2650   5329.3161                     30.9697
+      n_pickers_delta rolling_mpc      363.4244   5238.9235                     32.2027
+      n_pickers_delta        EEDD      696.6162  11584.8827                     37.7370
+processing_time_scale      COVERT      455.2074   5327.6426                     29.5580
+processing_time_scale offline_fqi      397.6438   5453.8601                     35.3037
+processing_time_scale        ours      382.2650   5317.3851                     35.8376
+processing_time_scale rolling_mpc      363.4244   5268.3974                     37.5297
+processing_time_scale        EEDD      696.6162  11838.6247                     44.6393
+     shelf_life_scale        ours      382.2650    429.0081                     -0.0509
+     shelf_life_scale      COVERT      455.2074    559.5074                     -0.0455
+     shelf_life_scale        EEDD      696.6162    763.4618                     -0.0132
+     shelf_life_scale rolling_mpc      363.4244    408.6530                     -0.0036
+     shelf_life_scale offline_fqi      397.6438    456.8389                     -0.0009
+            sla_scale      COVERT      455.2074   1019.6052                      0.1960
+            sla_scale rolling_mpc      363.4244    924.8308                      0.2649
+            sla_scale        EEDD      696.6162   1858.3014                      0.3568
+            sla_scale offline_fqi      397.6438   1023.2600                      0.4351
+            sla_scale        ours      382.2650   1076.2829                      0.7264
+
+[misspec] most robust: COVERT   least robust: EEDD
+=== rc=0 10:13:18 ===
+=== F11 saturation trace START 10:13:18 ===
+[saturation] low_load           eff.rules=1.01  switch=0.001  blocked=0.000
+[saturation] balanced           eff.rules=1.03  switch=0.006  blocked=0.000
+[saturation] default            eff.rules=1.61  switch=0.039  blocked=0.008
+[saturation] high_load_perish   eff.rules=1.58  switch=0.031  blocked=0.001
+
+        scenario  selection_entropy_effective_rules  switch_rate  blocked_switch_rate  gate_open_rate  share_EEDD  share_COVERT  share_MS  share_ATC  share_MDD  share_EDD  composite_cost  service_failure_rate  picker_utilization  n_epochs
+        low_load                             1.0052       0.0006               0.0000          0.9306      0.9994        0.0000    0.0006     0.0000     0.0000     0.0000          9.8204                0.0033              0.6139      1600
+        balanced                             1.0339       0.0056               0.0000          0.9525      0.9950        0.0044    0.0000     0.0006     0.0000     0.0000         17.7274                0.0037              0.9094      1600
+         default                             1.6103       0.0394               0.0081          0.9294      0.8488        0.1375    0.0119     0.0019     0.0000     0.0000        382.2650                0.0669              0.9558      1600
+high_load_perish                             1.5838       0.0312               0.0006          0.9631      0.1725        0.8275    0.0000     0.0000     0.0000     0.0000      11429.7653                0.5425              0.9683      1600
+
+  selection entropy low_load -> high_load_perish: 1.01 -> 1.58
+  blocked-switch rate low_load -> high_load_perish: 0.000 -> 0.001
+  A rising blocked-switch rate under load is direct evidence that the dwell is preventing timely adaptation; a falling selection entropy means the selector is collapsing onto one rule.
+=== rc=0 10:13:31 ===
+=== F12 saturation dwell START 10:13:31 ===
+  t_min=0  cost=11429.848  fail=0.5425  switch=0.033  blocked=0.000
+  t_min=1  cost=11429.848  fail=0.5425  switch=0.033  blocked=0.000
+  t_min=2  cost=11429.765  fail=0.5425  switch=0.031  blocked=0.001
+  t_min=3  cost=11429.765  fail=0.5425  switch=0.031  blocked=0.001
+  t_min=4  cost=11432.155  fail=0.5425  switch=0.031  blocked=0.001
+
+[saturation] best t_min in high_load_perish: 2 (deployed 2)
+=== rc=0 10:13:49 ===
+=== F13 olist eval START 10:13:49 ===
+usage: a2_olist_arrivals.py [-h] {eval,summary} ...
+a2_olist_arrivals.py: error: unrecognized arguments: --n-jobs -1
+=== rc=2 10:13:50 ===
+FAILED
+=== F13 olist eval (no --n-jobs; unsupported) START 10:14:21 ===
+
+[A2] arrival_mode = poisson  (n_test=50)
+  ours... OK
+  greedy_mpc... OK
+  snapshot_xgb... OK
+  eedd... OK
+
+[A2] arrival_mode = olist  (n_test=50)
+  ours... OK
+  greedy_mpc... OK
+  snapshot_xgb... OK
+  eedd... OK
+
+[A2] summary written to results\A2\olist_arrivals_summary.parquet
+=== rc=0 10:29:17 ===
+=== F14 olist summary START 10:29:17 ===
+
+[A2] Olist-arrival robustness -- poisson vs olist
+======================================================================================
+
+SERVICE_FAILURE_RATE  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours            0.0669 [0.0440,0.0930] #3  0.2038 [0.1597,0.2488] #3     +0.1369
+  greedy_mpc      0.0590 [0.0373,0.0839] #1  0.1940 [0.1506,0.2386] #1     +0.1350
+  snapshot_xgb    0.0651 [0.0421,0.0914] #2  0.2026 [0.1586,0.2475] #2     +0.1374
+  eedd            0.0915 [0.0548,0.1342] #4  0.3123 [0.2406,0.3856] #4     +0.2208
+  best: poisson=greedy_mpc  olist=greedy_mpc   [RANK SHIFT -> greedy_mpc]
+
+COMPOSITE_COST  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours           382.2650 [233.3177,556.1259] #2 1815.6693 [1298.6912,2380.3696] #2  +1433.4042
+  greedy_mpc     356.9822 [208.7409,529.9772] #1 1783.7404 [1265.6490,2353.4856] #1  +1426.7581
+  snapshot_xgb   388.9748 [236.3348,567.7152] #3 1839.5837 [1314.7635,2413.9561] #3  +1450.6089
+  eedd           696.6162 [376.8531,1076.7168] #4 3807.1486 [2651.2292,5061.8039] #4  +3110.5324
+  best: poisson=greedy_mpc  olist=greedy_mpc   [RANK SHIFT -> greedy_mpc]
+
+MEAN_TARDINESS  (lower is better)
+--------------------------------------------------------------------------------------
+  method                        poisson                  olist        delta
+  ours            0.7536 [0.3728,1.2156] #3  5.5058 [3.7167,7.4795] #3     +4.7522
+  greedy_mpc      0.7050 [0.3278,1.1597] #1  5.4820 [3.6752,7.4709] #2     +4.7769
+  snapshot_xgb    0.7136 [0.3386,1.1691] #2  5.4775 [3.6702,7.4575] #1     +4.7638
+  eedd            0.7628 [0.3322,1.2930] #4  6.5596 [4.2921,9.0568] #4     +5.7968
+  best: poisson=greedy_mpc  olist=snapshot_xgb   [RANK SHIFT -> snapshot_xgb]
+
+[A2] figure -> figures\A2/olist_arrivals_compare.png
+=== rc=0 10:29:19 ===
+=== F15 data-efficiency re-eval START 10:29:19 ===
+ours_n100_rep0 386.24279354513624
+ours_n100_rep1 381.4334955953511
+ours_n100_rep2 383.98626844659503
+ours_n100_rep3 386.6022100675499
+ours_n100_rep4 381.1294105583747
+ours_n150_rep0 381.8178238735687
+ours_n150_rep1 382.72357678721846
+ours_n150_rep2 382.64502281126164
+ours_n150_rep3 383.37426678762824
+ours_n150_rep4 383.43408531355993
+ours_n250_rep0 382.26504001668735
+ours_n25_rep0 696.6162003708533
+ours_n25_rep1 386.26908776849507
+ours_n25_rep2 379.80039513146534
+ours_n25_rep3 397.7019096845654
+ours_n25_rep4 385.4502121222558
+ours_n50_rep0 384.16146251490574
+ours_n50_rep1 383.8525485844412
+ours_n50_rep2 382.18827088360763
+ours_n50_rep3 384.6537166674483
+ours_n50_rep4 382.4244548449736
+F15_OK
+=== rc=0 10:30:05 ===
+=== F16 fig data efficiency START 10:30:05 ===
+[fig] wrote figures\data_efficiency/data_efficiency_curve.{png,pdf}
+=== rc=0 10:30:06 ===
+F_DONE

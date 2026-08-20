@@ -1,0 +1,280 @@
+=== E8 EVAL START 09:28:19 ===
+
+[E8 grid] cell 1/12: arr1.40_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 2/12: arr1.40_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 3/12: arr1.40_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 4/12: arr1.50_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 5/12: arr1.50_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 6/12: arr1.50_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 7/12: arr1.65_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 8/12: arr1.65_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 9/12: arr1.65_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 10/12: arr1.80_tight
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 11/12: arr1.80_default
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+[E8 grid] cell 12/12: arr1.80_loose
+  ours... OK  greedy_mpc... OK  snapshot_xgb... OK  eedd... OK  covert... OK
+
+[E8 grid] summary written to results\E8\robustness_grid_summary.parquet
+=== E8 EVAL rc=0 09:36:56 ===
+
+[E8 grid] Robustness Grid Summary
+====================================================================================================
+
+SERVICE_FAILURE_RATE
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours              0.0411 [  0.0380,   0.0449]
+      greedy_mpc        0.0392 [  0.0364,   0.0424]
+      snapshot_xgb      0.0407 [  0.0377,   0.0444]
+      eedd              0.0407 [  0.0376,   0.0443]
+      covert            0.0523 [  0.0477,   0.0577]
+    arrival_rate=1.5
+      ours              0.0878 [  0.0602,   0.1227]
+      greedy_mpc        0.0691 [  0.0518,   0.0905]
+      snapshot_xgb      0.0883 [  0.0597,   0.1244]
+      eedd              0.0882 [  0.0597,   0.1244]
+      covert            0.0957 [  0.0773,   0.1176]
+    arrival_rate=1.65
+      ours              0.3455 [  0.2984,   0.3916]
+      greedy_mpc        0.2553 [  0.2214,   0.2895]
+      snapshot_xgb      0.3720 [  0.3197,   0.4237]
+      eedd              0.4144 [  0.3529,   0.4775]
+      covert            0.2860 [  0.2562,   0.3158]
+    arrival_rate=1.8
+      ours              0.4756 [  0.4584,   0.4920]
+      greedy_mpc        0.4214 [  0.4057,   0.4364]
+      snapshot_xgb      0.5136 [  0.4971,   0.5299]
+      eedd              0.6973 [  0.6681,   0.7254]
+      covert            0.4354 [  0.4212,   0.4489]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours              0.0040 [  0.0033,   0.0048]
+      greedy_mpc        0.0041 [  0.0034,   0.0048]
+      snapshot_xgb      0.0044 [  0.0036,   0.0052]
+      eedd              0.0040 [  0.0033,   0.0048]
+      covert            0.0047 [  0.0039,   0.0056]
+    arrival_rate=1.5
+      ours              0.0037 [  0.0032,   0.0043]
+      greedy_mpc        0.0038 [  0.0033,   0.0044]
+      snapshot_xgb      0.0043 [  0.0037,   0.0050]
+      eedd              0.0037 [  0.0031,   0.0043]
+      covert            0.0071 [  0.0058,   0.0086]
+    arrival_rate=1.65 [TUNED]
+      ours              0.0669 [  0.0440,   0.0930]
+      greedy_mpc        0.0590 [  0.0373,   0.0839]
+      snapshot_xgb      0.0651 [  0.0421,   0.0914]
+      eedd              0.0915 [  0.0548,   0.1342]
+      covert            0.0812 [  0.0579,   0.1072]
+    arrival_rate=1.8
+      ours              0.2800 [  0.2567,   0.3028]
+      greedy_mpc        0.2699 [  0.2463,   0.2934]
+      snapshot_xgb      0.2787 [  0.2550,   0.3019]
+      eedd              0.4400 [  0.3991,   0.4798]
+      covert            0.2871 [  0.2643,   0.3093]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              0.0004 [  0.0002,   0.0006]
+      greedy_mpc        0.0003 [  0.0001,   0.0005]
+      snapshot_xgb      0.0004 [  0.0002,   0.0006]
+      eedd              0.0003 [  0.0001,   0.0005]
+      covert            0.0006 [  0.0003,   0.0009]
+    arrival_rate=1.5
+      ours              0.0002 [  0.0000,   0.0004]
+      greedy_mpc        0.0003 [  0.0001,   0.0005]
+      snapshot_xgb      0.0002 [  0.0001,   0.0004]
+      eedd              0.0002 [  0.0000,   0.0004]
+      covert            0.0018 [  0.0011,   0.0026]
+    arrival_rate=1.65
+      ours              0.0177 [  0.0062,   0.0321]
+      greedy_mpc        0.0119 [  0.0034,   0.0227]
+      snapshot_xgb      0.0164 [  0.0053,   0.0305]
+      eedd              0.0194 [  0.0045,   0.0383]
+      covert            0.0264 [  0.0161,   0.0391]
+    arrival_rate=1.8
+      ours              0.1521 [  0.1260,   0.1784]
+      greedy_mpc        0.1305 [  0.1045,   0.1576]
+      snapshot_xgb      0.1534 [  0.1242,   0.1826]
+      eedd              0.2097 [  0.1673,   0.2538]
+      covert            0.1556 [  0.1309,   0.1809]
+
+COMPOSITE_COST
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours            184.4968 [168.7907, 201.8589]
+      greedy_mpc      175.9605 [162.0991, 190.7930]
+      snapshot_xgb    183.3144 [167.7220, 200.6711]
+      eedd            183.1245 [167.5185, 200.4486]
+      covert          213.0017 [195.2061, 232.9992]
+    arrival_rate=1.5
+      ours            444.1091 [291.5725, 640.9243]
+      greedy_mpc      325.6461 [243.8886, 429.1206]
+      snapshot_xgb    453.1840 [291.9388, 660.9552]
+      eedd            452.9584 [291.8360, 660.9495]
+      covert          405.3162 [321.7470, 507.8004]
+    arrival_rate=1.65
+      ours            2243.5879 [1891.8181, 2609.0868]
+      greedy_mpc      1569.9896 [1290.9215, 1865.8573]
+      snapshot_xgb    2533.4139 [2118.7140, 2961.8979]
+      eedd            3229.9559 [2571.9181, 3940.9967]
+      covert          1655.7467 [1392.0334, 1937.9651]
+    arrival_rate=1.8
+      ours            4456.2959 [4145.3072, 4780.4863]
+      greedy_mpc      3975.6336 [3651.5144, 4318.5491]
+      snapshot_xgb    4874.2985 [4574.4861, 5189.9017]
+      eedd            8975.9188 [8173.3823, 9813.3086]
+      covert          4012.1102 [3691.4860, 4351.3740]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours             16.9402 [ 13.5545,  20.7054]
+      greedy_mpc       16.9807 [ 13.7091,  20.7408]
+      snapshot_xgb     17.9385 [ 14.5798,  21.6916]
+      eedd             16.9295 [ 13.5495,  20.7015]
+      covert           19.8106 [ 15.9610,  24.1035]
+    arrival_rate=1.5
+      ours             17.7274 [ 14.8258,  20.6718]
+      greedy_mpc       17.9179 [ 15.0602,  20.8053]
+      snapshot_xgb     19.6688 [ 16.4035,  23.0037]
+      eedd             17.6237 [ 14.7281,  20.5511]
+      covert           35.5528 [ 27.4992,  45.1212]
+    arrival_rate=1.65 [TUNED]
+      ours            382.2650 [233.3177, 556.1259]
+      greedy_mpc      356.9822 [208.7409, 529.9772]
+      snapshot_xgb    388.9748 [236.3348, 567.7152]
+      eedd            696.6162 [376.8531, 1076.7168]
+      covert          455.2074 [305.2470, 628.2202]
+    arrival_rate=1.8
+      ours            2247.6513 [1960.6060, 2555.3815]
+      greedy_mpc      2216.8091 [1929.3954, 2526.5396]
+      snapshot_xgb    2279.5436 [1993.4102, 2588.6242]
+      eedd            4757.0622 [4078.9366, 5481.4847]
+      covert          2284.9641 [1999.5172, 2590.2917]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              1.5410 [  0.7903,   2.4392]
+      greedy_mpc        1.3561 [  0.6618,   2.2073]
+      snapshot_xgb      1.8410 [  0.9991,   2.8075]
+      eedd              1.3409 [  0.6581,   2.1775]
+      covert            2.9349 [  1.5157,   4.7433]
+    arrival_rate=1.5
+      ours              0.8377 [  0.3288,   1.4543]
+      greedy_mpc        1.6077 [  0.6930,   2.7411]
+      snapshot_xgb      1.4385 [  0.5636,   2.5484]
+      eedd              0.7380 [  0.2601,   1.3397]
+      covert           12.6376 [  7.5510,  18.7274]
+    arrival_rate=1.65
+      ours            105.2830 [ 37.5956, 190.8102]
+      greedy_mpc       67.8332 [ 19.7506, 128.3001]
+      snapshot_xgb     95.5546 [ 30.2564, 177.3587]
+      eedd            122.4410 [ 24.5880, 244.1963]
+      covert          163.4103 [105.0349, 234.6326]
+    arrival_rate=1.8
+      ours            1151.0475 [923.7846, 1395.0620]
+      greedy_mpc      976.7259 [746.3968, 1225.5461]
+      snapshot_xgb    1160.3399 [903.2553, 1430.8505]
+      eedd            1965.2463 [1480.7252, 2494.0097]
+      covert          1148.8323 [928.9291, 1389.1856]
+
+MEAN_TARDINESS
+----------------------------------------------------------------------------------------------------
+
+  SLA Tightness = tight
+    arrival_rate=1.4
+      ours              0.1296 [  0.1183,   0.1414]
+      greedy_mpc        0.1280 [  0.1159,   0.1415]
+      snapshot_xgb      0.1272 [  0.1161,   0.1390]
+      eedd              0.1271 [  0.1160,   0.1390]
+      covert            0.1846 [  0.1629,   0.2114]
+    arrival_rate=1.5
+      ours              0.3297 [  0.1804,   0.5258]
+      greedy_mpc        0.3752 [  0.2014,   0.6016]
+      snapshot_xgb      0.3274 [  0.1780,   0.5223]
+      eedd              0.3274 [  0.1780,   0.5222]
+      covert            0.5031 [  0.3217,   0.7369]
+    arrival_rate=1.65
+      ours              3.8483 [  2.8599,   4.9487]
+      greedy_mpc        3.9448 [  2.9785,   5.0120]
+      snapshot_xgb      3.9418 [  2.9259,   5.0812]
+      eedd              4.3180 [  3.1235,   5.6712]
+      covert            4.1103 [  3.1709,   5.1541]
+    arrival_rate=1.8
+      ours             13.1546 [ 11.7497,  14.6325]
+      greedy_mpc       12.9986 [ 11.6150,  14.4542]
+      snapshot_xgb     13.3882 [ 11.9780,  14.8762]
+      eedd             16.2422 [ 14.3874,  18.2142]
+      covert           13.0474 [ 11.6787,  14.4894]
+
+  SLA Tightness = default
+    arrival_rate=1.4
+      ours              0.0086 [  0.0065,   0.0109]
+      greedy_mpc        0.0086 [  0.0065,   0.0109]
+      snapshot_xgb      0.0089 [  0.0068,   0.0111]
+      eedd              0.0085 [  0.0065,   0.0109]
+      covert            0.0094 [  0.0073,   0.0118]
+    arrival_rate=1.5
+      ours              0.0079 [  0.0062,   0.0098]
+      greedy_mpc        0.0081 [  0.0064,   0.0100]
+      snapshot_xgb      0.0091 [  0.0072,   0.0111]
+      eedd              0.0079 [  0.0062,   0.0098]
+      covert            0.0100 [  0.0082,   0.0119]
+    arrival_rate=1.65 [TUNED]
+      ours              0.7536 [  0.3728,   1.2156]
+      greedy_mpc        0.7050 [  0.3278,   1.1597]
+      snapshot_xgb      0.7136 [  0.3386,   1.1691]
+      eedd              0.7628 [  0.3322,   1.2930]
+      covert            0.7883 [  0.4090,   1.2475]
+    arrival_rate=1.8
+      ours              6.0232 [  4.9771,   7.1647]
+      greedy_mpc        5.9825 [  4.9349,   7.1246]
+      snapshot_xgb      5.9561 [  4.8999,   7.1099]
+      eedd              7.0594 [  5.7006,   8.5263]
+      covert            6.0385 [  4.9980,   7.1829]
+
+  SLA Tightness = loose
+    arrival_rate=1.4
+      ours              0.0003 [  0.0001,   0.0006]
+      greedy_mpc        0.0004 [  0.0001,   0.0007]
+      snapshot_xgb      0.0003 [  0.0001,   0.0006]
+      eedd              0.0003 [  0.0001,   0.0006]
+      covert            0.0003 [  0.0001,   0.0006]
+    arrival_rate=1.5
+      ours              0.0001 [  0.0000,   0.0003]
+      greedy_mpc        0.0002 [  0.0000,   0.0003]
+      snapshot_xgb      0.0001 [  0.0000,   0.0003]
+      eedd              0.0001 [  0.0000,   0.0003]
+      covert            0.0001 [  0.0000,   0.0003]
+    arrival_rate=1.65
+      ours              0.0815 [  0.0077,   0.1738]
+      greedy_mpc        0.0765 [  0.0095,   0.1605]
+      snapshot_xgb      0.0988 [  0.0122,   0.2091]
+      eedd              0.0814 [  0.0093,   0.1714]
+      covert            0.0904 [  0.0164,   0.1827]
+    arrival_rate=1.8
+      ours              1.9929 [  1.3977,   2.6733]
+      greedy_mpc        1.9745 [  1.3723,   2.6674]
+      snapshot_xgb      2.1389 [  1.5201,   2.8424]
+      eedd              2.3245 [  1.5863,   3.1743]
+      covert            1.9936 [  1.3957,   2.6778]
+
+[E8 grid] heatmaps written to figures\E8/
+[E8 grid] summary parquet -> results\E8\robustness_grid_summary.parquet
+=== E8 SUMMARY rc=0 09:36:59 ===
+C_DONE

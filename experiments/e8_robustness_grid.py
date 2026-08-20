@@ -67,7 +67,7 @@ SLA_TIGHTNESS_LEVELS = {
 # `eedd`, not `fefo`: the Stage-1 screen (Section 6.1) found FEFO earns zero
 # marginal contribution and dropped it, while EEDD wins 65% of decisions. The
 # grid has to compare against the static rule that is actually hard to beat.
-METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "eedd"]
+METHODS = ["ours", "greedy_mpc", "snapshot_xgb", "eedd", "covert"]
 
 
 def _config_cell_id(arrival_rate: float, sla_tight_key: str) -> str:

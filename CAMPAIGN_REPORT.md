@@ -543,3 +543,150 @@ metrics (arg-max agreement, soft cross-entropy on retained rows), not in KPIs.
 **Section C — theta sweep.** Optional per the prompt. On the training times measured here
 (~35 min per arm, flat in the knob) four arms would cost roughly **4 h**, less than the
 6 h the prompt budgets. Nothing else in the report depends on it.
+
+---
+
+## Completeness-eval addendum
+
+Run on `C:\CAOR` (i9, not OneDrive), Python 3.12.10, from `f447296`.
+Gate before A: preflight PASSED, `tests/test_simulation.py tests/test_phase6.py`
+23 passed, config print `['EEDD','COVERT','MS','ATC','MDD','EDD'] 3.0 4.0`.
+`sim.terminal_admit` was flipped to **true** in A and is left true.
+
+### Wall-clock
+
+| Step | Work | Wall-clock |
+|---|---|---:|
+| A | 16 Table-6 methods re-evaluated + `stats --scenario default` | ~2 min |
+| A2 | 3 scenarios x (eval + stats) | ~6 min |
+| B | Always-ATC standalone k=1.5 | <1 min |
+| C | E8 12-cell grid, 5 methods | ~9 min |
+| D | teachers at M=20 | ~6 min |
+| E | 12 PPO cells scored on calib + winner on test | ~1 min |
+| F | E3 inference + 4 ablation evals + summary; 4 E4 sweeps; M-sweep re-eval; misspecification; saturation; Olist; data-efficiency | ~76 min |
+| G | `compute_budget latency` | <1 min |
+
+### New mean arrived
+
+**791.18**, up from 767, against the Poisson mean `1.65*480 = 792`.
+All 16 methods share the count per seed.
+
+### ATC k=1.5 vs k=3.0
+
+Standalone Always-ATC at `k=1.5` costs **J=526.99**; the portfolio scale
+`k=3.0` costs **560.76**. Refitting k recovers 33.8 of composite cost and
+leaves ATC far above DAHS (382.27). `config.yaml` was not mutated: the overlay
+was in-memory, and the gate still prints `3.0 4.0`.
+
+### E8 cell winners including COVERT
+
+`greedy_mpc` 8/12, `eedd` 4/12 (all four are the light-load default/loose
+cells). **DAHS wins 0/12** among the original four -- the submitted sentence
+stands -- and **Always-COVERT also wins 0/12**, so adding it does not change
+the tally.
+
+Cell wins are winner-take-all, so regret against each cell's own winner is
+reported alongside: DAHS mean **17.2%** (worst 55.2%), EEDD mean **55.5%**
+(worst 125.8%). EEDD's four wins are cells where every method is within noise
+of a near-zero cost, and it degrades >95% in each of the four heaviest cells.
+
+### Teachers at M=20 vs M=5
+
+| Teacher | M=5 | M=20 | delta |
+|---|---:|---:|---:|
+| greedy_mpc | 356.9822 | 356.9822 | 0.0000 |
+| rolling_mpc | 363.4244 | 363.7608 | +0.3363 |
+
+`greedy_mpc` is bit-identical on all 50 shifts and every metric: it is the
+tau=1 special case, and at a one-interval horizon the committed cost does not
+depend on the sampled continuation, so it is invariant to M. `rolling_mpc`
+differs on 49/50 shifts and gets marginally *worse*. Quadrupling the teacher
+sample budget does not close the teacher-student gap, so that gap is not an
+artefact of under-sampling the teachers. `config.yaml` keeps `n_samples: 5`.
+
+### PPO selected on calibration
+
+Winner **`norm(obs=True,rew=True)`**, calibration cost 393.37, test cost
+**450.45**. Against Table 6's untuned `ppo_fair` (611.77) and DAHS (382.27),
+`gap_closed_fraction_vs_ppo_fair = 0.703`. Written to
+`results/E11_rl_sensitivity/ppo_calib_select.json`. No tag needed retraining --
+all 12 zips were present. Table 6 keeps the untuned `ppo_fair` row.
+
+Nine of the twelve cells score *identically* on calibration (587.358313585243):
+gamma, GAE lambda, `n_steps=32` and both entropy coefficients are
+indistinguishable from baseline. Only the three normalisation variants move.
+The 70% gap closure comes entirely from observation/reward normalisation, not
+from RL hyperparameters.
+
+### Table 7 and the high_load_perish WSPT claim
+
+WSPT still leads high_load_perish at **11171.3**; the paired difference against
+DAHS is **-258.4, CI [-332, -187]**, BH-reject -- unchanged from the submitted
+value. Always-ATC is also cheaper there (11379.8). Under balanced, EEDD is
+cheaper by 0.10 with a null interval [-0.31, 0.00]. Under low load thirteen
+methods tie at **9.82**.
+
+### latency.json
+
+| Method | Mean (ms) | p95 (ms) | Wall-clock s/shift |
+|---|---:|---:|---:|
+| DAHS | 4.24 | 4.25 | 0.163 |
+| rolling_mpc | 670.25 | 941.36 | 21.47 |
+| greedy_mpc | 594.13 | 859.34 | 19.04 |
+
+DAHS is **158x** faster per decision than `rolling_mpc` and **140x** faster
+than `greedy_mpc`. The submitted 176x/161x figures are superseded and were
+corrected throughout the manuscript.
+
+### Audit / build_submission
+
+`scripts/audit_reviewer_items.py` -> 40 reviewer items checked, **ALL CHECKS
+PASS**. `scripts/build_submission.py --check` -> **READY**, no blocking
+problems. (pandoc and LaTeX are not on PATH on this machine, so the PDF
+conversion path is unavailable; that is a warning, not a gate failure.)
+
+### Defects found in RUN_PROMPT.md, and three artifacts it did not refresh
+
+1. **`a2_olist_arrivals eval --n-jobs -1` is not a valid invocation.** That
+   subcommand accepts only `--n-test`, `--run-dir`, `--mode-only`. Step F13
+   aborted with `rc=2` before computing anything; it was re-run without the
+   flag. The prompt line should drop `--n-jobs`.
+
+2. **`results/E11_rl_sensitivity/per_config/ppo_*.parquet` were pre-A**
+   (`arrived=767`) yet feed Table 12. Step F's own stated rationale -- that any
+   manuscript-cited eval would otherwise contradict the new `|A|` -- covers
+   them, but they were not on F's list. All 12 were re-scored on test
+   (`arrived=791.18`). Selection integrity is preserved: the winner was chosen
+   on the calibration corpus in E, so this only refreshes reported numbers.
+
+3. **`results/E4/n_samples_summary.parquet` was pre-A** (Aug 19) while
+   `tau_summary.parquet` was fresh. F8 re-evaluates the M rankers into
+   `results/E4/n_samples/M_*/` but never regenerates the summary that Table 10
+   and Figure 5 cite. It was rebuilt from the fresh per-M parquets using the
+   pipeline's own `_bootstrap_summary` (seed 1337, 10,000 resamples) with no
+   relabelling, and the three E4 n_samples figures were redrawn.
+
+4. **`results/E3/random_ambiguity_filter.parquet` was pre-A** (`arrived=767`,
+   `J=381.42` -- the *old* DAHS value) and was the only stale E3 arm. It is a
+   retrain arm, so F1's `inference` pass did not touch it and F2's mapping
+   omitted it. This mattered: the BH family is all eight arms, and the stale
+   arm produced a spurious `p_raw=7.5e-10` rejection that inflated the
+   correction for every other arm, so Table 11's `p_adj` column was wrong and
+   the manuscript's claim that *no* ablation rejects was false. After
+   re-evaluating the frozen ranker (eval only, no retraining) the arm returns
+   `J=382.265040` -- bit-identical to DAHS, as the text claims -- and no
+   ablation rejects.
+
+### Known residual: FQI data-efficiency is still pre-A
+
+`results/E9/data_efficiency_offline_fqi.parquet` (Aug 19) is the source of
+Table 8's note (`mean J: 580, 483, 456, 412, 397`) and of the Figure in
+Section 6.10. It is **not refreshed**. `e9_offline_fqi.cmd_data_efficiency`
+retrains an FQI policy at each budget/rep and does not persist the models, so
+it cannot be refreshed eval-only, and RUN_PROMPT.md forbids retraining. The 21
+FQI fits were therefore not run. The cited FQI budget curve remains on the
+old `|A|=767` basis while every other number in the paper is on 791.18.
+
+`results/E9/robustness_grid/` is likewise pre-A but feeds no manuscript number
+or figure (only `figures/E9/data_efficiency_offline_fqi.png` and
+`results/E9/hp_winner.json` are cited), so it was left alone.

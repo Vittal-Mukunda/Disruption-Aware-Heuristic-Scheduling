@@ -1,0 +1,58 @@
+{
+  "best_tag": "norm(obs=True,rew=True)",
+  "calib_cost": 393.36771552208086,
+  "test_cost": 450.44948233208515,
+  "ppo_fair_test_cost": 611.7738646669486,
+  "dahs_test_cost": 382.26504001668735,
+  "gap_closed_fraction_vs_ppo_fair": 0.7029114570243599,
+  "calib_rows": [
+    {
+      "tag": "baseline",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gamma=0.9",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gamma=1.0",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gae_lambda=0.9",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "gae_lambda=0.99",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "n_steps=32",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "n_steps=256",
+      "calib_J": 584.8794342622215
+    },
+    {
+      "tag": "ent_coef=0.01",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "ent_coef=0.05",
+      "calib_J": 587.358313585243
+    },
+    {
+      "tag": "norm(obs=True,rew=True)",
+      "calib_J": 393.36771552208086
+    },
+    {
+      "tag": "norm(obs=True,rew=False)",
+      "calib_J": 467.61266571280447
+    },
+    {
+      "tag": "norm(obs=False,rew=True)",
+      "calib_J": 648.5480397937332
+    }
+  ]
+}
